@@ -7,11 +7,102 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import ttk
 import math
+import time
 
 from pokeredus.gui.theme import *
 from pokeredus.graph.knowledge_graph import KnowledgeGraph
 from pokeredus.graph.matchup_cache import MatchupCache
 
+
+# ═══════════════════════════════════════════════════════════════════════
+# CACHE PROGRESS DIALOG
+# ═══════════════════════════════════════════════════════════════════════
+
+class CacheProgressDialog(tk.Toplevel):
+    """Modal dialog showing cache build / rebuild progress."""
+
+    def __init__(self, parent, title="Building Matchup Cache"):
+        super().__init__(parent)
+        self.title(title)
+        self.configure(bg=BG_DARK)
+        self.geometry("420x180")
+        self.resizable(False, False)
+        self.transient(parent)
+        self.grab_set()
+
+        # Prevent close via X button
+        self.protocol("WM_DELETE_WINDOW", lambda: None)
+
+        self._build_ui()
+        self._start_time = time.monotonic()
+
+    def _build_ui(self):
+        inner = tk.Frame(self, bg=BG_DARK, padx=24, pady=20)
+        inner.pack(fill="both", expand=True)
+
+        # Status label
+        self._status_var = tk.StringVar(value="Initializing...")
+        tk.Label(inner, textvariable=self._status_var,
+                 font=FONT_BODY, fg=FG_PRIMARY, bg=BG_DARK).pack(anchor="w")
+
+        # Progress bar
+        self._progress = ttk.Progressbar(
+            inner, orient="horizontal", length=370, mode="determinate",
+            style="Neon.Horizontal.TProgressbar",
+        )
+        self._progress.pack(fill="x", pady=(8, 4))
+
+        # Detail label (pair count, elapsed time)
+        self._detail_var = tk.StringVar(value="")
+        tk.Label(inner, textvariable=self._detail_var,
+                 font=FONT_SMALL, fg=FG_SECONDARY, bg=BG_DARK).pack(anchor="w")
+
+        # Cache size label
+        self._size_var = tk.StringVar(value="")
+        tk.Label(inner, textvariable=self._size_var,
+                 font=FONT_SMALL, fg=FG_DIM, bg=BG_DARK).pack(anchor="w", pady=(4, 0))
+
+    def update_progress(self, done: int, total: int):
+        """Called per matchup pair to update the display."""
+        pct = int(done / max(total, 1) * 100)
+        self._progress["value"] = pct
+        self._status_var.set(f"Computing matchups... {pct}%")
+        self._detail_var.set(f"{done:,} / {total:,} pairs")
+        self.update_idletasks()
+
+    def set_loading(self, entry_count: int):
+        """Shown when loading from disk (fast)."""
+        self._status_var.set(f"Loading cache ({entry_count:,} entries)...")
+        self._progress["value"] = 100
+        self.update_idletasks()
+
+    def set_saving(self):
+        """Shown while writing cache to disk."""
+        self._status_var.set("Saving cache to disk...")
+        self._detail_var.set("")
+        self.update_idletasks()
+
+    def set_done(self, entry_count: int, cache_size_str: str):
+        """Called when cache is ready."""
+        elapsed = time.monotonic() - self._start_time
+        self._progress["value"] = 100
+        self._status_var.set(f"Cache ready — {entry_count:,} matchups")
+        self._detail_var.set(f"Built in {elapsed:.1f}s")
+        self._size_var.set(f"Cache size: {cache_size_str}")
+        self.update_idletasks()
+
+    def close(self):
+        """Destroy the dialog."""
+        try:
+            self.grab_release()
+            self.destroy()
+        except tk.TclError:
+            pass
+
+
+# ═══════════════════════════════════════════════════════════════════════
+# MAIN APPLICATION
+# ═══════════════════════════════════════════════════════════════════════
 
 class PokeRedusApp(tk.Tk):
     """Main application window with title screen and page stack."""
@@ -24,8 +115,11 @@ class PokeRedusApp(tk.Tk):
         self.minsize(WINDOW_MIN_W, WINDOW_MIN_H)
         self.geometry(f"{WINDOW_MIN_W}x{WINDOW_MIN_H}")
 
-        # Initialize matchup cache
-        self.matchup_cache = MatchupCache.load_or_build(self.kg)
+        # Configure ttk style for neon progress bar
+        self._setup_ttk_styles()
+
+        # Initialize matchup cache (with progress dialog if needed)
+        self._init_matchup_cache()
 
         # Container for all pages
         self._container = tk.Frame(self, bg=BG_DARK)
@@ -43,7 +137,60 @@ class PokeRedusApp(tk.Tk):
         self._pokemon_page = None
         self._team_builder_page = None
 
-    # ── Title Screen ────────────────────────────────────────────────
+    # ── TTK Styles ───────────────────────────────────────────────────
+
+    def _setup_ttk_styles(self):
+        style = ttk.Style(self)
+        style.theme_use("clam")
+        style.configure(
+            "Neon.Horizontal.TProgressbar",
+            troughcolor=BG_INPUT,
+            background=NEON_CYAN,
+            darkcolor=NEON_CYAN,
+            lightcolor=NEON_CYAN,
+            bordercolor=BG_DARK,
+            thickness=14,
+        )
+
+    # ── Cache Initialization ─────────────────────────────────────────
+
+    def _init_matchup_cache(self):
+        """Load or build the matchup cache, showing progress if building."""
+        cache_path = MatchupCache.get_cache_path()
+
+        # Fast path: try loading from disk first
+        if cache_path.exists():
+            try:
+                import json
+                with open(cache_path, "r", encoding="utf-8") as f:
+                    payload = json.load(f)
+                cache = MatchupCache.load(cache_path)
+                if cache.is_valid(self.kg):
+                    self.matchup_cache = cache
+                    self._cache_size_str = MatchupCache.format_cache_file_size()
+                    return
+            except Exception:
+                pass  # fall through to rebuild
+
+        # Slow path: need to build — show progress dialog
+        dlg = CacheProgressDialog(self, title="Building Matchup Cache")
+        self.update_idletasks()
+
+        def progress_cb(done, total):
+            dlg.update_progress(done, total)
+
+        cache = MatchupCache.load_or_build(
+            self.kg, force=True, progress_cb=progress_cb,
+        )
+
+        self._cache_size_str = MatchupCache.format_cache_file_size()
+        dlg.set_done(cache.size, self._cache_size_str)
+
+        # Brief pause so user sees the "done" state, then close
+        self.after(800, dlg.close)
+        self.matchup_cache = cache
+
+    # ── Title Screen ─────────────────────────────────────────────────
 
     def _build_title_screen(self):
         page = tk.Frame(self._container, bg=BG_DARK)
@@ -124,6 +271,17 @@ class PokeRedusApp(tk.Tk):
             fill=FG_DIM,
         )
 
+        # Cache info line
+        cache_entries = self.matchup_cache.size if self.matchup_cache else 0
+        cache_size = getattr(self, "_cache_size_str", "N/A")
+        cache_text = f"Cache: {cache_entries:,} entries  ·  {cache_size}"
+        c.create_text(
+            w // 2, h * 0.3 + 115,
+            text=cache_text,
+            font=FONT_SMALL,
+            fill=NEON_GREEN,
+        )
+
         # Navigation buttons
         buttons = [
             ("Pokémon Stats", NEON_CYAN, self._go_pokemon),
@@ -181,7 +339,7 @@ class PokeRedusApp(tk.Tk):
             self._draw_title_screen()
         self.after(ANIMATION_DELAY * 3, self._animate_glow)
 
-    # ── Navigation ──────────────────────────────────────────────────
+    # ── Navigation ───────────────────────────────────────────────────
 
     def _show_page(self, name: str):
         if name in self._pages:
@@ -226,5 +384,17 @@ class PokeRedusApp(tk.Tk):
         self._show_page("title")
 
     def invalidate_matchup_cache(self):
-        """Rebuild the matchup cache (called when sets change)."""
-        self.matchup_cache = MatchupCache.load_or_build(self.kg, force=True)
+        """Rebuild the matchup cache with a progress indicator."""
+        dlg = CacheProgressDialog(self, title="Rebuilding Cache")
+        self.update_idletasks()
+
+        def progress_cb(done, total):
+            dlg.update_progress(done, total)
+
+        self.matchup_cache = MatchupCache.load_or_build(
+            self.kg, force=True, progress_cb=progress_cb,
+        )
+        self._cache_size_str = MatchupCache.format_cache_file_size()
+
+        dlg.set_done(self.matchup_cache.size, self._cache_size_str)
+        self.after(600, dlg.close)

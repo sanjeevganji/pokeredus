@@ -333,11 +333,38 @@ class MatchupCache:
         return cache
 
     @classmethod
+    def get_cache_path(cls, path: Path | str | None = None) -> Path:
+        """Return the resolved cache file path."""
+        if path is None:
+            path = CACHE_DIR / "matchup_cache.json"
+        return Path(path)
+
+    @classmethod
+    def get_cache_file_size(cls, path: Path | str | None = None) -> int:
+        """Return the cache file size in bytes, or 0 if it doesn't exist."""
+        p = cls.get_cache_path(path)
+        return p.stat().st_size if p.exists() else 0
+
+    @classmethod
+    def format_cache_file_size(cls, path: Path | str | None = None) -> str:
+        """Return a human-readable cache file size like '12.4 MB'."""
+        size = cls.get_cache_file_size(path)
+        if size <= 0:
+            return "N/A"
+        if size < 1024:
+            return f"{size} B"
+        elif size < 1024 * 1024:
+            return f"{size / 1024:.1f} KB"
+        else:
+            return f"{size / (1024 * 1024):.1f} MB"
+
+    @classmethod
     def load_or_build(
         cls,
         kg: KnowledgeGraph,
         path: Path | str | None = None,
         force: bool = False,
+        progress_cb: Callable[[int, int], None] | None = None,
     ) -> MatchupCache:
         """Load from disk if valid, otherwise build and save.
 
@@ -349,19 +376,20 @@ class MatchupCache:
             Cache file path.  Defaults to ``CACHE_DIR / "matchup_cache.json"``.
         force : bool
             If True, always rebuild even if the on-disk cache is valid.
+        progress_cb : callable, optional
+            ``progress_cb(done, total)`` passed to :meth:`build` when a
+            fresh cache is needed.
 
         Returns
         -------
         MatchupCache
         """
-        if path is None:
-            path = CACHE_DIR / "matchup_cache.json"
-        path = Path(path)
+        resolved = cls.get_cache_path(path)
 
         # Try loading existing cache
-        if not force and path.exists():
+        if not force and resolved.exists():
             try:
-                cache = cls.load(path)
+                cache = cls.load(resolved)
                 if cache.is_valid(kg):
                     return cache
             except (json.JSONDecodeError, KeyError):
@@ -369,8 +397,8 @@ class MatchupCache:
 
         # Build fresh
         cache = cls()
-        cache.build(kg)
-        cache.save(path)
+        cache.build(kg, progress_cb=progress_cb)
+        cache.save(resolved)
         return cache
 
     # ── dunder helpers ──────────────────────────────────────────────
