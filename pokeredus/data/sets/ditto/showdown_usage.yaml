@@ -1,0 +1,28 @@
+ability: imposter
+evs:
+  atk: 8
+  def: 252
+  hp: 248
+  label: 248 HP / 8 Atk / 252 Def
+  spa: 0
+  spd: 0
+  spe: 0
+id: ditto_showdown-usage
+item: choice-scarf
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- transform
+nature:
+  decreased_stat: spa
+  increased_stat: def
+  name: Impish
+pokemon_id: ditto
+role: pivot
+set_name: Showdown Usage
+tera_type: ''

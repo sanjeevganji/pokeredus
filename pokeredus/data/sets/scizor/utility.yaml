@@ -1,0 +1,31 @@
+ability: technician
+evs:
+  atk: 252
+  def: 0
+  hp: 248
+  label: 248 HP / 252 Atk / 8 SpD
+  spa: 0
+  spd: 8
+  spe: 0
+id: scizor_utility
+item: sitrus-berry
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- bullet-punch
+- u-turn
+- knock-off
+- defog
+nature:
+  decreased_stat: spa
+  increased_stat: atk
+  name: Adamant
+pokemon_id: scizor
+role: defensive_pivot
+set_name: Utility
+tera_type: Steel

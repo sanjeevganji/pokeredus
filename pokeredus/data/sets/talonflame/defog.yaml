@@ -1,0 +1,31 @@
+ability: flame-body
+evs:
+  atk: 0
+  def: 172
+  hp: 248
+  label: 248 HP / 172 Def / 88 Spe
+  spa: 0
+  spd: 0
+  spe: 88
+id: talonflame_defog
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- flamethrower
+- defog
+- will-o-wisp
+- roost
+nature:
+  decreased_stat: atk
+  increased_stat: def
+  name: Bold
+pokemon_id: talonflame
+role: pivot
+set_name: Defog
+tera_type: Ghost

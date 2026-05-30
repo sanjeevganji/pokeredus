@@ -1,0 +1,31 @@
+ability: poison-puppeteer
+evs:
+  atk: 0
+  def: 228
+  hp: 252
+  label: 252 HP / 228 Def / 28 Spe
+  spa: 0
+  spd: 0
+  spe: 28
+id: pecharunt_pivot
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- malignant-chain
+- foul-play
+- parting-shot
+- recover
+nature:
+  decreased_stat: atk
+  increased_stat: def
+  name: Bold
+pokemon_id: pecharunt
+role: defensive_pivot
+set_name: Pivot
+tera_type: Dark

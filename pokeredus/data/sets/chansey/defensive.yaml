@@ -1,0 +1,31 @@
+ability: natural-cure
+evs:
+  atk: 0
+  def: 252
+  hp: 248
+  label: 248 HP / 252 Def / 8 SpD
+  spa: 0
+  spd: 8
+  spe: 0
+id: chansey_defensive
+item: eviolite
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- stealth-rock
+- seismic-toss
+- soft-boiled
+- thunder-wave
+nature:
+  decreased_stat: atk
+  increased_stat: def
+  name: Bold
+pokemon_id: chansey
+role: wall
+set_name: Defensive
+tera_type: Ghost

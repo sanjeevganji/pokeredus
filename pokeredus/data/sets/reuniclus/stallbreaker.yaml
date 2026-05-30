@@ -1,0 +1,31 @@
+ability: magic-guard
+evs:
+  atk: 0
+  def: 0
+  hp: 252
+  label: 252 HP / 212 SpA / 44 Spe
+  spa: 212
+  spd: 0
+  spe: 44
+id: reuniclus_stallbreaker
+item: life-orb
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- psychic-noise
+- knock-off
+- focus-blast
+- recover
+nature:
+  decreased_stat: atk
+  increased_stat: spa
+  name: Modest
+pokemon_id: reuniclus
+role: pivot
+set_name: Stallbreaker
+tera_type: Fighting

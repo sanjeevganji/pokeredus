@@ -1,0 +1,31 @@
+ability: clear-body
+evs:
+  atk: 4
+  def: 0
+  hp: 0
+  label: 4 Atk / 252 SpA / 252 Spe
+  spa: 252
+  spd: 0
+  spe: 252
+id: dragapult_mixed-offensive
+item: life-orb
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- dragon-darts
+- draco-meteor
+- shadow-ball
+- fire-blast
+nature:
+  decreased_stat: spd
+  increased_stat: spe
+  name: Naive
+pokemon_id: dragapult
+role: sweeper
+set_name: Mixed Offensive
+tera_type: Dragon

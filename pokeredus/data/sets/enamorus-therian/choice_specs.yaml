@@ -1,0 +1,31 @@
+ability: overcoat
+evs:
+  atk: 0
+  def: 8
+  hp: 248
+  label: 248 HP / 8 Def / 252 SpA
+  spa: 252
+  spd: 0
+  spe: 0
+id: enamorus-therian_choice-specs
+item: choice-specs
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- moonblast
+- earth-power
+- mystical-fire
+- draining-kiss
+nature:
+  decreased_stat: spe
+  increased_stat: spa
+  name: Quiet
+pokemon_id: enamorus-therian
+role: wallbreaker
+set_name: Choice Specs
+tera_type: Fairy

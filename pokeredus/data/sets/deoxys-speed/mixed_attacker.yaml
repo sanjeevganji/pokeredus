@@ -1,0 +1,31 @@
+ability: pressure
+evs:
+  atk: 200
+  def: 0
+  hp: 0
+  label: 200 Atk / 252 SpA / 56 Spe
+  spa: 252
+  spd: 0
+  spe: 56
+id: deoxys-speed_mixed-attacker
+item: eject-pack
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- psycho-boost
+- superpower
+- knock-off
+- ice-beam
+nature:
+  decreased_stat: spd
+  increased_stat: spe
+  name: Naive
+pokemon_id: deoxys-speed
+role: sweeper
+set_name: Mixed Attacker
+tera_type: Fighting

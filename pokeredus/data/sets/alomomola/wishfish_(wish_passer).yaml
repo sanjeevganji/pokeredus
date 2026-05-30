@@ -1,0 +1,31 @@
+ability: regenerator
+evs:
+  atk: 0
+  def: 252
+  hp: 252
+  label: 252 HP / 252 Def / 4 SpD
+  spa: 0
+  spd: 4
+  spe: 0
+id: alomomola_wishfish-wish-passer
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- flip-turn
+- wish
+- protect
+- scald
+nature:
+  decreased_stat: spe
+  increased_stat: def
+  name: Relaxed
+pokemon_id: alomomola
+role: pivot
+set_name: WishFish (Wish Passer)
+tera_type: Ghost

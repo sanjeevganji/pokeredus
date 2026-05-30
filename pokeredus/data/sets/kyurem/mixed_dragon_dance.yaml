@@ -1,0 +1,31 @@
+ability: pressure
+evs:
+  atk: 168
+  def: 0
+  hp: 0
+  label: 168 Atk / 88 SpA / 252 Spe
+  spa: 88
+  spd: 0
+  spe: 252
+id: kyurem_mixed-dragon-dance
+item: never-melt-ice
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- dragon-dance
+- icicle-spear
+- freeze-dry
+- earth-power
+nature:
+  decreased_stat: def
+  increased_stat: spe
+  name: Hasty
+pokemon_id: kyurem
+role: sweeper
+set_name: Mixed Dragon Dance
+tera_type: Ice

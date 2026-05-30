@@ -1,0 +1,31 @@
+ability: pressure
+evs:
+  atk: 0
+  def: 4
+  hp: 0
+  label: 4 Def / 252 SpA / 252 Spe
+  spa: 252
+  spd: 0
+  spe: 252
+id: deoxys-speed_nasty-plot
+item: life-orb
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- nasty-plot
+- psycho-boost
+- focus-blast
+- shadow-ball
+nature:
+  decreased_stat: atk
+  increased_stat: spa
+  name: Modest
+pokemon_id: deoxys-speed
+role: setup_sweeper
+set_name: Nasty Plot
+tera_type: Fighting

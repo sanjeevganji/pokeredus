@@ -1,0 +1,31 @@
+ability: protean
+evs:
+  atk: 252
+  def: 4
+  hp: 0
+  label: 252 Atk / 4 Def / 252 Spe
+  spa: 0
+  spd: 0
+  spe: 252
+id: meowscarada_choice-scarf
+item: choice-scarf
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- knock-off
+- u-turn
+- triple-axel
+- flower-trick
+nature:
+  decreased_stat: spa
+  increased_stat: spe
+  name: Jolly
+pokemon_id: meowscarada
+role: revenge_killer
+set_name: Choice Scarf
+tera_type: Ghost

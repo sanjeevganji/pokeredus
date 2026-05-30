@@ -1,0 +1,31 @@
+ability: neutralizing-gas
+evs:
+  atk: 0
+  def: 252
+  hp: 252
+  label: 252 HP / 252 Def / 4 SpD
+  spa: 0
+  spd: 4
+  spe: 0
+id: weezing-galar_showdown-usage
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- defog
+- strange-steam
+- will-o-wisp
+- pain-split
+nature:
+  decreased_stat: atk
+  increased_stat: def
+  name: Bold
+pokemon_id: weezing-galar
+role: pivot
+set_name: Showdown Usage
+tera_type: ''

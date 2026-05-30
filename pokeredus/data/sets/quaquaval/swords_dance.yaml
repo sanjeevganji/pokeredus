@@ -1,0 +1,31 @@
+ability: moxie
+evs:
+  atk: 252
+  def: 4
+  hp: 0
+  label: 252 Atk / 4 Def / 252 Spe
+  spa: 0
+  spd: 0
+  spe: 252
+id: quaquaval_swords-dance
+item: lum-berry
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- swords-dance
+- aqua-step
+- close-combat
+- triple-axel
+nature:
+  decreased_stat: spa
+  increased_stat: spe
+  name: Jolly
+pokemon_id: quaquaval
+role: setup_sweeper
+set_name: Swords Dance
+tera_type: Steel

@@ -1,0 +1,31 @@
+ability: grassy-surge
+evs:
+  atk: 252
+  def: 4
+  hp: 0
+  label: 252 Atk / 4 Def / 252 Spe
+  spa: 0
+  spd: 0
+  spe: 252
+id: rillaboom_choice-band
+item: choice-band
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- grassy-glide
+- wood-hammer
+- u-turn
+- knock-off
+nature:
+  decreased_stat: spa
+  increased_stat: atk
+  name: Adamant
+pokemon_id: rillaboom
+role: wallbreaker
+set_name: Choice Band
+tera_type: Grass

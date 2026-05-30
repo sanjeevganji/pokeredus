@@ -1,0 +1,31 @@
+ability: regenerator
+evs:
+  atk: 0
+  def: 244
+  hp: 248
+  label: 248 HP / 244 Def / 16 SpD
+  spa: 0
+  spd: 16
+  spe: 0
+id: amoonguss_defensive
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- foul-play
+- toxic
+- synthesis
+- clear-smog
+nature:
+  decreased_stat: atk
+  increased_stat: def
+  name: Bold
+pokemon_id: amoonguss
+role: wall
+set_name: Defensive
+tera_type: Steel

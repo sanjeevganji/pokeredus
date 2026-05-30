@@ -1,0 +1,31 @@
+ability: moxie
+evs:
+  atk: 252
+  def: 0
+  hp: 0
+  label: 252 Atk / 4 SpD / 252 Spe
+  spa: 0
+  spd: 4
+  spe: 252
+id: quaquaval_showdown-usage
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- aqua-step
+- close-combat
+- rapid-spin
+- ice-spinner
+nature:
+  decreased_stat: spa
+  increased_stat: spe
+  name: Jolly
+pokemon_id: quaquaval
+role: pivot
+set_name: Showdown Usage
+tera_type: ''

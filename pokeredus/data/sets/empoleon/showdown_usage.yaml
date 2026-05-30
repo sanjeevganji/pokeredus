@@ -1,0 +1,31 @@
+ability: competitive
+evs:
+  atk: 0
+  def: 4
+  hp: 252
+  label: 252 HP / 4 Def / 252 SpD
+  spa: 0
+  spd: 252
+  spe: 0
+id: empoleon_showdown-usage
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- roost
+- surf
+- flip-turn
+- stealth-rock
+nature:
+  decreased_stat: spe
+  increased_stat: spd
+  name: Sassy
+pokemon_id: empoleon
+role: hazard_setter
+set_name: Showdown Usage
+tera_type: ''

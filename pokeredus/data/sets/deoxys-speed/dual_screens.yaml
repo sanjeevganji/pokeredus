@@ -1,0 +1,31 @@
+ability: pressure
+evs:
+  atk: 0
+  def: 8
+  hp: 248
+  label: 248 HP / 8 Def / 252 Spe
+  spa: 0
+  spd: 0
+  spe: 252
+id: deoxys-speed_dual-screens
+item: light-clay
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- reflect
+- light-screen
+- taunt
+- psycho-boost
+nature:
+  decreased_stat: atk
+  increased_stat: spe
+  name: Timid
+pokemon_id: deoxys-speed
+role: pivot
+set_name: Dual Screens
+tera_type: Ghost

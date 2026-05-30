@@ -1,0 +1,31 @@
+ability: inner-focus
+evs:
+  atk: 0
+  def: 4
+  hp: 252
+  label: 252 HP / 4 Def / 252 SpD
+  spa: 0
+  spd: 252
+  spe: 0
+id: umbreon_defensive
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- foul-play
+- wish
+- protect
+- thunder-wave
+nature:
+  decreased_stat: atk
+  increased_stat: spd
+  name: Calm
+pokemon_id: umbreon
+role: wall
+set_name: Defensive
+tera_type: Water

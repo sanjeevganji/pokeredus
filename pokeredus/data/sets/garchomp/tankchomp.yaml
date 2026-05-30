@@ -1,0 +1,31 @@
+ability: rough-skin
+evs:
+  atk: 0
+  def: 216
+  hp: 252
+  label: 252 HP / 216 Def / 40 Spe
+  spa: 0
+  spd: 0
+  spe: 40
+id: garchomp_tankchomp
+item: rocky-helmet
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- earthquake
+- dragon-tail
+- stealth-rock
+- spikes
+nature:
+  decreased_stat: spa
+  increased_stat: def
+  name: Impish
+pokemon_id: garchomp
+role: pivot
+set_name: TankChomp
+tera_type: Ghost

@@ -1,0 +1,31 @@
+ability: regenerator
+evs:
+  atk: 0
+  def: 8
+  hp: 252
+  label: 252 HP / 8 Def / 152 SpA / 96 SpD
+  spa: 152
+  spd: 96
+  spe: 0
+id: slowking-galar_assault-vest
+item: assault-vest
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- psyshock
+- sludge-bomb
+- flamethrower
+- ice-beam
+nature:
+  decreased_stat: atk
+  increased_stat: spa
+  name: Modest
+pokemon_id: slowking-galar
+role: pivot
+set_name: Assault Vest
+tera_type: Water

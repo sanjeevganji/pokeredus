@@ -1,0 +1,31 @@
+ability: unaware
+evs:
+  atk: 0
+  def: 8
+  hp: 248
+  label: 248 HP / 8 Def / 252 SpD
+  spa: 0
+  spd: 252
+  spe: 0
+id: skeledirge_defensive
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- torch-song
+- hex
+- will-o-wisp
+- slack-off
+nature:
+  decreased_stat: atk
+  increased_stat: spd
+  name: Calm
+pokemon_id: skeledirge
+role: wall
+set_name: Defensive
+tera_type: Fairy

@@ -1,0 +1,31 @@
+ability: bulletproof
+evs:
+  atk: 0
+  def: 252
+  hp: 252
+  label: 252 HP / 252 Def / 4 SpD
+  spa: 0
+  spd: 4
+  spe: 0
+id: chesnaught_defensive
+item: rocky-helmet
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- body-press
+- knock-off
+- synthesis
+- spikes
+nature:
+  decreased_stat: spa
+  increased_stat: def
+  name: Impish
+pokemon_id: chesnaught
+role: wall
+set_name: Defensive
+tera_type: Ghost

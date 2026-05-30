@@ -1,0 +1,31 @@
+ability: good-as-gold
+evs:
+  atk: 0
+  def: 196
+  hp: 252
+  label: 252 HP / 196 Def / 60 Spe
+  spa: 0
+  spd: 0
+  spe: 60
+id: gholdengo_thunder-wave-hex
+item: air-balloon
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- hex
+- thunder-wave
+- recover
+- make-it-rain
+nature:
+  decreased_stat: atk
+  increased_stat: def
+  name: Bold
+pokemon_id: gholdengo
+role: pivot
+set_name: Thunder Wave + Hex
+tera_type: Fairy

@@ -1,0 +1,31 @@
+ability: sturdy
+evs:
+  atk: 0
+  def: 160
+  hp: 252
+  label: 252 HP / 160 Def / 96 Spe
+  spa: 0
+  spd: 0
+  spe: 96
+id: skarmory_defensive
+item: rocky-helmet
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- body-press
+- iron-defense
+- roost
+- spikes
+nature:
+  decreased_stat: atk
+  increased_stat: def
+  name: Bold
+pokemon_id: skarmory
+role: wall
+set_name: Defensive
+tera_type: Dragon

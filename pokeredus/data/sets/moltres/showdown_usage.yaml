@@ -1,0 +1,31 @@
+ability: flame-body
+evs:
+  atk: 0
+  def: 248
+  hp: 248
+  label: 248 HP / 248 Def / 12 Spe
+  spa: 0
+  spd: 0
+  spe: 12
+id: moltres_showdown-usage
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- roost
+- flamethrower
+- will-o-wisp
+- u-turn
+nature:
+  decreased_stat: atk
+  increased_stat: def
+  name: Bold
+pokemon_id: moltres
+role: pivot
+set_name: Showdown Usage
+tera_type: ''

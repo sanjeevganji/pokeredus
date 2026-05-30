@@ -1,0 +1,31 @@
+ability: intimidate
+evs:
+  atk: 252
+  def: 0
+  hp: 0
+  label: 252 Atk / 4 SpD / 252 Spe
+  spa: 0
+  spd: 4
+  spe: 252
+id: landorus-therian_showdown-usage
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- earthquake
+- u-turn
+- stealth-rock
+- stone-edge
+nature:
+  decreased_stat: spa
+  increased_stat: spe
+  name: Jolly
+pokemon_id: landorus-therian
+role: hazard_setter
+set_name: Showdown Usage
+tera_type: ''

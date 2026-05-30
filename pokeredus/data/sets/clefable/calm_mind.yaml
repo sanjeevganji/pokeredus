@@ -1,0 +1,31 @@
+ability: magic-guard
+evs:
+  atk: 0
+  def: 252
+  hp: 252
+  label: 252 HP / 252 Def / 4 SpD
+  spa: 0
+  spd: 4
+  spe: 0
+id: clefable_calm-mind
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- calm-mind
+- moonblast
+- moonlight
+- knock-off
+nature:
+  decreased_stat: atk
+  increased_stat: def
+  name: Bold
+pokemon_id: clefable
+role: setup_sweeper
+set_name: Calm Mind
+tera_type: Fire

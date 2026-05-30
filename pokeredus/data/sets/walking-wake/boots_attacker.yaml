@@ -1,0 +1,31 @@
+ability: protosynthesis
+evs:
+  atk: 0
+  def: 4
+  hp: 0
+  label: 4 Def / 252 SpA / 252 Spe
+  spa: 252
+  spd: 0
+  spe: 252
+id: walking-wake_boots-attacker
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- draco-meteor
+- surf
+- knock-off
+- flip-turn
+nature:
+  decreased_stat: atk
+  increased_stat: spe
+  name: Timid
+pokemon_id: walking-wake
+role: pivot
+set_name: Boots Attacker
+tera_type: Water

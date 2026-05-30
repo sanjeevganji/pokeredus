@@ -1,0 +1,31 @@
+ability: grassy-surge
+evs:
+  atk: 252
+  def: 0
+  hp: 204
+  label: 204 HP / 252 Atk / 52 Spe
+  spa: 0
+  spd: 0
+  spe: 52
+id: rillaboom_utility
+item: terrain-extender
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- grassy-glide
+- knock-off
+- u-turn
+- low-kick
+nature:
+  decreased_stat: spa
+  increased_stat: atk
+  name: Adamant
+pokemon_id: rillaboom
+role: defensive_pivot
+set_name: Utility
+tera_type: Grass

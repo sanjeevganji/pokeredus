@@ -1,0 +1,31 @@
+ability: hydration
+evs:
+  atk: 0
+  def: 40
+  hp: 252
+  label: 252 HP / 40 Def / 216 Spe
+  spa: 0
+  spd: 0
+  spe: 216
+id: manaphy_take-heart
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- take-heart
+- acid-armor
+- scald
+- stored-power
+nature:
+  decreased_stat: atk
+  increased_stat: spe
+  name: Timid
+pokemon_id: manaphy
+role: pivot
+set_name: Take Heart
+tera_type: Poison

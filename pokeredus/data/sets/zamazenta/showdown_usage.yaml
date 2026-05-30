@@ -1,0 +1,31 @@
+ability: dauntless-shield
+evs:
+  atk: 252
+  def: 120
+  hp: 0
+  label: 252 Atk / 120 Def / 136 Spe
+  spa: 0
+  spd: 0
+  spe: 136
+id: zamazenta_showdown-usage
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- crunch
+- body-press
+- iron-defense
+- stone-edge
+nature:
+  decreased_stat: spa
+  increased_stat: spe
+  name: Jolly
+pokemon_id: zamazenta
+role: pivot
+set_name: Showdown Usage
+tera_type: ''

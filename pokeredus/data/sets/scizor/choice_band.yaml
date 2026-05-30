@@ -1,0 +1,31 @@
+ability: technician
+evs:
+  atk: 252
+  def: 0
+  hp: 120
+  label: 120 HP / 252 Atk / 136 Spe
+  spa: 0
+  spd: 0
+  spe: 136
+id: scizor_choice-band
+item: choice-band
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- bullet-punch
+- u-turn
+- knock-off
+- close-combat
+nature:
+  decreased_stat: spa
+  increased_stat: atk
+  name: Adamant
+pokemon_id: scizor
+role: wallbreaker
+set_name: Choice Band
+tera_type: Steel

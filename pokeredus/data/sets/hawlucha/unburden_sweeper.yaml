@@ -1,0 +1,31 @@
+ability: unburden
+evs:
+  atk: 252
+  def: 0
+  hp: 72
+  label: 72 HP / 252 Atk / 60 SpD / 124 Spe
+  spa: 0
+  spd: 60
+  spe: 124
+id: hawlucha_unburden-sweeper
+item: grassy-seed
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- swords-dance
+- acrobatics
+- close-combat
+- encore
+nature:
+  decreased_stat: spa
+  increased_stat: atk
+  name: Adamant
+pokemon_id: hawlucha
+role: sweeper
+set_name: Unburden Sweeper
+tera_type: Steel

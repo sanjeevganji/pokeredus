@@ -1,0 +1,31 @@
+ability: protosynthesis
+evs:
+  atk: 4
+  def: 0
+  hp: 252
+  label: 252 HP / 4 Atk / 252 Spe
+  spa: 0
+  spd: 0
+  spe: 252
+id: great-tusk_bulk-up
+item: booster-energy
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- bulk-up
+- headlong-rush
+- ice-spinner
+- rapid-spin
+nature:
+  decreased_stat: spa
+  increased_stat: spe
+  name: Jolly
+pokemon_id: great-tusk
+role: setup_sweeper
+set_name: Bulk Up
+tera_type: Ice

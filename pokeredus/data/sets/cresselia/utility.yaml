@@ -1,0 +1,31 @@
+ability: levitate
+evs:
+  atk: 0
+  def: 252
+  hp: 252
+  label: 252 HP / 252 Def / 4 SpD
+  spa: 0
+  spd: 4
+  spe: 0
+id: cresselia_utility
+item: eject-button
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- lunar-dance
+- ice-beam
+- thunder-wave
+- moonlight
+nature:
+  decreased_stat: atk
+  increased_stat: def
+  name: Bold
+pokemon_id: cresselia
+role: defensive_pivot
+set_name: Utility
+tera_type: Steel

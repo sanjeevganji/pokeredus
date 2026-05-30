@@ -1,0 +1,28 @@
+ability: imposter
+evs:
+  atk: 8
+  def: 0
+  hp: 248
+  label: 248 HP / 8 Atk / 252 SpA
+  spa: 252
+  spd: 0
+  spe: 0
+id: ditto_choice-scarf
+item: choice-scarf
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- transform
+nature:
+  decreased_stat: spe
+  increased_stat: spa
+  name: Quiet
+pokemon_id: ditto
+role: revenge_killer
+set_name: Choice Scarf
+tera_type: Ghost

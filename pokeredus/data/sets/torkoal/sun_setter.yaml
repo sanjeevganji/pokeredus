@@ -1,0 +1,31 @@
+ability: drought
+evs:
+  atk: 0
+  def: 252
+  hp: 248
+  label: 248 HP / 252 Def / 8 SpD
+  spa: 0
+  spd: 8
+  spe: 0
+id: torkoal_sun-setter
+item: heat-rock
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- lava-plume
+- rapid-spin
+- stealth-rock
+- will-o-wisp
+nature:
+  decreased_stat: atk
+  increased_stat: def
+  name: Bold
+pokemon_id: torkoal
+role: sweeper
+set_name: Sun Setter
+tera_type: Flying

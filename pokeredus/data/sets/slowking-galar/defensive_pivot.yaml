@@ -1,0 +1,31 @@
+ability: regenerator
+evs:
+  atk: 0
+  def: 4
+  hp: 252
+  label: 252 HP / 4 Def / 252 SpD
+  spa: 0
+  spd: 252
+  spe: 0
+id: slowking-galar_defensive-pivot
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- chilly-reception
+- sludge-bomb
+- future-sight
+- thunder-wave
+nature:
+  decreased_stat: spe
+  increased_stat: spd
+  name: Sassy
+pokemon_id: slowking-galar
+role: wall
+set_name: Defensive Pivot
+tera_type: Water

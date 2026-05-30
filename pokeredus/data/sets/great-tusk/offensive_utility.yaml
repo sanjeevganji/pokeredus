@@ -1,0 +1,31 @@
+ability: protosynthesis
+evs:
+  atk: 252
+  def: 4
+  hp: 0
+  label: 252 Atk / 4 Def / 252 Spe
+  spa: 0
+  spd: 0
+  spe: 252
+id: great-tusk_offensive-utility
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- headlong-rush
+- ice-spinner
+- rapid-spin
+- stealth-rock
+nature:
+  decreased_stat: spa
+  increased_stat: spe
+  name: Jolly
+pokemon_id: great-tusk
+role: defensive_pivot
+set_name: Offensive Utility
+tera_type: Steel

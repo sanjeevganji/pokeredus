@@ -1,0 +1,31 @@
+ability: toxic-chain
+evs:
+  atk: 152
+  def: 0
+  hp: 248
+  label: 248 HP / 152 Atk / 44 SpD / 64 Spe
+  spa: 0
+  spd: 44
+  spe: 64
+id: fezandipiti_bulky-pivot
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- play-rough
+- u-turn
+- roost
+- beat-up
+nature:
+  decreased_stat: spa
+  increased_stat: spd
+  name: Careful
+pokemon_id: fezandipiti
+role: defensive_pivot
+set_name: Bulky Pivot
+tera_type: Dark

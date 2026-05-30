@@ -1,0 +1,31 @@
+ability: chlorophyll
+evs:
+  atk: 252
+  def: 0
+  hp: 0
+  label: 252 Atk / 4 SpD / 252 Spe
+  spa: 0
+  spd: 4
+  spe: 252
+id: lilligant-hisui_showdown-usage
+item: life-orb
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- close-combat
+- ice-spinner
+- victory-dance
+- solar-blade
+nature:
+  decreased_stat: spa
+  increased_stat: atk
+  name: Adamant
+pokemon_id: lilligant-hisui
+role: pivot
+set_name: Showdown Usage
+tera_type: ''

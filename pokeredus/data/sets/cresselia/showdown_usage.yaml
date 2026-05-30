@@ -1,0 +1,31 @@
+ability: levitate
+evs:
+  atk: 0
+  def: 204
+  hp: 252
+  label: 252 HP / 204 Def / 52 Spe
+  spa: 0
+  spd: 0
+  spe: 52
+id: cresselia_showdown-usage
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- moonlight
+- moonblast
+- calm-mind
+- stored-power
+nature:
+  decreased_stat: atk
+  increased_stat: def
+  name: Bold
+pokemon_id: cresselia
+role: setup_sweeper
+set_name: Showdown Usage
+tera_type: ''

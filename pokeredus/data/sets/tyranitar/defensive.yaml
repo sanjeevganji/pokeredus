@@ -1,0 +1,31 @@
+ability: sand-stream
+evs:
+  atk: 0
+  def: 16
+  hp: 252
+  label: 252 HP / 16 Def / 240 SpD
+  spa: 0
+  spd: 240
+  spe: 0
+id: tyranitar_defensive
+item: smooth-rock
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- stealth-rock
+- knock-off
+- ice-beam
+- roar
+nature:
+  decreased_stat: spe
+  increased_stat: spd
+  name: Sassy
+pokemon_id: tyranitar
+role: wall
+set_name: Defensive
+tera_type: Flying

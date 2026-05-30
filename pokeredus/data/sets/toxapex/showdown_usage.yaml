@@ -1,0 +1,31 @@
+ability: regenerator
+evs:
+  atk: 0
+  def: 4
+  hp: 252
+  label: 252 HP / 4 Def / 252 SpD
+  spa: 0
+  spd: 252
+  spe: 0
+id: toxapex_showdown-usage
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- recover
+- toxic
+- haze
+- infestation
+nature:
+  decreased_stat: atk
+  increased_stat: spd
+  name: Calm
+pokemon_id: toxapex
+role: pivot
+set_name: Showdown Usage
+tera_type: ''

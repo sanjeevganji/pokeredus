@@ -1,0 +1,31 @@
+ability: unaware
+evs:
+  atk: 0
+  def: 0
+  hp: 248
+  label: 248 HP / 8 SpA / 252 SpD
+  spa: 8
+  spd: 252
+  spe: 0
+id: skeledirge_showdown-usage
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- torch-song
+- slack-off
+- will-o-wisp
+- hex
+nature:
+  decreased_stat: atk
+  increased_stat: spd
+  name: Calm
+pokemon_id: skeledirge
+role: pivot
+set_name: Showdown Usage
+tera_type: ''

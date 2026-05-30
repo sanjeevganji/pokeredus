@@ -1,0 +1,31 @@
+ability: levitate
+evs:
+  atk: 0
+  def: 4
+  hp: 252
+  label: 252 HP / 4 Def / 252 Spe
+  spa: 0
+  spd: 0
+  spe: 252
+id: latias_calm-mind
+item: weakness-policy
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- calm-mind
+- stored-power
+- aura-sphere
+- recover
+nature:
+  decreased_stat: atk
+  increased_stat: spe
+  name: Timid
+pokemon_id: latias
+role: setup_sweeper
+set_name: Calm Mind
+tera_type: Poison

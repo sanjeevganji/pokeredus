@@ -1,0 +1,31 @@
+ability: libero
+evs:
+  atk: 252
+  def: 0
+  hp: 0
+  label: 252 Atk / 4 SpD / 252 Spe
+  spa: 0
+  spd: 4
+  spe: 252
+id: cinderace_showdown-usage
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- pyro-ball
+- court-change
+- u-turn
+- will-o-wisp
+nature:
+  decreased_stat: spa
+  increased_stat: spe
+  name: Jolly
+pokemon_id: cinderace
+role: pivot
+set_name: Showdown Usage
+tera_type: ''

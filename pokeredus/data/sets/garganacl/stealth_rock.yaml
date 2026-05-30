@@ -1,0 +1,31 @@
+ability: purifying-salt
+evs:
+  atk: 0
+  def: 52
+  hp: 252
+  label: 252 HP / 52 Def / 204 SpD
+  spa: 0
+  spd: 204
+  spe: 0
+id: garganacl_stealth-rock
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- stealth-rock
+- salt-cure
+- recover
+- protect
+nature:
+  decreased_stat: spa
+  increased_stat: spd
+  name: Careful
+pokemon_id: garganacl
+role: hazard_setter
+set_name: Stealth Rock
+tera_type: Fairy

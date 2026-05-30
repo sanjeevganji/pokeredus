@@ -1,0 +1,31 @@
+ability: natural-cure
+evs:
+  atk: 0
+  def: 252
+  hp: 4
+  label: 4 HP / 252 Def / 252 SpD
+  spa: 0
+  spd: 252
+  spe: 0
+id: blissey_defensive
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- soft-boiled
+- calm-mind
+- seismic-toss
+- stealth-rock
+nature:
+  decreased_stat: atk
+  increased_stat: spd
+  name: Calm
+pokemon_id: blissey
+role: wall
+set_name: Defensive
+tera_type: Dark

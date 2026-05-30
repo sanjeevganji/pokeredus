@@ -1,0 +1,31 @@
+ability: pressure
+evs:
+  atk: 0
+  def: 0
+  hp: 120
+  label: 120 HP / 216 SpA / 76 SpD / 96 Spe
+  spa: 216
+  spd: 76
+  spe: 96
+id: kyurem_assault-vest
+item: assault-vest
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- ice-beam
+- freeze-dry
+- earth-power
+- draco-meteor
+nature:
+  decreased_stat: atk
+  increased_stat: spa
+  name: Modest
+pokemon_id: kyurem
+role: pivot
+set_name: Assault Vest
+tera_type: Fairy

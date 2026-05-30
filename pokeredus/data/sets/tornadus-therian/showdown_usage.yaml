@@ -1,0 +1,31 @@
+ability: regenerator
+evs:
+  atk: 0
+  def: 0
+  hp: 0
+  label: 252 SpA / 80 SpD / 176 Spe
+  spa: 252
+  spd: 80
+  spe: 176
+id: tornadus-therian_showdown-usage
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- u-turn
+- bleakwind-storm
+- knock-off
+- heat-wave
+nature:
+  decreased_stat: atk
+  increased_stat: spe
+  name: Timid
+pokemon_id: tornadus-therian
+role: pivot
+set_name: Showdown Usage
+tera_type: ''

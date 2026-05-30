@@ -1,0 +1,31 @@
+ability: quark-drive
+evs:
+  atk: 0
+  def: 4
+  hp: 0
+  label: 4 Def / 252 SpA / 252 Spe
+  spa: 252
+  spd: 0
+  spe: 252
+id: iron-jugulis_offensive
+item: booster-energy
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- hurricane
+- dark-pulse
+- earth-power
+- taunt
+nature:
+  decreased_stat: atk
+  increased_stat: spe
+  name: Timid
+pokemon_id: iron-jugulis
+role: pivot
+set_name: Offensive
+tera_type: Ground

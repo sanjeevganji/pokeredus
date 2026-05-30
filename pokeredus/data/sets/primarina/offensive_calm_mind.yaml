@@ -1,0 +1,31 @@
+ability: torrent
+evs:
+  atk: 0
+  def: 0
+  hp: 80
+  label: 80 HP / 252 SpA / 176 Spe
+  spa: 252
+  spd: 0
+  spe: 176
+id: primarina_offensive-calm-mind
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- calm-mind
+- surf
+- moonblast
+- substitute
+nature:
+  decreased_stat: atk
+  increased_stat: spa
+  name: Modest
+pokemon_id: primarina
+role: setup_sweeper
+set_name: Offensive Calm Mind
+tera_type: Steel

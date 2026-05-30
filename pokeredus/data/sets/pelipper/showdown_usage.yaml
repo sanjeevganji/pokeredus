@@ -1,0 +1,31 @@
+ability: drizzle
+evs:
+  atk: 0
+  def: 252
+  hp: 248
+  label: 248 HP / 252 Def / 8 SpD
+  spa: 0
+  spd: 8
+  spe: 0
+id: pelipper_showdown-usage
+item: damp-rock
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- u-turn
+- hurricane
+- roost
+- surf
+nature:
+  decreased_stat: spe
+  increased_stat: def
+  name: Relaxed
+pokemon_id: pelipper
+role: pivot
+set_name: Showdown Usage
+tera_type: ''

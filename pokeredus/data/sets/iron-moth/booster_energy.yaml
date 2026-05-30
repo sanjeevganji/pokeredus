@@ -1,0 +1,31 @@
+ability: quark-drive
+evs:
+  atk: 0
+  def: 124
+  hp: 0
+  label: 124 Def / 132 SpA / 252 Spe
+  spa: 132
+  spd: 0
+  spe: 252
+id: iron-moth_booster-energy
+item: booster-energy
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- fiery-dance
+- sludge-wave
+- dazzling-gleam
+- substitute
+nature:
+  decreased_stat: atk
+  increased_stat: spe
+  name: Timid
+pokemon_id: iron-moth
+role: pivot
+set_name: Booster Energy
+tera_type: Fairy

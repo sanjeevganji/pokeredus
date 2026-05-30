@@ -1,0 +1,31 @@
+ability: natural-cure
+evs:
+  atk: 0
+  def: 4
+  hp: 252
+  label: 252 HP / 4 Def / 252 SpD
+  spa: 0
+  spd: 252
+  spe: 0
+id: blissey_showdown-usage
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- soft-boiled
+- seismic-toss
+- calm-mind
+- stealth-rock
+nature:
+  decreased_stat: atk
+  increased_stat: spd
+  name: Calm
+pokemon_id: blissey
+role: hazard_setter
+set_name: Showdown Usage
+tera_type: ''

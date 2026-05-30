@@ -1,0 +1,31 @@
+ability: levitate
+evs:
+  atk: 0
+  def: 252
+  hp: 252
+  label: 252 HP / 252 Def / 4 SpD
+  spa: 0
+  spd: 4
+  spe: 0
+id: cresselia_trick-room-setter
+item: mental-herb
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- trick-room
+- lunar-dance
+- moonlight
+- ice-beam
+nature:
+  decreased_stat: spe
+  increased_stat: def
+  name: Relaxed
+pokemon_id: cresselia
+role: pivot
+set_name: Trick Room Setter
+tera_type: Poison

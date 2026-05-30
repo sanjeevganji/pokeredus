@@ -1,0 +1,31 @@
+ability: water-bubble
+evs:
+  atk: 0
+  def: 40
+  hp: 252
+  label: 252 HP / 40 Def / 216 SpA
+  spa: 216
+  spd: 0
+  spe: 0
+id: araquanid_sticky-web
+item: custap-berry
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- sticky-web
+- surf
+- endeavor
+- endure
+nature:
+  decreased_stat: atk
+  increased_stat: spa
+  name: Modest
+pokemon_id: araquanid
+role: pivot
+set_name: Sticky Web
+tera_type: Ghost

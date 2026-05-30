@@ -1,0 +1,31 @@
+ability: regenerator
+evs:
+  atk: 0
+  def: 8
+  hp: 248
+  label: 248 HP / 8 Def / 252 SpD
+  spa: 0
+  spd: 252
+  spe: 0
+id: toxapex_the-pex-defensive
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- toxic
+- recover
+- haze
+- toxic-spikes
+nature:
+  decreased_stat: atk
+  increased_stat: spd
+  name: Calm
+pokemon_id: toxapex
+role: wall
+set_name: The Pex (Defensive)
+tera_type: Steel

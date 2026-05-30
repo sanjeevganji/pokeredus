@@ -1,0 +1,31 @@
+ability: drought
+evs:
+  atk: 0
+  def: 4
+  hp: 252
+  label: 252 HP / 4 Def / 252 Spe
+  spa: 0
+  spd: 0
+  spe: 252
+id: ninetales_sun-setter
+item: heat-rock
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- weather-ball
+- encore
+- healing-wish
+- will-o-wisp
+nature:
+  decreased_stat: atk
+  increased_stat: spe
+  name: Timid
+pokemon_id: ninetales
+role: sweeper
+set_name: Sun Setter
+tera_type: Ghost

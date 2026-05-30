@@ -1,0 +1,31 @@
+ability: dauntless-shield
+evs:
+  atk: 0
+  def: 88
+  hp: 252
+  label: 252 HP / 88 Def / 168 Spe
+  spa: 0
+  spd: 0
+  spe: 168
+id: zamazenta_ironpress
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- iron-defense
+- body-press
+- crunch
+- roar
+nature:
+  decreased_stat: spa
+  increased_stat: spe
+  name: Jolly
+pokemon_id: zamazenta
+role: pivot
+set_name: IronPress
+tera_type: Fire

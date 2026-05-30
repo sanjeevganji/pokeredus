@@ -1,0 +1,31 @@
+ability: guts
+evs:
+  atk: 252
+  def: 0
+  hp: 248
+  label: 248 HP / 252 Atk / 8 SpD
+  spa: 0
+  spd: 8
+  spe: 0
+id: ursaluna_showdown-usage
+item: flame-orb
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- facade
+- headlong-rush
+- swords-dance
+- fire-punch
+nature:
+  decreased_stat: spa
+  increased_stat: atk
+  name: Adamant
+pokemon_id: ursaluna
+role: setup_sweeper
+set_name: Showdown Usage
+tera_type: ''

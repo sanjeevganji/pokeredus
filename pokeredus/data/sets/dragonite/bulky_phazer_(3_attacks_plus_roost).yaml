@@ -1,0 +1,31 @@
+ability: multiscale
+evs:
+  atk: 240
+  def: 0
+  hp: 252
+  label: 252 HP / 240 Atk / 16 Spe
+  spa: 0
+  spd: 0
+  spe: 16
+id: dragonite_bulky-phazer-3-attacks-roost
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- dragon-tail
+- extreme-speed
+- earthquake
+- roost
+nature:
+  decreased_stat: spa
+  increased_stat: atk
+  name: Adamant
+pokemon_id: dragonite
+role: pivot
+set_name: Bulky Phazer (3 Attacks + Roost)
+tera_type: Normal

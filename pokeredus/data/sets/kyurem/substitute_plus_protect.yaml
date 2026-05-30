@@ -1,0 +1,31 @@
+ability: pressure
+evs:
+  atk: 0
+  def: 0
+  hp: 52
+  label: 52 HP / 204 SpA / 252 Spe
+  spa: 204
+  spd: 0
+  spe: 252
+id: kyurem_substitute-protect
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- substitute
+- protect
+- freeze-dry
+- earth-power
+nature:
+  decreased_stat: atk
+  increased_stat: spe
+  name: Timid
+pokemon_id: kyurem
+role: pivot
+set_name: Substitute + Protect
+tera_type: Ground

@@ -1,0 +1,31 @@
+ability: triage
+evs:
+  atk: 0
+  def: 4
+  hp: 252
+  label: 252 HP / 4 Def / 252 SpA
+  spa: 252
+  spd: 0
+  spe: 0
+id: comfey_calm-mind
+item: life-orb
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- calm-mind
+- draining-kiss
+- stored-power
+- synthesis
+nature:
+  decreased_stat: atk
+  increased_stat: spa
+  name: Modest
+pokemon_id: comfey
+role: setup_sweeper
+set_name: Calm Mind
+tera_type: Water

@@ -1,0 +1,31 @@
+ability: good-as-gold
+evs:
+  atk: 0
+  def: 0
+  hp: 0
+  label: 252 SpA / 4 SpD / 252 Spe
+  spa: 252
+  spd: 4
+  spe: 252
+id: gholdengo_choice-scarf
+item: choice-scarf
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- shadow-ball
+- make-it-rain
+- trick
+- focus-blast
+nature:
+  decreased_stat: atk
+  increased_stat: spe
+  name: Timid
+pokemon_id: gholdengo
+role: revenge_killer
+set_name: Choice Scarf
+tera_type: Fighting

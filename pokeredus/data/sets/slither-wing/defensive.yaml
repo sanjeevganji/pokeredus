@@ -1,0 +1,31 @@
+ability: protosynthesis
+evs:
+  atk: 28
+  def: 220
+  hp: 252
+  label: 252 HP / 28 Atk / 220 Def / 8 Spe
+  spa: 0
+  spd: 0
+  spe: 8
+id: slither-wing_defensive
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- first-impression
+- u-turn
+- morning-sun
+- will-o-wisp
+nature:
+  decreased_stat: spa
+  increased_stat: def
+  name: Impish
+pokemon_id: slither-wing
+role: wall
+set_name: Defensive
+tera_type: Steel

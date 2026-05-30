@@ -1,0 +1,31 @@
+ability: blaze
+evs:
+  atk: 32
+  def: 0
+  hp: 224
+  label: 224 HP / 32 Atk / 252 Spe
+  spa: 0
+  spd: 0
+  spe: 252
+id: cinderace_bulky-pivot
+item: heavy-duty-boots
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- pyro-ball
+- u-turn
+- court-change
+- will-o-wisp
+nature:
+  decreased_stat: spa
+  increased_stat: spe
+  name: Jolly
+pokemon_id: cinderace
+role: defensive_pivot
+set_name: Bulky Pivot
+tera_type: Fire

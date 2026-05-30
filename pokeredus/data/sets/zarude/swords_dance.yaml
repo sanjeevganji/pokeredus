@@ -1,0 +1,31 @@
+ability: leaf-guard
+evs:
+  atk: 252
+  def: 4
+  hp: 0
+  label: 252 Atk / 4 Def / 252 Spe
+  spa: 0
+  spd: 0
+  spe: 252
+id: zarude_swords-dance
+item: leftovers
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- swords-dance
+- knock-off
+- power-whip
+- synthesis
+nature:
+  decreased_stat: spa
+  increased_stat: spe
+  name: Jolly
+pokemon_id: zarude
+role: setup_sweeper
+set_name: Swords Dance
+tera_type: Poison

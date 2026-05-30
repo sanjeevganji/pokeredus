@@ -1,0 +1,31 @@
+ability: magician
+evs:
+  atk: 0
+  def: 180
+  hp: 252
+  label: 252 HP / 180 Def / 76 SpA
+  spa: 76
+  spd: 0
+  spe: 0
+id: hoopa-unbound_assault-vest
+item: assault-vest
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- knock-off
+- psychic-noise
+- drain-punch
+- thunderbolt
+nature:
+  decreased_stat: spe
+  increased_stat: spa
+  name: Quiet
+pokemon_id: hoopa-unbound
+role: pivot
+set_name: Assault Vest
+tera_type: Fairy

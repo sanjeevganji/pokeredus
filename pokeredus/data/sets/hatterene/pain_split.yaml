@@ -1,0 +1,31 @@
+ability: magic-bounce
+evs:
+  atk: 0
+  def: 204
+  hp: 252
+  label: 252 HP / 204 Def / 52 Spe
+  spa: 0
+  spd: 0
+  spe: 52
+id: hatterene_pain-split
+item: rocky-helmet
+ivs:
+  atk: 31
+  def: 31
+  hp: 31
+  spa: 31
+  spd: 31
+  spe: 31
+moves:
+- psychic-noise
+- draining-kiss
+- pain-split
+- nuzzle
+nature:
+  decreased_stat: atk
+  increased_stat: def
+  name: Bold
+pokemon_id: hatterene
+role: pivot
+set_name: Pain Split
+tera_type: Water
