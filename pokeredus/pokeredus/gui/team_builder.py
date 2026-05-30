@@ -416,6 +416,18 @@ class TeamSlotCard(tk.Frame):
         tk.Label(name_col, text=set_obj.set_name, font=("Consolas", 10),
                  fg=NEON_CYAN, bg=BG_CARD).pack(anchor="w")
 
+        # Primary set star
+        toggle_frame = tk.Frame(header, bg=BG_CARD)
+        toggle_frame.pack(side='right', padx=(4, 0))
+        pokemon_obj = self.kg.get_pokemon(set_obj.pokemon_id)
+        is_primary = pokemon_obj and pokemon_obj.primary_set_id == set_obj.id
+        star_text = '★' if is_primary else '☆'
+        star_color = STAR_ACTIVE if is_primary else STAR_INACTIVE
+        star_btn = tk.Label(toggle_frame, text=star_text, font=('Consolas', 14),
+                             fg=star_color, bg=BG_CARD, cursor='hand2')
+        star_btn.pack()
+        star_btn.bind('<Button-1>', lambda e: self._toggle_primary_star())
+
         # ── Type + Role badges ──────────────────────────────────────
         badge_row = tk.Frame(self, bg=BG_CARD)
         badge_row.pack(fill="x", pady=(0, 4))
@@ -487,6 +499,24 @@ class TeamSlotCard(tk.Frame):
         if dialog.result:
             self._build_filled(dialog.result)
             self._on_change()
+
+    def _toggle_primary_star(self):
+        if not self.set_id:
+            return
+        set_obj = self.kg.get_set(self.set_id)
+        if not set_obj:
+            return
+        pokemon = self.kg.get_pokemon(set_obj.pokemon_id)
+        if not pokemon:
+            return
+        if pokemon.primary_set_id == self.set_id:
+            pokemon.primary_set_id = ''
+        else:
+            pokemon.primary_set_id = self.set_id
+        if self.kg.graph.has_node(set_obj.pokemon_id):
+            self.kg.graph.nodes[set_obj.pokemon_id]['data'] = pokemon.to_dict()
+        self._build_filled(self.set_id)
+        self._on_change()
 
     def _remove(self):
         self.set_id = None
