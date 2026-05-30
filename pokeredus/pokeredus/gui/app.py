@@ -191,7 +191,7 @@ class PokeRedusApp(tk.Tk):
     def _go_pokemon(self):
         if self._pokemon_page is None:
             from pokeredus.gui.pokemon_panel import PokemonPage
-            page = PokemonPage(self._container, self.kg, self._go_home, self.matchup_cache)
+            page = PokemonPage(self._container, self.kg, self._go_home, self.matchup_cache, self.invalidate_matchup_cache)
             page.grid(row=0, column=0, sticky="nsew")
             self._pages["pokemon"] = page
             self._pokemon_page = page

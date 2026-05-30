@@ -125,7 +125,7 @@ MATCHUP_LOAD_MORE = 5
 
 class PokemonPage(tk.Frame):
 
-    def __init__(self, parent, kg: KnowledgeGraph, go_home_cb, matchup_cache: MatchupCache | None = None):
+    def __init__(self, parent, kg: KnowledgeGraph, go_home_cb, matchup_cache: MatchupCache | None = None, on_cache_invalidate=None):
         super().__init__(parent, bg=BG_DARK)
         self.kg = kg
         self._go_home = go_home_cb
@@ -135,6 +135,7 @@ class PokemonPage(tk.Frame):
         self._sprite_mgr = get_sprite_manager()
         self._photo_refs: list = []  # prevent GC
         self._matchup_cache = matchup_cache
+        self._on_cache_invalidate = on_cache_invalidate
 
         self._search_filter = RegexSearchFilter()
         self._type_filter = TypeFilter()
@@ -1142,6 +1143,8 @@ class PokemonPage(tk.Frame):
         self.wait_window(dialog)
         if self._selected_pokemon_id:
             self._select_pokemon(self._selected_pokemon_id)
+        if self._on_cache_invalidate:
+            self._on_cache_invalidate()
 
     def _delete_set(self, pokemon_id, set_id):
         dlg = tk.Toplevel(self); dlg.title("Confirm Delete"); dlg.configure(bg=BG_DARK)
@@ -1158,3 +1161,5 @@ class PokemonPage(tk.Frame):
         if confirmed[0]:
             self.kg.remove_set(set_id)
             self._select_pokemon(pokemon_id)
+            if self._on_cache_invalidate:
+                self._on_cache_invalidate()
