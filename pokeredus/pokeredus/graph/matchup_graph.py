@@ -106,6 +106,59 @@ class GraphProjection:
 
 
 @dataclass
+class MoveRanking:
+    """A single move ranked for use against a specific defender.
+
+    score: combined heuristic (damage + type effectiveness + utility).
+    reasoning: human-readable explanation of why this score was assigned.
+    type_effectiveness: multiplier for the move's type vs defender.
+    is_stab: True if the move is STAB for the attacker.
+    estimated_damage_pct: best-case damage roll as % of defender's HP (0-100).
+    """
+
+    move_id: str
+    move_name: str
+    score: float
+    reasoning: str
+    type_effectiveness: float = 1.0
+    is_stab: bool = False
+    estimated_damage_pct: float = 0.0
+
+
+@dataclass
+class SwitchRanking:
+    """A candidate switch-in ranked against a specific opponent.
+
+    score: combined heuristic (type resist + speed + 3D distance).
+    reasons: list of human-readable explanations.
+    """
+
+    set_id: str
+    pokemon_id: str
+    set_name: str
+    score: float
+    reasons: list[str] = field(default_factory=list)
+    type_matchup: float = 1.0  # 0..4, product of incoming effectiveness
+    speed_advantage: str = "tie"  # "us", "them", "tie"
+
+
+@dataclass
+class TurnPlan:
+    """A composed turn plan returned by analyze_game_state.
+
+    recommended_switch: SwitchRanking | None (None means stay in)
+    recommended_move: MoveRanking | None
+    confidence: float in [0, 1]
+    reasoning_chain: list[str] of human-readable explanations
+    """
+
+    recommended_switch: SwitchRanking | None
+    recommended_move: MoveRanking | None
+    confidence: float = 0.5
+    reasoning_chain: list[str] = field(default_factory=list)
+
+
+@dataclass
 class MatchupGraph:
     """Container for projected 3D matchup-graph nodes.
 
@@ -471,3 +524,126 @@ def project_to_3d(target, kg: "KnowledgeGraph") -> MatchupGraphNode:
         axis_speed_control_utility=project_scu_axis(sets, kg),
         member_ids=[s.id for s in sets],
     )
+
+
+# ═════════════════════════════════════════════════════════════════════
+# AI Query 1: pick_best_move
+# ═════════════════════════════════════════════════════════════════════
+
+def pick_best_move(
+    attacker: SetClass | str,
+    defender: SetClass | str,
+    kg: "KnowledgeGraph",
+) -> list[MoveRanking]:
+    """Rank every move in the attacker's set for use against the defender.
+
+    Returns a list of MoveRanking sorted by score descending.
+
+    Scoring per move (additive):
+      base_score   = 1.0
+      type_mult    = TYPE_CHART[move.type][def_types]  (e.g. 2.0, 0.5, 0)
+      stab_bonus   = 0.5 if STAB else 0
+      utility_bonus = 0.3 if status else 0
+                    + 0.2 if priority > 0
+                    + 0.1 if status and set has a recovery move (status spam value)
+      immunity_penalty = -1.0 if immune (0 type mult)
+      damage_boost = (avg_damage_pct / 100) from existing MatchupRelation if available
+
+    Each move's reasoning string documents which bonuses applied.
+    """
+    a = _resolve_one(attacker, kg)
+    d = _resolve_one(defender, kg)
+    if a is None or d is None:
+        return []
+
+    a_pokemon = kg.get_pokemon(a.pokemon_id)
+    d_pokemon = kg.get_pokemon(d.pokemon_id)
+    if a_pokemon is None or d_pokemon is None:
+        return []
+
+    def_types = d_pokemon.types
+
+    # Look up existing matchup for damage data (optional, may be None)
+    existing = kg.get_matchup_between(a.id, d.id)
+
+    # Count recovery moves in the attacker's set for status-spam bonus
+    a_has_recovery = any(mid.lower() in PIVOT_OR_RECOVERY for mid in a.moves)
+
+    rankings: list[MoveRanking] = []
+    for move_id in a.moves:
+        move = kg.get_move(move_id)
+        move_name = move.name if move else move_id
+        move_type = move.type if move else "Normal"
+        is_status = (move is None) or move.is_status
+        bp = move.base_power if move else 0
+        prio = move.priority if move else 0
+        is_stab = move_type in a_pokemon.types
+
+        # Type effectiveness vs defender's types
+        type_mult = get_effectiveness(move_type, def_types)
+
+        # Base score
+        score = 1.0
+        reasons: list[str] = []
+
+        # Damage-derived score (per % of defender HP dealt)
+        damage_pct = 0.0
+        if existing is not None and move_id == existing.best_move_a_id:
+            # Only the "best move" entry has direct damage data; we still
+            # use it as a hint, with type_mult as the dominant signal.
+            damage_pct = max(0.0, existing.damage_pct_a_to_b_hi)
+            if damage_pct > 0:
+                score += damage_pct / 100.0
+                reasons.append(f"~{damage_pct:.0f}% damage roll")
+
+        # Type effectiveness
+        if type_mult == 0.0:
+            score = -1.0
+            reasons.append("immune — never use")
+        elif type_mult >= 2.0:
+            score += 0.6
+            reasons.append(f"super-effective (x{type_mult})")
+        elif type_mult > 1.0:
+            score += 0.3
+            reasons.append(f"effective (x{type_mult})")
+        elif type_mult < 1.0 and type_mult > 0.0:
+            score -= 0.3
+            reasons.append(f"resisted (x{type_mult})")
+        # type_mult == 1.0: neutral, no change
+
+        # STAB
+        if is_stab and not is_status:
+            score += 0.5
+            reasons.append("STAB")
+
+        # High base power (nuke)
+        if bp >= 100 and not is_status:
+            score += 0.2
+            reasons.append("nuke-tier power")
+
+        # Status utility
+        if is_status:
+            score += 0.3
+            reasons.append("status utility")
+            if a_has_recovery:
+                score += 0.1
+                reasons.append("set has recovery → status spam")
+
+        # Priority
+        if prio > 0:
+            score += 0.2
+            reasons.append("priority")
+
+        rankings.append(MoveRanking(
+            move_id=move_id,
+            move_name=move_name,
+            score=round(score, 4),
+            reasoning="; ".join(reasons) if reasons else "neutral",
+            type_effectiveness=type_mult,
+            is_stab=is_stab,
+            estimated_damage_pct=damage_pct,
+        ))
+
+    # Sort descending by score
+    rankings.sort(key=lambda r: r.score, reverse=True)
+    return rankings

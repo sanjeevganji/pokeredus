@@ -511,3 +511,60 @@ def test_graph_serialize_roundtrip():
         assert n2 is not None
         assert n2.axis_offdef == n.axis_offdef
         assert n2.axis_speed_control_utility == n.axis_speed_control_utility
+
+
+# ═════════════════════════════════════════════════════════════════════
+# Task 6: pick_best_move
+# ═════════════════════════════════════════════════════════════════════
+
+def test_pick_best_move_returns_dataclass():
+    """pick_best_move returns a list of MoveRanking dataclasses."""
+    kg = make_loaded_graph()
+    attacker = kg.get_set("garchomp_swords_dance")
+    defender = kg.get_set("toxapex_defensive")
+    rankings = mg.pick_best_move(attacker, defender, kg)
+    assert isinstance(rankings, list)
+    assert len(rankings) > 0
+    for r in rankings:
+        assert isinstance(r, mg.MoveRanking)
+        assert r.move_id  # non-empty
+        assert isinstance(r.score, float)
+        assert isinstance(r.reasoning, str)
+
+
+def test_pick_best_move_scores_have_relative_order():
+    """Rankings should be sorted descending by score."""
+    kg = make_loaded_graph()
+    attacker = kg.get_set("garchomp_swords_dance")
+    defender = kg.get_set("toxapex_defensive")
+    rankings = mg.pick_best_move(attacker, defender, kg)
+    scores = [r.score for r in rankings]
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_pick_best_move_uses_super_effective_stab():
+    """Earthquake (Ground STAB, 2x vs Poison) should outrank Swords Dance (status, 1x)."""
+    kg = make_loaded_graph()
+    attacker = kg.get_set("garchomp_swords_dance")
+    defender = kg.get_set("toxapex_defensive")
+    rankings = mg.pick_best_move(attacker, defender, kg)
+    score_by_move = {r.move_id: r.score for r in rankings}
+    # Swords Dance is status, should be lowest (no damage output)
+    sd_score = score_by_move.get("swordsdance", -999)
+    # Earthquake should beat Swords Dance
+    eq_score = score_by_move.get("earthquake", -999)
+    assert eq_score > sd_score, \
+        f"Earthquake ({eq_score}) should outrank Swords Dance ({sd_score})"
+
+
+def test_pick_best_move_includes_status_with_reasoning():
+    """Status moves (Toxic, Will-O-Wisp) should appear in rankings with reasoning."""
+    kg = make_loaded_graph()
+    attacker = kg.get_set("dragapult_choice")
+    defender = kg.get_set("toxapex_defensive")
+    rankings = mg.pick_best_move(attacker, defender, kg)
+    willow = [r for r in rankings if r.move_id == "willowisp"]
+    assert len(willow) == 1
+    r = willow[0]
+    assert "status" in r.reasoning.lower() or "utility" in r.reasoning.lower()
+
