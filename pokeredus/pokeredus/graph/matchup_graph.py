@@ -647,3 +647,258 @@ def pick_best_move(
     # Sort descending by score
     rankings.sort(key=lambda r: r.score, reverse=True)
     return rankings
+
+
+# ═════════════════════════════════════════════════════════════════════
+# AI Query 2: find_optimal_switch
+# ═════════════════════════════════════════════════════════════════════
+
+def find_optimal_switch(
+    opponent: SetClass | str,
+    candidates: Iterable[SetClass | str],
+    kg: "KnowledgeGraph",
+) -> list[SwitchRanking]:
+    """Rank candidate switch-ins against a single opponent.
+
+    Scoring per candidate (additive):
+      type_resist_score  = 1.0 / product(incoming_type_effectiveness)
+                            (4x weakness = 0.25, immune = inf → capped)
+                            multiplied by 0.4 weight
+      speed_advantage     = +0.4 if candidate faster, -0.4 if slower
+      matchup_score_bonus = clamp(existing_matchup_score, -1, 1) * 0.4
+                            (uses precomputed MatchupRelation if available)
+      3d_distance_bonus  = -0.3 * euclidean_distance(opponent_node, candidate_node)
+                            in axis-2 + axis-3 space (closer = better)
+
+    Each ranking's ``reasons`` list documents which factors applied.
+    """
+    opp = _resolve_one(opponent, kg)
+    if opp is None:
+        return []
+    opp_pokemon = kg.get_pokemon(opp.pokemon_id)
+    if opp_pokemon is None:
+        return []
+
+    opp_proj = project_to_3d(opp, kg)
+
+    # Precompute opponent's offensive type vector (its STAB move types)
+    opp_attack_types: list[str] = []
+    for mid in opp.moves:
+        mv = kg.get_move(mid)
+        if mv and not mv.is_status and mv.base_power > 0:
+            opp_attack_types.append(mv.type)
+    # Also include the opponent's own types for STAB
+    opp_attack_types.extend(opp_pokemon.types)
+    # Dedupe
+    opp_attack_types = list(dict.fromkeys(opp_attack_types))
+
+    rankings: list[SwitchRanking] = []
+    for cand in candidates:
+        c = _resolve_one(cand, kg)
+        if c is None:
+            continue
+        c_pokemon = kg.get_pokemon(c.pokemon_id)
+        if c_pokemon is None:
+            continue
+
+        reasons: list[str] = []
+        score = 0.0
+
+        # 1. Type resist: product of effectiveness of opponent's attack types
+        #    vs the candidate's defensive types
+        type_matchup_product = 1.0
+        for atk_type in opp_attack_types:
+            mult = get_effectiveness(atk_type, c_pokemon.types)
+            type_matchup_product *= mult
+        # Cap to avoid /0 (immunity gives 0 → treat as best)
+        if type_matchup_product == 0.0:
+            type_resist_score = 2.0  # huge bonus for being immune
+            reasons.append("immune to opponent's STAB")
+        else:
+            # Lower is better for the candidate (less damage taken)
+            # Map (0.25, 0.5, 1.0, 2.0, 4.0) to (2.0, 1.0, 0.5, 0.0, -1.0)
+            if type_matchup_product <= 0.25:
+                type_resist_score = 2.0
+                reasons.append("barely scratched by opponent's STAB (4x resist)")
+            elif type_matchup_product <= 0.5:
+                type_resist_score = 1.0
+                reasons.append("resists opponent's STAB")
+            elif type_matchup_product <= 1.0:
+                type_resist_score = 0.5
+                reasons.append("neutral to opponent's STAB")
+            elif type_matchup_product <= 2.0:
+                type_resist_score = 0.0
+                reasons.append("takes neutral-to-super-effective damage")
+            else:
+                type_resist_score = -1.0
+                reasons.append("4x weak to opponent's STAB")
+        score += 0.4 * type_resist_score
+
+        # 2. Speed advantage
+        opp_spe = opp.effective_stat("spe", opp_pokemon.base_stats, level=100)
+        c_spe = c.effective_stat("spe", c_pokemon.base_stats, level=100)
+        if c_spe > opp_spe:
+            speed_advantage = "us"
+            score += 0.4
+            reasons.append("faster than opponent")
+        elif c_spe < opp_spe:
+            speed_advantage = "them"
+            score -= 0.4
+            reasons.append("slower than opponent")
+        else:
+            speed_advantage = "tie"
+            reasons.append("speed tie")
+
+        # 3. MatchupRelation score (if precomputed)
+        existing = kg.get_matchup_between(c.id, opp.id)
+        if existing is not None and existing.confidence > 0:
+            m_bonus = max(-1.0, min(1.0, existing.score)) * 0.4
+            score += m_bonus
+            if m_bonus > 0.1:
+                reasons.append(f"favorable precomputed matchup ({existing.score:+.2f})")
+            elif m_bonus < -0.1:
+                reasons.append(f"unfavorable precomputed matchup ({existing.score:+.2f})")
+
+        # 4. 3D distance in (offdef, scu) space — closer to opponent = similar
+        #    role/archetype, but we actually want COMPLEMENTARY. For now,
+        #    we use it as a tiebreaker (slight penalty for being too close).
+        c_proj = project_to_3d(c, kg)
+        dist = math.sqrt(
+            (c_proj.axis_offdef - opp_proj.axis_offdef) ** 2
+            + sum((a - b) ** 2 for a, b in
+                  zip(c_proj.axis_speed_control_utility,
+                      opp_proj.axis_speed_control_utility))
+        )
+        # Distance in [0, ~2.5]; convert to small bonus/penalty
+        score -= 0.1 * dist
+
+        rankings.append(SwitchRanking(
+            set_id=c.id,
+            pokemon_id=c.pokemon_id,
+            set_name=c.set_name,
+            score=round(score, 4),
+            reasons=reasons,
+            type_matchup=type_matchup_product,
+            speed_advantage=speed_advantage,
+        ))
+
+    rankings.sort(key=lambda r: r.score, reverse=True)
+    return rankings
+
+
+# ═════════════════════════════════════════════════════════════════════
+# AI Query 3: analyze_game_state (composes pick_best_move + find_optimal_switch)
+# ═════════════════════════════════════════════════════════════════════
+
+# Threshold for recommending a switch: if best switch scores at least
+# SWITCH_ADVANTAGE_THRESHOLD higher than the active's matchup score,
+# the AI will switch. Otherwise it stays in.
+SWITCH_ADVANTAGE_THRESHOLD: float = 0.3
+
+
+def analyze_game_state(
+    my_active: SetClass | str,
+    opp_active: SetClass | str,
+    my_bench: Iterable[SetClass | str],
+    kg: "KnowledgeGraph",
+) -> TurnPlan:
+    """Decide a single turn's plan: switch or stay, and which move to use.
+
+    Decision process:
+      1. Compute the active's matchup score vs the opponent.
+      2. Compute each bench member's matchup score vs the opponent
+         using find_optimal_switch.
+      3. If the best bench score > active score + threshold, recommend
+         a switch; else recommend staying in.
+      4. Always pick a recommended move (either for the active if staying,
+         or the switch-in's best move if switching).
+      5. Build a reasoning chain documenting each step.
+
+    Returns a TurnPlan with both recommendations and the confidence chain.
+    """
+    me = _resolve_one(my_active, kg)
+    opp = _resolve_one(opp_active, kg)
+    if me is None or opp is None:
+        return TurnPlan(
+            recommended_switch=None,
+            recommended_move=None,
+            confidence=0.0,
+            reasoning_chain=["could not resolve active or opponent"],
+        )
+
+    chain: list[str] = []
+    chain.append(
+        f"analyzing game state: {me.set_name} (active) vs {opp.set_name} (opp)"
+    )
+
+    # 1. Project both actives
+    me_proj = project_to_3d(me, kg)
+    opp_proj = project_to_3d(opp, kg)
+    chain.append(
+        f"  - active projected: offdef={me_proj.axis_offdef:+.2f}, "
+        f"scu={tuple(round(v, 2) for v in me_proj.axis_speed_control_utility)}"
+    )
+    chain.append(
+        f"  - opponent projected: offdef={opp_proj.axis_offdef:+.2f}, "
+        f"scu={tuple(round(v, 2) for v in opp_proj.axis_speed_control_utility)}"
+    )
+
+    # 2. Active's matchup score
+    active_matchup = kg.get_matchup_between(me.id, opp.id)
+    active_score = active_matchup.score if active_matchup is not None else 0.0
+    chain.append(
+        f"  - active matchup score vs opp: {active_score:+.2f}"
+    )
+
+    # 3. Best bench matchup
+    bench_list = list(my_bench)
+    bench_switches = find_optimal_switch(opp, bench_list, kg)
+    if bench_switches:
+        best_switch = bench_switches[0]
+        chain.append(
+            f"  - best bench switch: {best_switch.set_name} "
+            f"(score={best_switch.score:+.2f})"
+        )
+        for reason in best_switch.reasons:
+            chain.append(f"      * {reason}")
+    else:
+        best_switch = None
+        chain.append("  - no bench available (or empty)")
+
+    # 4. Decide: switch or stay
+    should_switch = (
+        best_switch is not None
+        and best_switch.score > active_score + SWITCH_ADVANTAGE_THRESHOLD
+    )
+
+    if should_switch and best_switch is not None:
+        chain.append(
+            f"  -> decision: SWITCH to {best_switch.set_name} "
+            f"(advantage {best_switch.score - active_score:+.2f} > threshold)"
+        )
+        # The switch-in is the recommended "active" for the move pick
+        switch_set = _resolve_one(best_switch.set_id, kg)
+        move_rankings = pick_best_move(switch_set, opp, kg) if switch_set else []
+        rec_move = move_rankings[0] if move_rankings else None
+        confidence = 0.5 + 0.2 * min(1.0, abs(best_switch.score - active_score))
+        return TurnPlan(
+            recommended_switch=best_switch,
+            recommended_move=rec_move,
+            confidence=min(1.0, confidence),
+            reasoning_chain=chain,
+        )
+    else:
+        chain.append(
+            f"  -> decision: STAY with {me.set_name} "
+            f"(active score {active_score:+.2f} acceptable; "
+            f"best bench {best_switch.score if best_switch else 0:+.2f})"
+        )
+        move_rankings = pick_best_move(me, opp, kg)
+        rec_move = move_rankings[0] if move_rankings else None
+        confidence = 0.5 + 0.2 * max(0.0, active_score)
+        return TurnPlan(
+            recommended_switch=None,
+            recommended_move=rec_move,
+            confidence=min(1.0, confidence),
+            reasoning_chain=chain,
+        )
