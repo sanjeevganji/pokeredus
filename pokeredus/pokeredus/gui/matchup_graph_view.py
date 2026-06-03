@@ -575,32 +575,6 @@ class MatchupGraphView(tk.Frame):
         self.view_3d.set_node(node)
 
 
-# ═══════════════════════════════════════════════════════════════════
-# Backward-compat shims (Task 2).  Real implementations replace these
-# once the rest of the app is rewired to use MatchupGraphView directly.
-# ═══════════════════════════════════════════════════════════════════
-
-class _MiniGraphStub(tk.Frame):
-    """No-op placeholder for the old MiniGraph3DCanvas.  See Task 2."""
-
-    def __init__(self, master, kg=None, matchup_cache=None,
-                 width: int = 320, height: int = 200, **kwargs):
-        super().__init__(master, width=width, height=height, **kwargs)
-        self.kg = kg
-        self.matchup_cache = matchup_cache
-        tk.Label(
-            self, text="(graph removed — see Task 15)",
-            fg="#888", bg="#0d1117", font=("TkFixedFont", 9),
-        ).pack(expand=True, fill="both")
-
-    def set_data(self, set_ids=None, team_anchor_ids=None,
-                 run_simulation: bool = True) -> None:
-        return
-
-
-MiniGraph3DCanvas = _MiniGraphStub  # old import path
-
-
 class _MatchupGraphPageStub(tk.Frame):
     """Backward-compat page wrapper kept for app.py's _open_matchup_graph_page.
 
