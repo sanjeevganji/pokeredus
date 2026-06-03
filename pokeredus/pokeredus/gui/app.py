@@ -197,6 +197,11 @@ class PokeRedusApp(tk.Tk):
         page.grid(row=0, column=0, sticky="nsew")
         self._pages["title"] = page
 
+        # Page state for the matchup graph (focused team etc.)
+        self._graph_focus_set_ids: list[str] = []
+        self._graph_focus_team_name: str | None = None
+        self._last_team_editor = None  # Track current team editor for back-nav
+
         # Animated canvas background
         self._title_canvas = tk.Canvas(page, bg=BG_DARK, highlightthickness=0)
         self._title_canvas.pack(fill="both", expand=True)
@@ -286,7 +291,7 @@ class PokeRedusApp(tk.Tk):
         buttons = [
             ("Pokémon Stats", NEON_CYAN, self._go_pokemon),
             ("Team Builder", NEON_GREEN, self._go_team_builder),
-            ("Matchup Graph", NEON_PINK, None),
+            ("Matchup Graph", NEON_PINK, self._go_matchup_graph),
         ]
 
         btn_w, btn_h = 200, 60
@@ -375,10 +380,65 @@ class PokeRedusApp(tk.Tk):
         if "team_editor" in self._pages:
             self._pages["team_editor"].destroy()
         page = TeamBuilderPage(self._container, self.kg,
-                                self._go_team_builder, team_record)
+                                self._go_team_builder, team_record,
+                                on_open_matchup_graph=self._open_matchup_graph_for_team)
         page.grid(row=0, column=0, sticky="nsew")
         self._pages["team_editor"] = page
+        self._last_team_editor = page
         self._show_page("team_editor")
+
+    def _go_matchup_graph(self):
+        """Open the main matchup graph page (full meta view)."""
+        # Clear any team focus when entering from the menu
+        self._graph_focus_set_ids = []
+        self._graph_focus_team_name = None
+        self._open_matchup_graph_page(back_to_team=False)
+
+    def _open_matchup_graph_for_team(self, team_set_ids: list[str],
+                                     team_name: str | None = None,
+                                     team_record=None) -> None:
+        """Open the matchup graph focused on a specific team.
+
+        Called from the team builder's 'Open full graph' link.
+        """
+        self._graph_focus_set_ids = list(team_set_ids)
+        self._graph_focus_team_name = team_name
+        # Remember the team editor so we can return to it
+        if team_record is not None:
+            self._last_team_editor_record = team_record
+        self._open_matchup_graph_page(back_to_team=True)
+
+    def _open_matchup_graph_page(self, back_to_team: bool = False) -> None:
+        # TODO(matchup-graph-3d): rewire in Task 16 to use the new
+        # MatchupGraphView (which is built into a MatchupGraphPage wrapper).
+        from pokeredus.gui.matchup_graph_view import MatchupGraphPage
+
+        # Destroy old graph page if exists
+        if "matchup_graph" in self._pages:
+            try:
+                self._pages["matchup_graph"].destroy()
+            except tk.TclError:
+                pass
+            self._pages.pop("matchup_graph", None)
+
+        on_back = self._go_team_editor if back_to_team else None
+        page = MatchupGraphPage(
+            self._container, self.kg, self.matchup_cache,
+            go_home=self._go_home,
+            focus_set_ids=self._graph_focus_set_ids or None,
+            focus_team_name=self._graph_focus_team_name,
+            on_back_to_team=on_back,
+        )
+        page.grid(row=0, column=0, sticky="nsew")
+        self._pages["matchup_graph"] = page
+        self._show_page("matchup_graph")
+
+    def _go_team_editor(self) -> None:
+        """Return to the last team editor if one was active."""
+        if self._last_team_editor is not None and self._last_team_editor.winfo_exists():
+            self._show_page("team_editor")
+        else:
+            self._go_team_builder()
 
     def _go_home(self):
         self._show_page("title")
