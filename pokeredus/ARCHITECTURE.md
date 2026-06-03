@@ -168,7 +168,8 @@ PokeRedus is a class-based Pokémon intelligence system for competitive Gen 9 OU
 | get_best_set_per_species(kg): Best set for each species
 | matchup_matrix(kg): Species × species matchup matrix
 
-### 3D Matchup Graph (matchup_graph.py)
+### 3D Matchup Graph (matchup_graph.py) — AI decision layer
+
 - **Purpose**: Map every set (and team of sets) into a three-axis space for fast AI decision-making. The graph generalizes to single Pokémon, sets, and full teams.
 - **Three Axes**:
   - **Axis 1 (Types)**: 18-cell discrete vector (one per Pokémon type) with type affinity, STAB coverage, and nuke-power bonuses. Each cell ∈ [0, 1].
@@ -182,6 +183,24 @@ PokeRedus is a class-based Pokémon intelligence system for competitive Gen 9 OU
   - `find_optimal_switch(opponent, candidates, kg) → list[SwitchRanking]`: ranks bench members using type-resist, speed advantage, precomputed matchup, and 3D distance
   - `analyze_game_state(my_active, opp_active, my_bench, kg) → TurnPlan`: composed decision: stay vs switch (threshold 0.3), with a full reasoning chain explaining the choice
 - **Generalization**: All three axis projections accept `SetClass | str | list[SetClass | str]`, so they work uniformly for individual Pokémon, sets, and full teams.
+
+### Polygonal-Solid Matchup Graph (matchup_graph.py) — visual layer
+
+- **Purpose**: Map every set (and team of sets) into an 8-attribute × 18-type matrix that the GUI renders as a 2D radial polygon or 3D cylinder of stacked type-discs.  The visual is intuitive: bigger, well-shaped polygons = stronger sets; bright large discs in the cylinder = types the set dominates.
+- **8 Attributes** (base → compound):
+  - **Base (4)**: `attack` (highest STAB BP), `utility` (setup/status moves), `defense` (bulk from HP/def/SpD), `speed` (eff Spe normalized)
+  - **Compound (4)**: `counter = attack + defense`, `sponge = utility + defense`, `threat = attack + speed`, `punish = utility + speed`
+- **Per-type matrix** (8 × 18): each cell is the attribute value * weight(type, attribute); type weight depends on STAB and type effectiveness vs the 18 canonical types
+- **Per-set role weight** (`WEIGHT_TABLE`): `sweeper / wall / pivot / cleric / staller / lead / default` — rebalances the 8 attributes for a given archetype before the type weighting
+- **Vase sort**: types are reordered into ascending type-area permutation so the resulting 2D polygon / 3D cylinder is symmetric (the "vase" silhouette)
+- **Volume** = `Σ_types (counter·sponge + threat·punish) · bias`; `bias = 0.5 + 0.5·mcts_composite` so well-ranked sets are visibly fuller
+- **Data structures**:
+  - `SetMatchupNode`: 8×18 `np.float32` attribute matrix + `vase_order` (list[int]) + `bias` (float) + `weights` (list[float]) + `pokemon_id`, `set_id`, `mcts_composite`
+  - `compose_team_node(set_nodes)`: attributes sum, weights averaged, vase order = max-frequency union, bias = mean bias
+  - `volume_of(attributes, bias)`: scalar volume
+- **Per-set on-disk cache**: `data/graphs/nodes/{pokemon_id}/{set_id}.json` (+ `.meta.json` for mcts/bias/vase). Hooked into `KnowledgeGraph.save_set_yaml` so saving a set also caches the node
+- **GUI**: `pokeredus/gui/matchup_graph_view.py` exposes `MatchupGraph2D` (radial polygon, "elaborate by types" toggle), `MatchupGraph3D` (stacked-disc cylinder, arrow keys / drag / wheel / click-to-pick), and `MatchupGraphView` (combined 2D/3D toggle with `set_set(pokemon_id, set_id)` and `set_team(set_ids, kg=None)`)
+- **Wrappers**: `MatchupGraphPage` in the same file is the page wrapper used by `app._open_matchup_graph_page` (toolbar + set-list sidebar + view body)
 
 ---
 
