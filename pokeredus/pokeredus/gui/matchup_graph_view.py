@@ -533,6 +533,43 @@ class MatchupGraphView(tk.Frame):
         self._current_node = node
         self.set_node(node)
 
+    def set_team(self, set_ids: list[str], kg=None) -> None:
+        """Build a team node from the given set ids and display it.
+
+        Used by the matchup_panel mini-graph and the full graph page
+        when focusing on a specific team.  Falls back to set_set() with
+        the first set id if only one is given.
+        """
+        if not set_ids:
+            self.set_node(None)
+            return
+        from pokeredus.graph.matchup_graph import (
+            build_node, compose_team_node,
+        )
+        if kg is None:
+            try:
+                from pokeredus.graph.knowledge_graph import KnowledgeGraph
+                kg = KnowledgeGraph()
+            except Exception:
+                kg = None
+        nodes = []
+        for sid in set_ids:
+            if kg is None:
+                continue
+            s = kg.get_set(sid)
+            if s is None:
+                continue
+            p = kg.get_pokemon(s.pokemon_id)
+            if p is None:
+                continue
+            nodes.append(build_node(s, p, kg=kg))
+        if not nodes:
+            self.set_node(None)
+            return
+        team_node = compose_team_node(nodes)
+        self._current_node = team_node
+        self.set_node(team_node)
+
     def set_node(self, node) -> None:
         self.view_2d.set_node(node)
         self.view_3d.set_node(node)
@@ -565,21 +602,82 @@ MiniGraph3DCanvas = _MiniGraphStub  # old import path
 
 
 class _MatchupGraphPageStub(tk.Frame):
-    """No-op placeholder for the old MatchupGraphPage.  See Task 2."""
+    """Backward-compat page wrapper kept for app.py's _open_matchup_graph_page.
+
+    Hosts a MatchupGraphView plus a tiny toolbar (Home / Back-to-team).
+    When ``focus_set_ids`` is given we display the composed team node;
+    otherwise we display the first available set, with a listbox to
+    switch.
+    """
 
     def __init__(self, master, kg=None, matchup_cache=None,
                  go_home=None, focus_set_ids=None,
                  focus_team_name=None, on_back_to_team=None, **kwargs):
         super().__init__(master, **kwargs)
-        tk.Label(
-            self,
-            text=("Matchup Graph — placeholder\n"
-                  "(real view lands in Task 16 of the rewrite plan)"),
-            fg="#e6edf3", bg="#0d1117",
-            font=("TkFixedFont", 12, "bold"), justify="center",
-        ).pack(expand=True, fill="both")
+        self.kg = kg
+        self._go_home = go_home
+        self._on_back = on_back_to_team
+
+        # ── top toolbar ────────────────────────────────────────────
+        bar = tk.Frame(self, bg="#0d1117")
+        bar.pack(side="top", fill="x")
+        title = focus_team_name or (
+            f"Matchup Graph · {len(focus_set_ids)} sets" if focus_set_ids
+            else "Matchup Graph"
+        )
+        tk.Label(bar, text=title, bg="#0d1117", fg="#e6edf3",
+                 font=("TkFixedFont", 12, "bold")).pack(side="left", padx=10)
+        if on_back_to_team is not None:
+            tk.Button(bar, text="Back to team", command=on_back_to_team
+                      ).pack(side="right", padx=4, pady=4)
         if go_home is not None:
-            tk.Button(self, text="Home", command=go_home).pack(side="bottom")
+            tk.Button(bar, text="Home", command=go_home
+                      ).pack(side="right", padx=4, pady=4)
+
+        # ── body: set list (left) + view (right) ───────────────────
+        from pokeredus.config import SETS_DIR
+        body = tk.Frame(self, bg="#0d1117")
+        body.pack(fill="both", expand=True)
+        list_frame = tk.Frame(body, bg="#161b22", width=240)
+        list_frame.pack(side="left", fill="y")
+        list_frame.pack_propagate(False)
+        tk.Label(list_frame, text="Sets", bg="#161b22", fg="#e6edf3",
+                 font=("TkFixedFont", 10, "bold"),
+                 anchor="w").pack(fill="x", padx=8, pady=4)
+        self._listbox = tk.Listbox(
+            list_frame, bg="#0d1117", fg="#e6edf3",
+            font=("TkFixedFont", 9), selectbackground="#3a86ff",
+            highlightthickness=0, bd=0, exportselection=False,
+        )
+        self._listbox.pack(fill="both", expand=True, padx=4, pady=4)
+        self._set_id_by_row: list[tuple[str, str]] = []
+        if kg is not None:
+            for s in sorted(kg.get_all_sets(), key=lambda x: (x.pokemon_id, x.set_name)):
+                label = f"{s.pokemon_id} · {s.set_name}"
+                self._listbox.insert("end", label)
+                self._set_id_by_row.append((s.pokemon_id, s.id))
+        self._listbox.bind("<<ListboxSelect>>", self._on_select)
+        self._listbox.selection_clear(0, "end")
+
+        self._view = MatchupGraphView(body, sets_dir=str(SETS_DIR))
+        self._view.pack(side="left", fill="both", expand=True)
+
+        # ── initial content ────────────────────────────────────────
+        if focus_set_ids:
+            self._view.set_team(focus_set_ids, kg=kg)
+        elif self._set_id_by_row:
+            pid, sid = self._set_id_by_row[0]
+            self._view.set_set(pid, sid)
+            self._listbox.selection_set(0)
+
+    def _on_select(self, _evt=None) -> None:
+        sel = self._listbox.curselection()
+        if not sel:
+            return
+        idx = sel[0]
+        if 0 <= idx < len(self._set_id_by_row):
+            pid, sid = self._set_id_by_row[idx]
+            self._view.set_set(pid, sid)
 
 
 MatchupGraphPage = _MatchupGraphPageStub  # old import path

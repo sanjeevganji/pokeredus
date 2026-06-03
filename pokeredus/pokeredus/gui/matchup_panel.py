@@ -26,10 +26,10 @@ from pokeredus.gui.theme import (
     NEON_CYAN, NEON_GREEN, NEON_YELLOW, NEON_PINK, NEON_ORANGE, NEON_RED,
     FONT_SMALL, FONT_BODY, FONT_BODY_BOLD, FONT_HEADING, FONT_BUTTON,
 )
-# TODO(matchup-graph-3d): rewire in Task 15/16 — the new view widget
-# exposes MatchupGraphView with set_set(pokemon_id, set_id).  The mini
-# graph in this panel will become a small MatchupGraph2D instance.
-from pokeredus.gui.matchup_graph_view import MiniGraph3DCanvas  # noqa: F401
+# Task 16: the mini-graph in the team builder is now a 2D-only slice
+# of the new MatchupGraphView.  The full MatchupGraphView is reserved
+# for the dedicated matchup-graph page (see app.py).
+from pokeredus.gui.matchup_graph_view import MatchupGraph2D  # noqa: F401
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -154,9 +154,9 @@ class TeamAnalysisPanel(tk.Frame):
         graph_frame = tk.Frame(self, bg=BG_PANEL)
         graph_frame.pack(fill="x", padx=10, pady=4)
 
-        self._mini_graph = MiniGraph3DCanvas(
-            graph_frame, self.kg, self.matchup_cache,
-            width=320, height=200,
+        from pokeredus.config import SETS_DIR
+        self._mini_graph = MatchupGraph2D(
+            graph_frame, sets_dir=str(SETS_DIR),
         )
         self._mini_graph.pack(fill="x")
 
@@ -247,16 +247,28 @@ class TeamAnalysisPanel(tk.Frame):
                 "coverage": cov,
             })
 
-        # Refresh graph
-        if self._team_set_ids:
-            self._mini_graph.set_data(
-                set_ids=None,  # show whole meta
-                team_anchor_ids=self._team_set_ids,
-                run_simulation=True,
+        # Refresh mini graph — show the composed team node (or first set)
+        from pokeredus.graph.matchup_graph import (
+            build_node, compose_team_node,
+        )
+        nodes = []
+        for sid in self._team_set_ids:
+            s = self.kg.get_set(sid)
+            if s is None:
+                continue
+            p = self.kg.get_pokemon(s.pokemon_id)
+            if p is None:
+                continue
+            nodes.append(build_node(s, p, kg=self.kg))
+        if nodes:
+            team_node = (compose_team_node(nodes) if len(nodes) > 1
+                         else nodes[0])
+            self._mini_graph.set_node(team_node)
+            self._hint.config(
+                text=("Team polygon · click 'Open full graph' for 2D/3D view")
             )
-            self._hint.config(text="Mini graph · drag to rotate · click 'Open full graph' for analysis")
         else:
-            self._mini_graph.set_data(set_ids=[], run_simulation=False)
+            self._mini_graph.set_node(None)
             self._hint.config(text="Add Pokémon to see team analysis")
 
         # Update stat bars

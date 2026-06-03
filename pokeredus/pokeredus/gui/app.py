@@ -409,8 +409,6 @@ class PokeRedusApp(tk.Tk):
         self._open_matchup_graph_page(back_to_team=True)
 
     def _open_matchup_graph_page(self, back_to_team: bool = False) -> None:
-        # TODO(matchup-graph-3d): rewire in Task 16 to use the new
-        # MatchupGraphView (which is built into a MatchupGraphPage wrapper).
         from pokeredus.gui.matchup_graph_view import MatchupGraphPage
 
         # Destroy old graph page if exists
