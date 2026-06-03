@@ -460,6 +460,26 @@ class KnowledgeGraph:
         path = set_dir / f"{slug}.yaml"
         with open(path, "w", encoding="utf-8") as f:
             yaml.dump(set_obj.to_dict(), f, default_flow_style=False, allow_unicode=True)
+
+        # Hook: also (re)write the 8-attribute x 18-type matchup-graph node
+        # cache alongside the YAML so the renderer can lazy-load it.  Cache
+        # failure must not break the YAML save.
+        try:
+            from pokeredus.graph.matchup_graph import (
+                build_node, save_node_cache,
+            )
+            pokemon = self.get_pokemon(set_obj.pokemon_id)
+            if pokemon is not None:
+                mcts = float(
+                    getattr(set_obj, "mcts_composite", 0.0) or 0.0
+                )
+                node = build_node(
+                    set_obj, pokemon, kg=self, mcts_composite=mcts,
+                )
+                save_node_cache(node, sets_dir)
+        except Exception:
+            pass
+
         return path
 
     def __repr__(self) -> str:

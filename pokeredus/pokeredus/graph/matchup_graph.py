@@ -22,6 +22,7 @@ from __future__ import annotations
 import datetime as _dt
 import json
 import math
+import pathlib
 from dataclasses import dataclass, field
 from typing import TYPE_CHECKING, Iterable
 
@@ -902,3 +903,406 @@ def analyze_game_state(
             confidence=min(1.0, confidence),
             reasoning_chain=chain,
         )
+
+
+# ═════════════════════════════════════════════════════════════════════
+# 8-attribute x 18-type polygonal-solid data layer (Tasks 3-10)
+# ═════════════════════════════════════════════════════════════════════
+#
+# This section is the new visualisation data model that powers the 2D
+# radial polygon and 3D cylinder renderers (Tasks 11-15).  It is purely
+# additive — the 3D projection and AI queries above are unchanged.
+#
+# Axis model (per type i):
+#     Same-axis (additive): attack+utility on Y; defense+speed on Z.
+#     Compound attributes:
+#         counter = attack + defense
+#         sponge  = utility + defense
+#         threat  = attack + speed
+#         punish  = utility + speed
+#     Volume of the polygonal solid =
+#         Σ_i ( counter_i·sponge_i + threat_i·punish_i )  × bias.
+
+import numpy as _np
+
+
+# ── Canonical Showdown type order ──────────────────────────────────
+
+CANONICAL_TYPES: list[str] = [
+    "Normal", "Fire", "Water", "Electric", "Grass", "Ice",
+    "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug",
+    "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy",
+]
+ATTRIBUTE_NAMES: list[str] = [
+    "attack", "utility", "defense", "speed",
+    "counter", "sponge", "threat", "punish",
+]
+ATTRIBUTE_INDEX: dict[str, int] = {n: i for i, n in enumerate(ATTRIBUTE_NAMES)}
+
+
+# ── Status / pivot / priority / setup move buckets ────────────────
+
+_STATUS_MOVES: set[str] = {
+    "spore", "sleeppowder", "stunspore", "thunderwave", "willowisp",
+    "toxic", "thundercage", "sandattack", "swagger", "confuseray",
+    "haze", "defog", "protect", "substitute", "calmindmind",
+    "nastyplot", "swordsdance", "dragondance", "bulkup", "coil",
+    "quiverdance", "shellsmash", "workup", "recover", "roost",
+    "softboiled", "wish", "milkdrink", "morningsun", "moonlight",
+    "synthesis", "healorder", "slackoff", "stealthrock", "spikes",
+    "toxicspikes", "stickyweb", "rapidspin", "tidyup", "mortalspin",
+    "trickroom", "tailwind", "lightscreen", "reflect", "auroraveil",
+    "sunnyday", "raindance", "sandstorm", "snowscape",
+    "electricterrain", "grassyterrain", "psychicterrain", "mistyterrain",
+    "partingshot", "whirlwind", "roar", "dragontail", "circlethrow",
+    "teleport", "batonpass",
+}
+_PIVOT_MOVES: set[str] = {
+    "uturn", "voltswitch", "partingshot", "whirlwind", "roar",
+    "dragontail", "circlethrow", "teleport", "batonpass",
+}
+_PRIORITY_MOVES: set[str] = {
+    "extremespeed", "suckerpunch", "aquajet", "bulletpunch",
+    "machpunch", "shadowsneak", "quickattack", "icepunch",
+    "thunderpunch", "vacuumwave",
+}
+_SETUP_MOVES: set[str] = {
+    "swordsdance", "nastyplot", "calmindmind", "dragondance",
+    "bulkup", "coil", "quiverdance", "shellsmash", "workup",
+}
+
+
+# ── Test fallback move table (used when kg is None) ───────────────
+# ~60 common moves.  In production the real kg.get_move(...) is used.
+
+_FALLBACK_MOVES: dict[str, tuple[str, float]] = {
+    "sludgebomb": ("Poison", 90), "leafstorm": ("Grass", 130),
+    "hiddenpowerfire": ("Fire", 60), "sleeppowder": ("Grass", 0),
+    "willowisp": ("Fire", 0), "spore": ("Grass", 0),
+    "toxic": ("Poison", 0), "uturn": ("Bug", 70),
+    "voltswitch": ("Electric", 70), "thunderwave": ("Electric", 0),
+    "extremespeed": ("Normal", 40), "suckerpunch": ("Dark", 70),
+    "swordsdance": ("Normal", 0), "nastyplot": ("Dark", 0),
+    "calmindmind": ("Psychic", 0), "recover": ("Normal", 0),
+    "softboiled": ("Normal", 0), "roost": ("Flying", 0),
+    "stealthrock": ("Rock", 0), "spikes": ("Ground", 0),
+    "defog": ("Flying", 0), "rapidspin": ("Normal", 50),
+    "earthquake": ("Ground", 100), "icebeam": ("Ice", 90),
+    "thunderbolt": ("Electric", 90), "flamethrower": ("Fire", 90),
+    "surf": ("Water", 90), "moonblast": ("Fairy", 95),
+    "shadowball": ("Ghost", 80), "drainpunch": ("Fighting", 75),
+    "knockoff": ("Dark", 65), "ironhead": ("Steel", 80),
+    "psychic": ("Psychic", 90), "darkpulse": ("Dark", 80),
+    "dracometeor": ("Dragon", 130), "hurricane": ("Flying", 110),
+    "closecombat": ("Fighting", 120), "flareblitz": ("Fire", 120),
+    "boltstrike": ("Electric", 130), "leafblade": ("Grass", 90),
+    "stoneedge": ("Rock", 100), "earthpower": ("Ground", 90),
+    "bugbuzz": ("Bug", 90), "freezedry": ("Ice", 70),
+    "icepunch": ("Ice", 75), "thunderpunch": ("Electric", 75),
+    "boomburst": ("Normal", 140),
+    "magmastorm": ("Fire", 100), "earthpower": ("Ground", 90),
+    "bravebird": ("Flying", 120),
+    "scald": ("Water", 80), "haze": ("Ice", 0),
+    "dragondarts": ("Dragon", 100), "shadowball": ("Ghost", 80),
+    "outrage": ("Dragon", 120), "dragonclaw": ("Dragon", 80),
+    "dragondance": ("Dragon", 0),
+}
+
+
+def _lookup_move_fallback(mid: str) -> tuple[str | None, float]:
+    return _FALLBACK_MOVES.get(mid.lower(), (None, 0.0))
+
+
+def _get_move_type(mid: str, kg) -> str | None:
+    if kg is not None:
+        mv = kg.get_move(mid)
+        return mv.type if mv else None
+    t, _ = _lookup_move_fallback(mid)
+    return t
+
+
+def _get_move_bp(mid: str, kg) -> float:
+    if kg is not None:
+        mv = kg.get_move(mid)
+        return float(mv.base_power) if mv and mv.base_power is not None else 0.0
+    _, bp = _lookup_move_fallback(mid)
+    return float(bp)
+
+
+def _is_status_move(mid: str, kg) -> bool:
+    if kg is not None:
+        mv = kg.get_move(mid)
+        if mv is not None:
+            return bool(mv.is_status) or float(mv.base_power or 0) <= 0
+    t, bp = _lookup_move_fallback(mid)
+    return bp <= 0
+
+
+def _eff_spe(set_obj, p) -> float:
+    try:
+        return float(set_obj.effective_stat("spe", p.base_stats, level=100))
+    except Exception:
+        return float(p.base_stats.get("spe", 100))
+
+
+# ── Data class ─────────────────────────────────────────────────────
+
+
+class _SetMatchupNode:
+    """Per-set 8-attribute x 18-type matchup-graph node.
+
+    Independent dataclass from the legacy MatchupGraphNode (which
+    carries the type-vector / offdef / SCU axes for the AI's MCTS
+    engine).  The two coexist; build_node() returns one of these.
+    """
+    set_id: str = ""
+    pokemon_id: str = ""
+
+    def __init__(self, set_id: str = "", pokemon_id: str = "",
+                 attributes=None, vase_order=None, bias: float = 1.0,
+                 weights=None, role: str = "", mcts_composite: float = 0.0):
+        self.set_id = set_id
+        self.pokemon_id = pokemon_id
+        self.attributes = (attributes if attributes is not None
+                           else _np.zeros((8, 18), dtype=_np.float32))
+        self.vase_order = list(vase_order) if vase_order is not None else []
+        self.bias = float(bias)
+        self.weights = (weights if weights is not None
+                        else _np.ones(8, dtype=_np.float32))
+        self.role = role
+        self.mcts_composite = float(mcts_composite)
+
+
+# Public alias for the 8-attribute x 18-type polygonal-solid model.
+# The legacy dataclass stays as ``MatchupGraphNode`` for the existing
+# 3D-projection and AI-query tests / API.
+SetMatchupNode = _SetMatchupNode
+
+
+# ── Task 4: 4 base attribute computations ─────────────────────────
+
+
+def compute_base_attributes(set_obj, p, kg=None) -> _np.ndarray:
+    """Compute the 4 base attributes (attack, utility, defense, speed) for all 18 types.
+
+    Returns: np.ndarray shape (8, 18); only the first 4 rows are populated,
+    the last 4 (compound) are zero — see ``compute_compound_attributes``.
+    """
+    a = _np.zeros((8, 18), dtype=_np.float32)
+    type_to_idx = {t: i for i, t in enumerate(CANONICAL_TYPES)}
+
+    # ── ATTACK per type ────────────────────────────────────────────
+    for mid in set_obj.moves:
+        move_type = _get_move_type(mid, kg)
+        bp = _get_move_bp(mid, kg)
+        if move_type not in type_to_idx or bp <= 0:
+            continue
+        idx = type_to_idx[move_type]
+        stab_bonus = 1.5 if move_type in p.types else 1.0
+        nuke_bonus = 1.2 if bp >= 100 else 1.0
+        a[ATTRIBUTE_INDEX["attack"], idx] += bp * stab_bonus * nuke_bonus
+
+    # ── UTILITY per type ──────────────────────────────────────────
+    has_pivot = any(m.lower() in _PIVOT_MOVES for m in set_obj.moves)
+    has_priority = any(m.lower() in _PRIORITY_MOVES for m in set_obj.moves)
+    has_setup = any(m.lower() in _SETUP_MOVES for m in set_obj.moves)
+    util_bonus = 0.4 * float(has_pivot) + 0.5 * float(has_priority) + 0.6 * float(has_setup)
+    for mid in set_obj.moves:
+        move_type = _get_move_type(mid, kg)
+        if move_type in type_to_idx:
+            a[ATTRIBUTE_INDEX["utility"], type_to_idx[move_type]] += 0.3
+    a[ATTRIBUTE_INDEX["utility"]] += util_bonus  # spread across all types
+
+    # ── DEFENSE per type ──────────────────────────────────────────
+    # For each attacking type t, compute incoming effectiveness on self (p.types).
+    from pokeredus.classes import get_effectiveness
+    for atk_type in CANONICAL_TYPES:
+        mult = 1.0
+        for self_t in p.types:
+            mult *= get_effectiveness(atk_type, self_t)
+        idx = type_to_idx[atk_type]
+        # higher mult = weaker to that type → LOWER defense.  We invert so
+        # higher defense = better resistance to that type.
+        a[ATTRIBUTE_INDEX["defense"], idx] = float(1.0 / max(mult, 0.25))
+
+    # ── SPEED per type ────────────────────────────────────────────
+    spe = _eff_spe(set_obj, p)
+    norm = max(0.0, min(1.0, (spe - 100) / 150.0))
+    for i, _t in enumerate(CANONICAL_TYPES):
+        a[ATTRIBUTE_INDEX["speed"], i] = norm
+
+    return a
+
+
+# ── Task 5: 4 compound attributes + volume formula ─────────────────
+
+
+def compute_compound_attributes(base: _np.ndarray) -> _np.ndarray:
+    """Compute the 4 compound attributes from the 4 base attributes.
+
+    Compounds live on the perpendicular product: each compound is the
+    sum of one Y-axis attribute and one Z-axis attribute.  The volume
+    of the 3D polygonal solid is the sum of the products of every
+    perpendicular pair over all 18 types.
+    """
+    full = base.copy()
+    A = ATTRIBUTE_INDEX["attack"]; U = ATTRIBUTE_INDEX["utility"]
+    D = ATTRIBUTE_INDEX["defense"]; S = ATTRIBUTE_INDEX["speed"]
+    full[ATTRIBUTE_INDEX["counter"]] = base[A] + base[D]
+    full[ATTRIBUTE_INDEX["sponge"]]  = base[U] + base[D]
+    full[ATTRIBUTE_INDEX["threat"]]  = base[A] + base[S]
+    full[ATTRIBUTE_INDEX["punish"]]  = base[U] + base[S]
+    return full
+
+
+def volume_of(attributes: _np.ndarray, bias: float = 1.0) -> float:
+    """Total volume of the 3D polygonal solid.
+
+    V = Σ_i  ( counter_i·sponge_i + threat_i·punish_i )  × bias
+    """
+    C = ATTRIBUTE_INDEX["counter"]; G = ATTRIBUTE_INDEX["sponge"]
+    T = ATTRIBUTE_INDEX["threat"]; P = ATTRIBUTE_INDEX["punish"]
+    per_type = attributes[C] * attributes[G] + attributes[T] * attributes[P]
+    return float(per_type.sum() * bias)
+
+
+# ── Task 6: vase sort + role weight table ──────────────────────────
+
+
+def vase_sort(attributes: _np.ndarray) -> list[int]:
+    """Return a permutation of 0..17 sorted by ascending type-area."""
+    C = ATTRIBUTE_INDEX["counter"]; G = ATTRIBUTE_INDEX["sponge"]
+    T = ATTRIBUTE_INDEX["threat"]; P = ATTRIBUTE_INDEX["punish"]
+    per_type = attributes[C] * attributes[G] + attributes[T] * attributes[P]
+    return [int(x) for x in _np.argsort(per_type)]
+
+
+WEIGHT_TABLE: dict[str, dict[str, float]] = {
+    "default": {a: 1.0 for a in ATTRIBUTE_NAMES},
+    "sweeper": {"attack": 1.3, "speed": 1.2, "threat": 1.2,
+                 "counter": 1.0, "punish": 1.0,
+                 "sponge": 0.8, "defense": 0.8, "utility": 0.8},
+    "wall":    {"defense": 1.4, "utility": 1.2, "sponge": 1.3,
+                 "counter": 1.0,
+                 "attack": 0.8, "speed": 0.7, "threat": 0.8, "punish": 0.7},
+    "pivot":   {"utility": 1.3, "counter": 1.2, "punish": 1.2,
+                 "sponge": 1.0,
+                 "attack": 0.9, "defense": 1.0, "speed": 1.0, "threat": 0.9},
+    "cleric":  {"utility": 1.4, "defense": 1.2, "sponge": 1.2,
+                 "punish": 1.0,
+                 "attack": 0.7, "speed": 0.7, "counter": 0.8, "threat": 0.7},
+    "staller": {"defense": 1.3, "utility": 1.3, "sponge": 1.3,
+                 "counter": 1.1, "punish": 1.0,
+                 "attack": 0.8, "speed": 0.6, "threat": 0.7},
+    "lead":    {"utility": 1.2, "attack": 1.1, "counter": 1.1,
+                 "threat": 1.1, "punish": 1.0,
+                 "defense": 1.0, "speed": 1.0, "sponge": 0.9},
+}
+
+
+# ── Task 7: end-to-end build_node ──────────────────────────────────
+
+
+def build_node(set_obj, p, kg=None, mcts_composite: float = 0.0):
+    """End-to-end: compute 4 base → 4 compound → vase-sort → bias/weights."""
+    base = compute_base_attributes(set_obj, p, kg)
+    full = compute_compound_attributes(base)
+    role = (getattr(set_obj, "role", "") or "default").lower()
+    weights = _np.array([WEIGHT_TABLE.get(role, WEIGHT_TABLE["default"])[a]
+                          for a in ATTRIBUTE_NAMES], dtype=_np.float32)
+    full = full * weights[:, None]  # broadcast weights across 18 types
+    order = vase_sort(full)
+    bias = 0.5 + 0.5 * float(_np.clip(mcts_composite, 0.0, 1.0))
+    return _SetMatchupNode(
+        set_id=set_obj.id,
+        pokemon_id=set_obj.pokemon_id,
+        attributes=full,
+        vase_order=order,
+        bias=bias,
+        weights=weights,
+        role=role,
+        mcts_composite=float(mcts_composite),
+    )
+
+
+# ── Task 8: on-disk cache ──────────────────────────────────────────
+
+NODE_CACHE_DIRNAME = "graphs"
+
+
+def node_cache_paths(pokemon_id: str, set_id: str, sets_dir):
+    base = pathlib.Path(sets_dir) / NODE_CACHE_DIRNAME / pokemon_id
+    base.mkdir(parents=True, exist_ok=True)
+    return base / f"{set_id}.json", base / f"{set_id}.meta.json"
+
+
+def save_node_cache(node, sets_dir) -> tuple[pathlib.Path, pathlib.Path]:
+    data_path, meta_path = node_cache_paths(node.pokemon_id, node.set_id, sets_dir)
+    with open(data_path, "w", encoding="utf-8") as f:
+        json.dump({
+            "set_id": node.set_id,
+            "pokemon_id": node.pokemon_id,
+            "attributes": node.attributes.tolist(),
+        }, f)
+    with open(meta_path, "w", encoding="utf-8") as f:
+        json.dump({
+            "vase_order": list(node.vase_order),
+            "bias": float(node.bias),
+            "weights": node.weights.tolist(),
+            "role": node.role,
+            "mcts_composite": float(node.mcts_composite),
+        }, f, indent=2)
+    return data_path, meta_path
+
+
+def load_node_cache(pokemon_id: str, set_id: str, sets_dir):
+    data_path, meta_path = node_cache_paths(pokemon_id, set_id, sets_dir)
+    if not data_path.exists() or not meta_path.exists():
+        return None
+    with open(data_path, encoding="utf-8") as f:
+        d = json.load(f)
+    with open(meta_path, encoding="utf-8") as f:
+        m = json.load(f)
+    return _SetMatchupNode(
+        set_id=d["set_id"],
+        pokemon_id=d["pokemon_id"],
+        attributes=_np.array(d["attributes"], dtype=_np.float32),
+        vase_order=list(m["vase_order"]),
+        bias=float(m["bias"]),
+        weights=_np.array(m["weights"], dtype=_np.float32),
+        role=str(m.get("role", "")),
+        mcts_composite=float(m.get("mcts_composite", 0.0)),
+    )
+
+
+# ── Task 10: team composer ─────────────────────────────────────────
+
+
+def compose_team_node(nodes, weights=None):
+    """Weighted union of multiple set nodes into one team node."""
+    if not nodes:
+        return _SetMatchupNode(set_id="empty_team", pokemon_id="team")
+    if weights is None:
+        weights = [1.0] * len(nodes)
+    ws = _np.array(weights, dtype=_np.float32)
+    attrs = sum(w * n.attributes for w, n in zip(ws, nodes))
+    bias = float(_np.mean([n.bias for n in nodes]))
+    C = ATTRIBUTE_INDEX["counter"]; G = ATTRIBUTE_INDEX["sponge"]
+    T = ATTRIBUTE_INDEX["threat"]; P = ATTRIBUTE_INDEX["punish"]
+    per_type = attrs[C] * attrs[G] + attrs[T] * attrs[P]
+    vase = [int(x) for x in _np.argsort(per_type)]
+    return _SetMatchupNode(
+        set_id="+".join(n.set_id for n in nodes),
+        pokemon_id="team",
+        attributes=attrs,
+        vase_order=vase,
+        bias=bias,
+        weights=_np.ones(8, dtype=_np.float32),
+        role="team",
+        mcts_composite=float(_np.mean([n.mcts_composite for n in nodes])),
+    )
+
+
+def team_volume(team) -> float:
+    return volume_of(team.attributes, bias=team.bias)
+
