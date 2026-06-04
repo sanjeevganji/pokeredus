@@ -5,16 +5,20 @@ Pure-tkinter Canvas implementation.  Two visual modes:
 * **2D radial polygon** — 8 attribute bars at 0°, 45°, 90°, ... 315°,
   with an "elaborate by types" toggle that breaks each bar into 18
   colored sub-segments (one per Showdown type, in the vase order).
+  Interactive: drag to rotate, mouse wheel to zoom, double-click
+  to reset, arrow keys once the canvas has focus.
 
 * **3D cylinder** — 18 type-discs stacked vertically.  Each disc's
   radius is proportional to the type's compound area
-  (counter·sponge + threat·punish).  Camera controls: arrow keys scroll
-  through the stack, horizontal mouse drag rotates yaw, vertical
-  mouse drag rotates pitch, mouse wheel zooms, click on a disc picks
-  it and shows all 8 raw attribute values.
+  (counter·sponge + threat·punish).  Camera controls: arrow keys
+  scroll through the stack, horizontal mouse drag rotates yaw,
+  vertical mouse drag rotates pitch, mouse wheel zooms, click on a
+  disc picks it and shows all 8 raw attribute values.  Defaults are
+  chosen so the whole stack fits comfortably in a 1200×800 frame
+  on first load (distance ≈ 750, look-at z = 170, 3/4 view).
 
-A combined ``MatchupGraphView`` toggles between the two with a button
-and lazy-loads the per-set node cache from disk.
+A combined ``MatchupGraphView`` toggles between the two with a
+button and lazy-loads the per-set node cache from disk.
 
 Data source: ``pokeredus.graph.matchup_graph.SetMatchupNode`` (8x18
 attribute matrix + vase_order + bias + weights).  The legacy stub
@@ -72,13 +76,26 @@ def attribute_polygon_points(values: Sequence[float],
     The renderer is free to rotate the whole layout if a different
     default orientation is desired.
     """
-    pts = []
-    for i, v in enumerate(values):
-        ang = attribute_angle(i)
-        r = max(0.0, v) * scale
-        pts.append((center[0] + r * math.cos(ang),
-                    center[1] - r * math.sin(ang)))
-    return pts
+    return [attribute_polygon_points_one(i, v, center, scale)
+            for i, v in enumerate(values)]
+
+
+def attribute_polygon_points_one(index: int, value: float,
+                                 center: tuple[float, float],
+                                 scale: float = 50.0,
+                                 rotation: float = 0.0
+                                 ) -> tuple[float, float]:
+    """One vertex of the radial polygon, optionally rotated by `rotation`.
+
+    `rotation` is in radians and is added to the natural angle of the
+    given attribute index.  Screen Y is flipped vs. math Y so that
+    attribute #0 (attack) sits on the right, attribute #2 (defense)
+    sits at the bottom, etc.
+    """
+    ang = attribute_angle(index) + rotation
+    r = max(0.0, value) * scale
+    return (center[0] + r * math.cos(ang),
+            center[1] - r * math.sin(ang))
 
 
 def attribute_color(attr_name: str) -> str:
@@ -114,10 +131,13 @@ def elaborate_bars_per_attribute(attributes: np.ndarray,
 # ═══════════════════════════════════════════════════════════════════
 
 class Camera(NamedTuple):
-    yaw: float = 0.6
-    pitch: float = 0.35
-    distance: float = 350.0
-    center: tuple = (0.0, 0.0, 40.0)  # mid-tower
+    # Defaults chosen so the full 18-disc stack fits comfortably in
+    # a 1200x800 frame on first load: distance roughly 2× the disc
+    # span, look-at at the middle of the stack, gentle 3/4 view.
+    yaw: float = 0.55
+    pitch: float = 0.50
+    distance: float = 750.0
+    center: tuple = (0.0, 0.0, 170.0)  # mid-tower (z = 17 * 20 / 2)
     height: int = 600
     width: int = 800
     mouse: tuple | None = None  # (mx, my) for pick_disc
@@ -234,14 +254,27 @@ def disc_centers(slab_height: float = SLAB_HEIGHT, base_z: float = 0.0,
 # ═══════════════════════════════════════════════════════════════════
 
 class MatchupGraph2D(tk.Frame):
-    """Top-down radial polygon view of one set/team node."""
+    """Top-down radial polygon view of one set/team node.
+
+    Interaction:
+      • Drag with left mouse button → rotate the polygon (horizontal only)
+      • Double-click → reset rotation
+
+    The polygon auto-fits its canvas — the per-axis max (0-100 scaled)
+    drives each radial bar's length, and the largest axis maps to
+    ``min(w, h) * 0.40`` pixels.  There is no zoom.
+    """
+
+    DRAG_RAD_PER_PX: float = 0.01   # drag sensitivity (radians/pixel)
 
     def __init__(self, master, sets_dir, **kw):
         super().__init__(master, **kw)
         self.sets_dir = sets_dir
         self.node = None
         self.elaborate = False
+        self.rotation: float = 0.0     # radians
         self._build()
+        self._bind_inputs()
 
     def _build(self):
         self.canvas = tk.Canvas(self, bg="#0d1117", highlightthickness=0)
@@ -252,6 +285,21 @@ class MatchupGraph2D(tk.Frame):
             command=self._toggle_elaborate,
         )
         self.toggle.pack(side="bottom", fill="x")
+
+    def _bind_inputs(self) -> None:
+        c = self.canvas
+        c.bind("<ButtonPress-1>", self._on_press)
+        c.bind("<B1-Motion>", self._on_drag)
+        c.bind("<ButtonRelease-1>", self._on_release)
+        c.bind("<Double-Button-1>", self._on_double_click)
+        # Keyboard: bind on the canvas (not the Frame) so it actually
+        # receives key events once the user clicks into the canvas.
+        c.bind("<Left>",  lambda _e: self._rotate_by(+0.1))
+        c.bind("<Right>", lambda _e: self._rotate_by(-0.1))
+        c.bind("<Key-r>", lambda _e: self._reset_view())
+        c.bind("<Key-R>", lambda _e: self._reset_view())
+        self._drag_last = None
+        self._drag_moved = False
 
     def set_node(self, node) -> None:
         self.node = node
@@ -264,6 +312,42 @@ class MatchupGraph2D(tk.Frame):
         )
         self._redraw()
 
+    # ── input handlers ───────────────────────────────────────────────
+    def _on_press(self, e):
+        self._drag_last = (e.x, e.y)
+        self._drag_moved = False
+        # Give the canvas keyboard focus so arrow keys work.
+        self.canvas.focus_set()
+
+    def _on_drag(self, e):
+        if self._drag_last is None:
+            return
+        dx = e.x - self._drag_last[0]
+        self._drag_last = (e.x, e.y)
+        if dx:
+            self._drag_moved = True
+        # Horizontal drag only — vertical motion is ignored so the
+        # polygon stays centered around the canvas middle.
+        self.rotation += dx * self.DRAG_RAD_PER_PX
+        self._redraw()
+
+    def _on_release(self, _e):
+        self._drag_last = None
+        self._drag_moved = False
+        # (No click-vs-drag distinction needed for the 2D view.)
+
+    def _on_double_click(self, _e):
+        self._reset_view()
+
+    def _rotate_by(self, dr: float) -> None:
+        self.rotation += dr
+        self._redraw()
+
+    def _reset_view(self) -> None:
+        self.rotation = 0.0
+        self._redraw()
+
+    # ── redraw ───────────────────────────────────────────────────────
     def _redraw(self) -> None:
         c = self.canvas
         c.delete("all")
@@ -272,10 +356,25 @@ class MatchupGraph2D(tk.Frame):
         if w < 50 or h < 50 or self.node is None:
             return
         cx, cy = w / 2, h / 2
-        scale = min(w, h) * 0.35
-        # 8 attribute sums (length of each bar)
-        sums = [float(self.node.attributes[i].sum()) for i in range(8)]
-        pts = attribute_polygon_points(sums, (cx, cy), scale=scale)
+        # Auto-fit: largest axis (max value 0-100) maps to 40% of the
+        # shorter canvas side.  No zoom factor.
+        radius = min(w, h) * 0.40
+        # Per-axis max across 18 types (in 0-100).  The page tuner
+        # keeps node.attributes in 0-100; raw sums would dwarf the
+        # canvas, so we always read from the already-scaled matrix.
+        attrs = self.node.attributes
+        if attrs.size == 0 or attrs.shape[0] != 8:
+            return
+        axis_vals = np.clip(attrs.max(axis=1), 0.0, 100.0)  # (8,)
+        # Render the per-axis bar length as a fraction of `radius`,
+        # where 100 → full radius.  Clamp to [0, radius].
+        scale = radius / 100.0
+        pts = [
+            attribute_polygon_points_one(
+                i, float(axis_vals[i]), (cx, cy), scale, self.rotation,
+            )
+            for i in range(8)
+        ]
         # Polygon fill
         c.create_polygon(*sum(pts, ()), fill="#1c1f26", outline="#3a86ff", width=2)
         # Spokes + tips
@@ -288,11 +387,11 @@ class MatchupGraph2D(tk.Frame):
                 C, G, T, P = 4, 5, 6, 7
                 per_type = attributes[C] * attributes[G] + attributes[T] * attributes[P]
                 return float(per_type.sum() * bias)
-        for (x, y), name, v in zip(pts, ATTRIBUTE_NAMES, sums):
+        for (x, y), name, v in zip(pts, ATTRIBUTE_NAMES, axis_vals):
             c.create_line(cx, cy, x, y, fill=attribute_color(name), width=2)
             c.create_oval(x - 4, y - 4, x + 4, y + 4,
                           fill=attribute_color(name), outline="")
-            c.create_text(x + 8, y - 8, text=f"{name}\n{v:.1f}",
+            c.create_text(x + 8, y - 8, text=f"{name}\n{v:.0f}",
                           fill=attribute_color(name), anchor="w",
                           font=("TkFixedFont", 8))
         if self.elaborate:
@@ -301,7 +400,7 @@ class MatchupGraph2D(tk.Frame):
                 self.node.attributes, self.node.vase_order,
             )
             for ai, seg_values in enumerate(bars):
-                ang = attribute_angle(ai)
+                ang = attribute_angle(ai) + self.rotation
                 dx, dy = math.cos(ang), -math.sin(ang)
                 cursor = 0.0
                 for ti, val in enumerate(seg_values):
@@ -314,11 +413,15 @@ class MatchupGraph2D(tk.Frame):
                     c.create_line(x0, y0, x1, y1,
                                   fill=type_color(tname), width=3)
                     cursor += seg + 1.0  # small gap
-        # Volume readout
+        # Header line: volume + view state
         c.create_text(10, 10, anchor="nw", fill="#e6edf3",
                       font=("TkFixedFont", 10, "bold"),
                       text=("Volume: "
                             + f"{volume_of(self.node.attributes, self.node.bias):.1f}"))
+        c.create_text(10, 32, anchor="nw", fill="#8b949e",
+                      font=("TkFixedFont", 8),
+                      text=(f"rot={math.degrees(self.rotation):.0f}°  "
+                            f"(drag · dbl-click resets · arrows rotate)"))
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -355,10 +458,28 @@ class MatchupGraph3D(tk.Frame):
         c.bind("<ButtonPress-1>", self._on_press)
         c.bind("<B1-Motion>", self._on_drag)
         c.bind("<ButtonRelease-1>", self._on_release)
+        c.bind("<Double-Button-1>", self._on_double_click)
+        # Wheel: Windows / macOS use <MouseWheel> with e.delta in
+        # multiples of 120; X11 sends <Button-4>/<Button-5> with no
+        # delta field.  Bind both for cross-platform behaviour.
         c.bind("<MouseWheel>", self._on_wheel)
-        self.bind("<Up>", lambda _e: self._scroll(-1))
-        self.bind("<Down>", lambda _e: self._scroll(+1))
+        c.bind("<Button-4>", lambda _e: self._zoom_by(1.0 / 1.1))
+        c.bind("<Button-5>", lambda _e: self._zoom_by(1.1))
+        # Keyboard: bind on the canvas (not the Frame) so it actually
+        # receives key events once the user clicks into the canvas.
+        c.bind("<Up>",    lambda _e: self._scroll(-1))
+        c.bind("<Down>",  lambda _e: self._scroll(+1))
+        c.bind("<Left>",  lambda _e: self._rotate_yaw(+0.1))
+        c.bind("<Right>", lambda _e: self._rotate_yaw(-0.1))
+        c.bind("<Key-r>", lambda _e: self._reset_view())
+        c.bind("<Key-R>", lambda _e: self._reset_view())
+        # Make the canvas a valid keyboard-focus widget so it actually
+        # receives the key events above (a vanilla Canvas doesn't take
+        # focus on click until we tell it to).
+        c.bind("<ButtonPress-1>",
+               lambda e: c.focus_set(), add="+")
         self._drag_last = None
+        self._drag_moved = False
 
     def set_node(self, node) -> None:
         self.node = node
@@ -372,14 +493,31 @@ class MatchupGraph3D(tk.Frame):
         )
         self._redraw()
 
+    def _rotate_yaw(self, dr: float) -> None:
+        self.cam = self.cam._replace(yaw=self.cam.yaw + dr)
+        self._redraw()
+
+    def _zoom_by(self, factor: float) -> None:
+        self.cam = self.cam._replace(
+            distance=max(120.0, min(2000.0, self.cam.distance * factor))
+        )
+        self._redraw()
+
+    def _reset_view(self) -> None:
+        self.cam = Camera()
+        self._redraw()
+
     def _on_press(self, e):
         self._drag_last = (e.x, e.y)
+        self._drag_moved = False
 
     def _on_drag(self, e):
         if self._drag_last is None:
             return
         dx, dy = e.x - self._drag_last[0], e.y - self._drag_last[1]
         self._drag_last = (e.x, e.y)
+        if dx or dy:
+            self._drag_moved = True
         new_yaw = self.cam.yaw + dx * 0.008
         new_pitch = max(-1.2, min(1.2, self.cam.pitch + dy * 0.008))
         self.cam = self.cam._replace(yaw=new_yaw, pitch=new_pitch)
@@ -387,6 +525,11 @@ class MatchupGraph3D(tk.Frame):
 
     def _on_release(self, e):
         self._drag_last = None
+        # If the user actually dragged, treat it as a rotation, not a
+        # pick.  Only run pick_disc on a clean click.
+        if getattr(self, "_drag_moved", False):
+            self._drag_moved = False
+            return
         cam = self.cam._asdict()
         cam["mouse"] = (e.x, e.y)
         centers = disc_centers(n=18)
@@ -400,12 +543,15 @@ class MatchupGraph3D(tk.Frame):
             self._update_info_panel(idx)
             self._redraw()
 
+    def _on_double_click(self, _e):
+        self._reset_view()
+
     def _on_wheel(self, e):
-        factor = 1.1 if e.delta > 0 else 0.9
-        self.cam = self.cam._replace(
-            distance=max(80.0, min(800.0, self.cam.distance * factor))
-        )
-        self._redraw()
+        # Wheel up (positive delta) should zoom IN, which in this
+        # projection means a *smaller* camera distance.  The previous
+        # factor direction (1.1 on wheel up) was inverted.
+        factor = 0.9 if e.delta > 0 else 1.1
+        self._zoom_by(factor)
 
     def _update_info_panel(self, idx: int) -> None:
         if self.node is None:
@@ -575,13 +721,18 @@ class MatchupGraphView(tk.Frame):
         self.view_3d.set_node(node)
 
 
-class _MatchupGraphPageStub(tk.Frame):
-    """Backward-compat page wrapper kept for app.py's _open_matchup_graph_page.
+class MatchupGraphPage(tk.Frame):
+    """Revamped page: collapsible set list (left), 2D/3D graph (center),
+    attribute tuner (right).
 
-    Hosts a MatchupGraphView plus a tiny toolbar (Home / Back-to-team).
-    When ``focus_set_ids`` is given we display the composed team node;
-    otherwise we display the first available set, with a listbox to
-    switch.
+    The list collapses to one row per Pokémon by default; clicking the
+    chevron expands the row to show all of that Pokémon's sets.  A
+    sort dropdown lets the user reorder by alpha or by best-volume
+    (ascending / descending).
+
+    The tuner panel exposes the 4 base-axis weights and the 4
+    per-compound multipliers; moving a slider live-updates the
+    currently-shown set's 8-attribute matrix.
     """
 
     def __init__(self, master, kg=None, matchup_cache=None,
@@ -591,67 +742,109 @@ class _MatchupGraphPageStub(tk.Frame):
         self.kg = kg
         self._go_home = go_home
         self._on_back = on_back_to_team
+        self._focus_set_ids = list(focus_set_ids) if focus_set_ids else []
+        self._focus_team_name = focus_team_name
 
-        # ── top toolbar ────────────────────────────────────────────
+        from pokeredus.graph.attribute_engine import AttributeTuning
+        self._tuning = AttributeTuning()
+
+        self._build_toolbar()
+        self._build_body()
+
+    # ── toolbar ─────────────────────────────────────────────────
+    def _build_toolbar(self):
         bar = tk.Frame(self, bg="#0d1117")
         bar.pack(side="top", fill="x")
-        title = focus_team_name or (
-            f"Matchup Graph · {len(focus_set_ids)} sets" if focus_set_ids
-            else "Matchup Graph"
+        title = self._focus_team_name or (
+            f"Matchup Graph · {len(self._focus_set_ids)} sets"
+            if self._focus_set_ids else "Matchup Graph"
         )
         tk.Label(bar, text=title, bg="#0d1117", fg="#e6edf3",
-                 font=("TkFixedFont", 12, "bold")).pack(side="left", padx=10)
-        if on_back_to_team is not None:
-            tk.Button(bar, text="Back to team", command=on_back_to_team
+                 font=("TkFixedFont", 12, "bold")
+                 ).pack(side="left", padx=10)
+        if self._on_back is not None:
+            tk.Button(bar, text="Back to team", command=self._on_back
                       ).pack(side="right", padx=4, pady=4)
-        if go_home is not None:
-            tk.Button(bar, text="Home", command=go_home
+        if self._go_home is not None:
+            tk.Button(bar, text="Home", command=self._go_home
                       ).pack(side="right", padx=4, pady=4)
 
-        # ── body: set list (left) + view (right) ───────────────────
+    # ── three-pane body ─────────────────────────────────────────
+    def _build_body(self):
+        from pokeredus.gui.pokemon_set_list import PokemonSetList
+        from pokeredus.gui.attribute_tuner import AttributeTuner
         from pokeredus.config import SETS_DIR
+
         body = tk.Frame(self, bg="#0d1117")
         body.pack(fill="both", expand=True)
-        list_frame = tk.Frame(body, bg="#161b22", width=240)
-        list_frame.pack(side="left", fill="y")
-        list_frame.pack_propagate(False)
-        tk.Label(list_frame, text="Sets", bg="#161b22", fg="#e6edf3",
-                 font=("TkFixedFont", 10, "bold"),
-                 anchor="w").pack(fill="x", padx=8, pady=4)
-        self._listbox = tk.Listbox(
-            list_frame, bg="#0d1117", fg="#e6edf3",
-            font=("TkFixedFont", 9), selectbackground="#3a86ff",
-            highlightthickness=0, bd=0, exportselection=False,
-        )
-        self._listbox.pack(fill="both", expand=True, padx=4, pady=4)
-        self._set_id_by_row: list[tuple[str, str]] = []
-        if kg is not None:
-            for s in sorted(kg.get_all_sets(), key=lambda x: (x.pokemon_id, x.set_name)):
-                label = f"{s.pokemon_id} · {s.set_name}"
-                self._listbox.insert("end", label)
-                self._set_id_by_row.append((s.pokemon_id, s.id))
-        self._listbox.bind("<<ListboxSelect>>", self._on_select)
-        self._listbox.selection_clear(0, "end")
 
+        # left: pokemon set list
+        left = tk.Frame(body, bg="#161b22", width=320)
+        left.pack(side="left", fill="y")
+        left.pack_propagate(False)
+        self._list = PokemonSetList(
+            left, on_select=self._on_set_selected,
+        )
+        self._list.pack(fill="both", expand=True)
+
+        # center: graph
         self._view = MatchupGraphView(body, sets_dir=str(SETS_DIR))
         self._view.pack(side="left", fill="both", expand=True)
 
-        # ── initial content ────────────────────────────────────────
-        if focus_set_ids:
-            self._view.set_team(focus_set_ids, kg=kg)
-        elif self._set_id_by_row:
-            pid, sid = self._set_id_by_row[0]
-            self._view.set_set(pid, sid)
-            self._listbox.selection_set(0)
+        # right: tuner
+        right = tk.Frame(body, bg="#161b22", width=260)
+        right.pack(side="right", fill="y")
+        right.pack_propagate(False)
+        self._tuner = AttributeTuner(
+            right, tuning=self._tuning, on_change=self._on_tuning_change,
+        )
+        self._tuner.pack(fill="x", padx=4, pady=4)
 
-    def _on_select(self, _evt=None) -> None:
-        sel = self._listbox.curselection()
-        if not sel:
+        # Populate the list and any team focus.
+        self._reload_list()
+        if self._focus_set_ids:
+            self._view.set_team(self._focus_set_ids, kg=self.kg)
+
+    # ── list population ─────────────────────────────────────────
+    def _reload_list(self) -> None:
+        if self.kg is None:
             return
-        idx = sel[0]
-        if 0 <= idx < len(self._set_id_by_row):
-            pid, sid = self._set_id_by_row[idx]
-            self._view.set_set(pid, sid)
+        from pokeredus.graph.matchup_graph import build_node, volume_of
+        records: list[tuple[str, str, float]] = []
+        for s in self.kg.get_all_sets():
+            p = self.kg.get_pokemon(s.pokemon_id)
+            if p is None:
+                continue
+            try:
+                node = build_node(s, p, kg=self.kg)
+                v = volume_of(node.attributes, node.bias)
+            except Exception:
+                v = 0.0
+            records.append((s.pokemon_id, s.set_name, v))
+        self._list.refresh(records)
+
+    # ── callbacks ───────────────────────────────────────────────
+    def _on_set_selected(self, pokemon_id: str, set_name: str) -> None:
+        if self.kg is None:
+            return
+        s = next((x for x in self.kg.get_all_sets()
+                  if x.pokemon_id == pokemon_id
+                  and x.set_name == set_name), None)
+        if s is None:
+            return
+        self._view.set_set(s.pokemon_id, s.id)
+
+    def _on_tuning_change(self, tuning) -> None:
+        """Re-render the currently shown node with the new tuning."""
+        node = getattr(self._view, "_current_node", None)
+        if node is None:
+            return
+        from pokeredus.graph.attribute_engine import tune_existing_node
+        new_attrs = tune_existing_node(node, tuning=tuning)
+        # Mutate the node in-place so the 2D/3D renderers pick it up
+        # on the next redraw.
+        node.attributes = new_attrs
+        self._view.set_node(node)
 
 
-MatchupGraphPage = _MatchupGraphPageStub  # old import path
+MatchupGraphPage = MatchupGraphPage  # identity — kept for back-compat alias

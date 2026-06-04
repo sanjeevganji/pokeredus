@@ -124,6 +124,46 @@ def test_disc_centers_stacked_along_z():
 
 # ── Task 15: combined view toggle (uses Tk) ────────────────────────
 
+def test_2d_polygon_fits_canvas_for_large_attributes():
+    """Even with per-type sums of 1e6, the 2D polygon must fit inside
+    the canvas (no zoom, auto-fit scale)."""
+    import tkinter as tk
+    from pokeredus.gui.matchup_graph_view import MatchupGraph2D
+    root = tk.Tk()
+    root.geometry("400x300")
+    try:
+        v = MatchupGraph2D(root, sets_dir=".")
+        v.pack(fill="both", expand=True)
+        n = type("N", (), {})()
+        n.attributes = np.ones((8, 18), dtype=np.float32) * 1e6
+        n.vase_order = list(range(18))
+        n.bias = 1.0
+        v.set_node(n)
+        root.update()
+        v._redraw()
+        bbox = v.canvas.bbox("all")
+        assert bbox is not None, "polygon should be drawn"
+        x0, y0, x1, y1 = bbox
+        # Auto-fit: polygon must lie inside the canvas (tolerance for
+        # sub-pixel + 4-pixel text markers, but no 1e6 overflow).
+        assert x0 >= 0 and y0 >= 0, f"x0={x0} y0={y0}"
+        assert x1 <= 400 and y1 <= 300, f"x1={x1} y1={y1} (huge polygon)"
+    finally:
+        root.destroy()
+
+
+def test_2d_no_zoom_attribute_after_init():
+    """The 2D view must not expose a `zoom` attribute (per plan: drop zoom)."""
+    import tkinter as tk
+    from pokeredus.gui.matchup_graph_view import MatchupGraph2D
+    root = tk.Tk(); root.withdraw()
+    try:
+        v = MatchupGraph2D(root, sets_dir=".")
+        assert not hasattr(v, "zoom"), "MatchupGraph2D must not expose `zoom`"
+    finally:
+        root.destroy()
+
+
 def test_combined_view_starts_in_2d():
     from pokeredus.gui.matchup_graph_view import MatchupGraphView
     import tkinter as tk
