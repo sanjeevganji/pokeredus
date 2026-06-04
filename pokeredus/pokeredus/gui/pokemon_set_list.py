@@ -119,18 +119,17 @@ class PokemonSetList(tk.Frame):
         self._order_var.trace_add("write", lambda *_: self._on_sort_change())
 
         # ── tree ───────────────────────────────────────────────
+        # Per the renderer-simplify plan, list rows show the set name
+        # only — no "Best set" / "Volume" columns.  The pokemon row
+        # text shows the set count as a (N) suffix.
         wrap = tk.Frame(self)
         wrap.pack(side="top", fill="both", expand=True)
         self._tree = ttk.Treeview(
-            wrap, columns=("best", "vol"), show="tree headings",
+            wrap, columns=(), show="tree headings",
             selectmode="browse",
         )
         self._tree.heading("#0", text="Pokémon")
-        self._tree.heading("best", text="Best set")
-        self._tree.heading("vol", text="Volume")
-        self._tree.column("#0", width=140, anchor="w")
-        self._tree.column("best", width=140, anchor="w")
-        self._tree.column("vol", width=80, anchor="e")
+        self._tree.column("#0", width=320, anchor="w")
         sb = ttk.Scrollbar(wrap, orient="vertical", command=self._tree.yview)
         self._tree.configure(yscrollcommand=sb.set)
         self._tree.pack(side="left", fill="both", expand=True)
@@ -180,8 +179,8 @@ class PokemonSetList(tk.Frame):
             chevron = "▼" if gi == 0 else "▶"
             self._tree.insert(
                 "", "end", iid=pid_iid,
-                text=f"{chevron} {g.pokemon_id}",
-                values=(g.best_set_name, f"{g.best_volume:.0f}"),
+                text=f"{chevron} {g.pokemon_id} ({g.set_count})",
+                values=(),
                 tags=("pokemon", g.pokemon_id, ""),
                 open=(gi == 0),
             )
@@ -189,7 +188,7 @@ class PokemonSetList(tk.Frame):
                 sid_iid = f"s:{pid}::{sname}"
                 self._tree.insert(
                     pid_iid, "end", iid=sid_iid,
-                    text=f"    {sname}", values=("", f"{vol:.0f}"),
+                    text=f"    {sname}", values=(),
                     tags=("set", pid, sname),
                 )
 

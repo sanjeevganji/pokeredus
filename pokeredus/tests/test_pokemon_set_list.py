@@ -99,14 +99,19 @@ def test_widget_constructs_and_renders():
         # order (default), the first one expanded.
         kids = widget._tree.get_children("")
         assert len(kids) == 3
-        labels = [widget._tree.item(k, "text").strip("▶▼ ").strip()
-                  for k in kids]
+        # The pokemon rows now show "▼ blissey (1)" / "▶ ferrothorn (1)" etc.
+        # Strip the chevron + (N) suffix to get the bare id.
+        import re
+        def pid_of(text: str) -> str:
+            m = re.match(r"[▶▼]\s+(\S+)", text)
+            return m.group(1) if m else text.strip()
+        labels = [pid_of(widget._tree.item(k, "text")) for k in kids]
         assert labels == ["blissey", "ferrothorn", "garchomp"]
         first_open = widget._tree.item(kids[0], "open")
         assert first_open == 1 or first_open is True
         # garchomp has 2 child set rows; find that group.
         garchomp_iid = next(k for k in kids
-                             if widget._tree.item(k, "text").endswith("garchomp"))
+                             if pid_of(widget._tree.item(k, "text")) == "garchomp")
         set_rows = widget._tree.get_children(garchomp_iid)
         assert len(set_rows) == 2
     finally:
@@ -116,6 +121,7 @@ def test_widget_constructs_and_renders():
 def test_widget_sort_change_triggers_repopulate():
     import tkinter as tk
     from pokeredus.gui.pokemon_set_list import PokemonSetList, SortOrder
+    import re
     root = tk.Tk(); root.withdraw()
     try:
         widget = PokemonSetList(root)
@@ -123,6 +129,80 @@ def test_widget_sort_change_triggers_repopulate():
         widget._order_var.set(SortOrder.DESCENDING.value)
         kids = widget._tree.get_children("")
         # alpha desc → garchomp first
-        assert widget._tree.item(kids[0], "text").endswith("garchomp")
+        text0 = widget._tree.item(kids[0], "text")
+        m = re.match(r"[▶▼]\s+(\S+)", text0)
+        assert m and m.group(1) == "garchomp", text0
+    finally:
+        root.destroy()
+
+
+def test_widget_no_volume_or_best_columns():
+    """Per the renderer-simplify plan, list rows should show the set
+    name only — no 'Vol' / 'Best set' columns."""
+    import tkinter as tk
+    from pokeredus.gui.pokemon_set_list import PokemonSetList
+    root = tk.Tk(); root.withdraw()
+    try:
+        widget = PokemonSetList(root)
+        widget.refresh(_fakes())
+        # The tree must not declare "vol" or "best" columns anymore.
+        assert "vol" not in widget._tree["columns"]
+        assert "best" not in widget._tree["columns"]
+    finally:
+        root.destroy()
+
+
+def test_widget_set_row_shows_name_only_no_values():
+    """A set row's text should be the set name; no numeric values."""
+    import tkinter as tk
+    from pokeredus.gui.pokemon_set_list import PokemonSetList
+    import re
+    root = tk.Tk(); root.withdraw()
+    try:
+        widget = PokemonSetList(root)
+        widget.refresh(_fakes())
+        kids = widget._tree.get_children("")
+        def pid_of(text: str) -> str:
+            m = re.match(r"[▶▼]\s+(\S+)", text)
+            return m.group(1) if m else text.strip()
+        garchomp_iid = next(k for k in kids
+                             if pid_of(widget._tree.item(k, "text")) == "garchomp")
+        set_rows = widget._tree.get_children(garchomp_iid)
+        assert len(set_rows) == 2
+        for sr in set_rows:
+            text = widget._tree.item(sr, "text")
+            assert any(name in text for name in ("swords_dance", "choice_scarf")), \
+                f"set row text missing name: {text!r}"
+            values = widget._tree.item(sr, "values")
+            assert values == () or all(v == "" for v in values), \
+                f"set row should have empty values, got {values!r}"
+    finally:
+        root.destroy()
+
+
+def test_widget_pokemon_row_shows_count_suffix():
+    """The pokemon row should show the set count as a `(N)` suffix
+    in its text (per the plan's recommendation)."""
+    import tkinter as tk
+    from pokeredus.gui.pokemon_set_list import PokemonSetList
+    import re
+    root = tk.Tk(); root.withdraw()
+    try:
+        widget = PokemonSetList(root)
+        widget.refresh(_fakes())
+        kids = widget._tree.get_children("")
+        def pid_of(text: str) -> str:
+            m = re.match(r"[▶▼]\s+(\S+)", text)
+            return m.group(1) if m else text.strip()
+        for iid in kids:
+            text = widget._tree.item(iid, "text")
+            pid = pid_of(text)
+            # garchomp has 2 sets, ferrothorn + blissey have 1
+            if pid == "garchomp":
+                assert "(2)" in text, f"garchomp row missing count: {text!r}"
+            elif pid == "ferrothorn":
+                assert "(1)" in text, f"ferrothorn row missing count: {text!r}"
+            elif pid == "blissey":
+                assert "(1)" in text, f"blissey row missing count: {text!r}"
     finally:
         root.destroy()
