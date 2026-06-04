@@ -132,12 +132,14 @@ def elaborate_bars_per_attribute(attributes: np.ndarray,
 
 class Camera(NamedTuple):
     # Defaults chosen so the full 18-disc stack fits comfortably in
-    # a 1200x800 frame on first load: distance roughly 2× the disc
-    # span, look-at at the middle of the stack, gentle 3/4 view.
+    # a 1200x800 frame on first load.  ``center`` is fixed at the
+    # world origin so drag rotation orbits the world around (0,0,0)
+    # (the disc stack's center).  ``distance`` is fixed — there is no
+    # zoom.
     yaw: float = 0.55
     pitch: float = 0.50
     distance: float = 750.0
-    center: tuple = (0.0, 0.0, 170.0)  # mid-tower (z = 17 * 20 / 2)
+    center: tuple = (0.0, 0.0, 0.0)  # world origin (anchor for rotation)
     height: int = 600
     width: int = 800
     mouse: tuple | None = None  # (mx, my) for pick_disc
@@ -160,7 +162,9 @@ def world_to_screen(p, cam: Camera) -> tuple[float, float, float]:
 
     The camera is at the origin, looking down the -z axis, with the
     focal length baked into the projection.  ``cam.yaw`` rotates the
-    world around Y, ``cam.pitch`` around X.
+    world around Y, ``cam.pitch`` around X.  ``cam.center`` is the
+    world-origin anchor used for rotation — it is *not* translated
+    here, so dragging the camera orbits the world around (0,0,0).
     """
     cy, sy = math.cos(cam.yaw), math.sin(cam.yaw)
     cp, sp = math.cos(cam.pitch), math.sin(cam.pitch)
@@ -181,16 +185,11 @@ def world_to_screen(p, cam: Camera) -> tuple[float, float, float]:
 
 
 def screen_to_world(s, cam: Camera) -> np.ndarray:
-    """Inverse of world_to_screen at z = cam.center[2] plane.
+    """Inverse of world_to_screen at the world-origin plane (z=0
+    after the cam.center translation is undone).
 
-    Forward math (identity rotations for clarity):
-        xr   = x
-        zr   = z
-        yr   = y*cp - zr*sp
-        zr2  = y*sp + zr*cp
-    Solving for (x, y, zr) given (yr, zr2):
-        y  = yr*cp + zr2*sp
-        zr = -yr*sp + zr2*cp
+    Used by ``pick_disc`` to build the ray from camera origin through
+    the mouse position.
     """
     cy, sy = math.cos(cam.yaw), math.sin(cam.yaw)
     cp, sp = math.cos(cam.pitch), math.sin(cam.pitch)
@@ -198,7 +197,7 @@ def screen_to_world(s, cam: Camera) -> np.ndarray:
     d = cam.distance
     xr = (s[0] - cam.width / 2) * max(d, 1.0) / focal
     yr = (cam.height / 2 - s[1]) * max(d, 1.0) / focal
-    zr2 = cam.distance - d  # = 0 (we recover the plane at cam.center[2])
+    zr2 = cam.distance - d  # = 0 (we recover the plane at cam.center)
     # Undo pitch
     zr = -yr * sp + zr2 * cp
     y = yr * cp + zr2 * sp
@@ -246,7 +245,20 @@ SLAB_HEIGHT: float = 20.0
 
 def disc_centers(slab_height: float = SLAB_HEIGHT, base_z: float = 0.0,
                   n: int = 18) -> list[tuple[float, float, float]]:
+    """Disc centres along the +z axis, starting at ``base_z``."""
     return [(0.0, 0.0, base_z + i * slab_height) for i in range(n)]
+
+
+def disc_centers_origin_anchored(slab_height: float = SLAB_HEIGHT,
+                                  n: int = 18) -> list[tuple[float, float, float]]:
+    """Disc centres centred at the world origin (z=0).
+
+    The 18 discs are stacked symmetrically around z=0, with z range
+    ``±(n-1)/2 * slab``.  Used by the 3D view so dragging the camera
+    orbits the world around (0,0,0).
+    """
+    half = (n - 1) / 2.0
+    return [(0.0, 0.0, (i - half) * slab_height) for i in range(n)]
 
 
 # ═══════════════════════════════════════════════════════════════════
@@ -431,14 +443,18 @@ class MatchupGraph2D(tk.Frame):
 class MatchupGraph3D(tk.Frame):
     """Isometric 3D cylinder of 18 type-discs.
 
-    Arrow keys scroll, drag rotates, wheel zooms, click picks a disc.
+    Drag rotates the world around its origin (0,0,0).  No zoom, no
+    scroll — the camera distance is fixed and the disc stack is
+    centred at z=0 so rotation stays symmetric.
     """
+
+    PITCH_CLAMP: float = 1.0   # ±1.0 rad (~±57°) keeps the stack upright
 
     def __init__(self, master, sets_dir, **kw):
         super().__init__(master, **kw)
         self.sets_dir = sets_dir
         self.node = None
-        self.cam = Camera()
+        self.cam = Camera()   # center is now (0,0,0) — world origin
         self.selected_idx: int | None = None
         self._build()
         self._bind_inputs()
@@ -459,16 +475,8 @@ class MatchupGraph3D(tk.Frame):
         c.bind("<B1-Motion>", self._on_drag)
         c.bind("<ButtonRelease-1>", self._on_release)
         c.bind("<Double-Button-1>", self._on_double_click)
-        # Wheel: Windows / macOS use <MouseWheel> with e.delta in
-        # multiples of 120; X11 sends <Button-4>/<Button-5> with no
-        # delta field.  Bind both for cross-platform behaviour.
-        c.bind("<MouseWheel>", self._on_wheel)
-        c.bind("<Button-4>", lambda _e: self._zoom_by(1.0 / 1.1))
-        c.bind("<Button-5>", lambda _e: self._zoom_by(1.1))
         # Keyboard: bind on the canvas (not the Frame) so it actually
         # receives key events once the user clicks into the canvas.
-        c.bind("<Up>",    lambda _e: self._scroll(-1))
-        c.bind("<Down>",  lambda _e: self._scroll(+1))
         c.bind("<Left>",  lambda _e: self._rotate_yaw(+0.1))
         c.bind("<Right>", lambda _e: self._rotate_yaw(-0.1))
         c.bind("<Key-r>", lambda _e: self._reset_view())
@@ -485,22 +493,8 @@ class MatchupGraph3D(tk.Frame):
         self.node = node
         self._redraw()
 
-    def _scroll(self, delta: int) -> None:
-        self.cam = self.cam._replace(
-            center=(self.cam.center[0], self.cam.center[1],
-                    max(0.0, min(360.0,
-                                  self.cam.center[2] + delta * SLAB_HEIGHT)))
-        )
-        self._redraw()
-
     def _rotate_yaw(self, dr: float) -> None:
         self.cam = self.cam._replace(yaw=self.cam.yaw + dr)
-        self._redraw()
-
-    def _zoom_by(self, factor: float) -> None:
-        self.cam = self.cam._replace(
-            distance=max(120.0, min(2000.0, self.cam.distance * factor))
-        )
         self._redraw()
 
     def _reset_view(self) -> None:
@@ -518,8 +512,10 @@ class MatchupGraph3D(tk.Frame):
         self._drag_last = (e.x, e.y)
         if dx or dy:
             self._drag_moved = True
+        # Rotation orbits the world origin (cam.center is fixed at 0).
         new_yaw = self.cam.yaw + dx * 0.008
-        new_pitch = max(-1.2, min(1.2, self.cam.pitch + dy * 0.008))
+        new_pitch = max(-self.PITCH_CLAMP, min(self.PITCH_CLAMP,
+                                                self.cam.pitch + dy * 0.008))
         self.cam = self.cam._replace(yaw=new_yaw, pitch=new_pitch)
         self._redraw()
 
@@ -532,7 +528,7 @@ class MatchupGraph3D(tk.Frame):
             return
         cam = self.cam._asdict()
         cam["mouse"] = (e.x, e.y)
-        centers = disc_centers(n=18)
+        centers = disc_centers_origin_anchored(n=18)
         if self.node is not None:
             radii = [disc_radius(self.node.attributes, i) for i in range(18)]
         else:
@@ -545,13 +541,6 @@ class MatchupGraph3D(tk.Frame):
 
     def _on_double_click(self, _e):
         self._reset_view()
-
-    def _on_wheel(self, e):
-        # Wheel up (positive delta) should zoom IN, which in this
-        # projection means a *smaller* camera distance.  The previous
-        # factor direction (1.1 on wheel up) was inverted.
-        factor = 0.9 if e.delta > 0 else 1.1
-        self._zoom_by(factor)
 
     def _update_info_panel(self, idx: int) -> None:
         if self.node is None:
@@ -597,7 +586,7 @@ class MatchupGraph3D(tk.Frame):
                                 "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug",
                                 "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"]
         vase = self.node.vase_order
-        centers = disc_centers(n=18)
+        centers = disc_centers_origin_anchored(n=18)
         radii = [disc_radius(self.node.attributes, i) for i in range(18)]
         projected = []
         for i, center in enumerate(centers):
@@ -617,8 +606,7 @@ class MatchupGraph3D(tk.Frame):
                           font=("TkFixedFont", 8, "bold"))
         c.create_text(8, 8, anchor="nw", fill="#e6edf3", font=("TkFixedFont", 9),
                       text=(f"yaw={cam.yaw:.2f} pitch={cam.pitch:.2f} "
-                            f"dist={cam.distance:.0f} "
-                            f"center_z={cam.center[2]:.0f}"))
+                            f"(drag · dbl-click resets · arrows rotate)"))
 
 
 # ═══════════════════════════════════════════════════════════════════

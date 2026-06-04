@@ -183,6 +183,41 @@ def test_2d_drag_rotates_only_horizontally():
         root.destroy()
 
 
+def test_3d_world_to_screen_origin_anchored_no_translation():
+    """world_to_screen with cam.center=(0,0,0) should NOT translate."""
+    from pokeredus.gui.matchup_graph_view import world_to_screen, Camera
+    cam = Camera(center=(0.0, 0.0, 0.0), yaw=0.0, pitch=0.0,
+                 distance=300, width=600, height=400)
+    p = np.array([10.0, 20.0, 0.0])
+    s = world_to_screen(p, cam)
+    # At identity rotations + distance 300 + focal 400:
+    # xr = 10, yr = 20, d = 300
+    # sx = 300 + 10*400/300 = 300 + 13.33
+    # sy = 200 - 20*400/300 = 200 - 26.67
+    assert abs(s[0] - 600/2 - 10*400/300) < 1.0
+    assert abs(s[1] - 400/2 + 20*400/300) < 1.0
+
+
+def test_3d_default_camera_centered_at_world_origin():
+    """The 3D camera must look at the world origin, not the middle of
+    the disc stack, so dragging rotates the world around (0,0,0)."""
+    from pokeredus.gui.matchup_graph_view import Camera
+    cam = Camera()
+    assert cam.center == (0.0, 0.0, 0.0)
+
+
+def test_3d_no_zoom_method():
+    """The 3D view must not expose a wheel-zoom method (per plan: drop zoom)."""
+    import tkinter as tk
+    from pokeredus.gui.matchup_graph_view import MatchupGraph3D
+    root = tk.Tk(); root.withdraw()
+    try:
+        v = MatchupGraph3D(root, sets_dir=".")
+        assert not hasattr(v, "_zoom_by"), "MatchupGraph3D must not expose _zoom_by"
+    finally:
+        root.destroy()
+
+
 def test_combined_view_starts_in_2d():
     from pokeredus.gui.matchup_graph_view import MatchupGraphView
     import tkinter as tk
