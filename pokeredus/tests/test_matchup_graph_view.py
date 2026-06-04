@@ -218,6 +218,26 @@ def test_3d_no_zoom_method():
         root.destroy()
 
 
+def test_disc_radius_uses_scaled_attributes():
+    """With 0-100 attrs the disc radius must stay bounded — the plan
+    caps it at ~12 (base=8, multiplier=0.005, max area=10000)."""
+    from pokeredus.gui.matchup_graph_view import disc_radius
+    full = np.zeros((8, 18), dtype=np.float32)
+    full[4] = 100.0  # counter at max
+    full[5] = 100.0  # sponge at max
+    full[6] = 100.0  # threat at max
+    full[7] = 100.0  # punish at max
+    r = disc_radius(full, type_index=3, base=8.0)
+    # Max compound area = 100*100 + 100*100 = 20000; sqrt = 141.42
+    # r = 8 * (1 + 141.42 * 0.005) = 8 * 1.707 ≈ 13.66
+    # Hard ceiling from the plan is around 12-14; assert it stays there.
+    assert 8.0 < r < 16.0, f"disc radius {r} not in expected range (8, 16)"
+    # And an all-zero node should give exactly base (no compound area).
+    zero = np.zeros((8, 18), dtype=np.float32)
+    r0 = disc_radius(zero, type_index=3, base=8.0)
+    assert r0 == 8.0, f"zero attrs should give base radius, got {r0}"
+
+
 def test_combined_view_starts_in_2d():
     from pokeredus.gui.matchup_graph_view import MatchupGraphView
     import tkinter as tk

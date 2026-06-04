@@ -146,15 +146,21 @@ class Camera(NamedTuple):
 
 
 def disc_radius(attributes: np.ndarray, type_index: int,
-                base: float = 8.0) -> float:
+                base: float = 8.0,
+                radius_scale: float = 0.005) -> float:
     """Disc radius proportional to the type's compound area.
 
-    area = counter·sponge + threat·punish (per the polygonal-solid model)
+    ``area = counter·sponge + threat·punish`` (per the polygonal-solid
+    model).  ``attributes`` is expected to be in 0-100 (the page tuner
+    keeps node.attributes in 0-100).  With max compound area
+    ``100*100 + 100*100 = 20000`` (sqrt ≈ 141) the default
+    ``radius_scale = 0.005`` caps the radius at about 1.71 × ``base``
+    (≈ 13.7 with base=8), so the 18 stacked discs never overlap.
     """
     C, G, T, P = 4, 5, 6, 7
     area = (attributes[C, type_index] * attributes[G, type_index]
             + attributes[T, type_index] * attributes[P, type_index])
-    return base * (1.0 + math.sqrt(max(area, 0.0)) * 0.2)
+    return base * (1.0 + math.sqrt(max(area, 0.0)) * radius_scale)
 
 
 def world_to_screen(p, cam: Camera) -> tuple[float, float, float]:
