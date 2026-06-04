@@ -164,6 +164,25 @@ def test_2d_no_zoom_attribute_after_init():
         root.destroy()
 
 
+def test_2d_drag_rotates_only_horizontally():
+    """Vertical drag must not change rotation (only horizontal does)."""
+    import tkinter as tk
+    from pokeredus.gui.matchup_graph_view import MatchupGraph2D
+    root = tk.Tk(); root.withdraw()
+    try:
+        v = MatchupGraph2D(root, sets_dir=".")
+        v._on_press(fake_event_factory := type("E", (), {"x": 200, "y": 200})())
+        # 100px right + 100px up
+        ev_drag = type("E", (), {"x": 300, "y": 100})()
+        v._on_drag(ev_drag)
+        v._on_release(type("E", (), {"x": 300, "y": 100})())
+        # 100 px right at 0.01 rad/px = 1.0 rad; vertical should NOT subtract
+        assert v.rotation == pytest.approx(1.0), \
+            f"rotation={v.rotation} (vertical drag should be ignored)"
+    finally:
+        root.destroy()
+
+
 def test_combined_view_starts_in_2d():
     from pokeredus.gui.matchup_graph_view import MatchupGraphView
     import tkinter as tk
