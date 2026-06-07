@@ -157,7 +157,7 @@ def disc_radius(attributes: np.ndarray, type_index: int,
     ``radius_scale = 0.005`` caps the radius at about 1.71 × ``base``
     (≈ 13.7 with base=8), so the 18 stacked discs never overlap.
     """
-    C, G, T, P = 4, 5, 6, 7
+    C, G, T, P = 7, 5, 1, 3  # counter, sponge, threat, punish in new order
     area = (attributes[C, type_index] * attributes[G, type_index]
             + attributes[T, type_index] * attributes[P, type_index])
     return base * (1.0 + math.sqrt(max(area, 0.0)) * radius_scale)
@@ -272,25 +272,35 @@ def disc_centers_origin_anchored(slab_height: float = SLAB_HEIGHT,
 # ═══════════════════════════════════════════════════════════════════
 
 class MatchupGraph2D(tk.Frame):
-    """Top-down radial polygon view of one set/team node.
+    """Top-down radial bar chart view of one set's 8 radar attributes.
+
+    Values are computed on-the-fly from set data (moves, stats, types,
+    item, ability) using ``compute_radar_8()`` from
+    ``pokeredus.graph.radar_attributes``. This ensures the radar
+    always reflects the latest formula constants (from Obsidian).
 
     Interaction:
-      • Drag with left mouse button → rotate the polygon (horizontal only)
-      • Double-click → reset rotation
+    • Drag with left mouse button → rotate the polygon (horizontal only)
+    • Double-click → reset rotation
 
-    The polygon auto-fits its canvas — the per-axis max (0-100 scaled)
-    drives each radial bar's length, and the largest axis maps to
-    ``min(w, h) * 0.40`` pixels.  There is no zoom.
+    The 8 bars auto-fit the canvas — each bar's length is proportional
+    to its attribute value (0-100), and the longest bar maps to
+    ``min(w, h) * 0.40`` pixels. There is no zoom.
     """
 
-    DRAG_RAD_PER_PX: float = 0.01   # drag sensitivity (radians/pixel)
+    DRAG_RAD_PER_PX: float = 0.01 # drag sensitivity (radians/pixel)
 
     def __init__(self, master, sets_dir, **kw):
         super().__init__(master, **kw)
         self.sets_dir = sets_dir
         self.node = None
+        # On-the-fly radar computation data
+        self._set_obj = None   # SetClass
+        self._pokemon = None   # PokemonClass
+        self._kg = None        # KnowledgeGraph
+        self._radar_cache = None  # dict[str, float] from compute_radar_8
         self.elaborate = False
-        self.rotation: float = 0.0     # radians
+        self.rotation: float = 0.0 # radians
         self._build()
         self._bind_inputs()
 
@@ -319,8 +329,19 @@ class MatchupGraph2D(tk.Frame):
         self._drag_last = None
         self._drag_moved = False
 
-    def set_node(self, node) -> None:
+    def set_node(self, node, set_obj=None, pokemon=None, kg=None) -> None:
+        """Set the node for display and refresh the radar.
+
+        If set_obj/pokemon/kg are provided, the 2D view computes radar
+        values on-the-fly from live data rather than reading the cached
+        8×18 matrix. This ensures formula changes from Obsidian are
+        immediately reflected.
+        """
         self.node = node
+        self._set_obj = set_obj
+        self._pokemon = pokemon
+        self._kg = kg
+        self._radar_cache = None  # force recompute
         self._redraw()
 
     def _toggle_elaborate(self) -> None:
@@ -366,79 +387,141 @@ class MatchupGraph2D(tk.Frame):
         self._redraw()
 
     # ── redraw ───────────────────────────────────────────────────────
+    def _get_radar_values(self) -> list[float] | None:
+        """Compute or return cached 8 radar values (0-100).
+
+        Prefers on-the-fly computation from set_obj/pokemon/kg data.
+        Falls back to reading the 8×18 matrix from node.attributes
+        (max across 18 types) if live data is unavailable.
+        """
+        if self._radar_cache is not None:
+            return [self._radar_cache[n] for n in (
+                "attack", "threat", "speed", "punish",
+                "utility", "sponge", "defense", "counter")]
+
+        # Try on-the-fly computation
+        if self._set_obj is not None and self._pokemon is not None:
+            try:
+                from pokeredus.graph.radar_attributes import compute_radar_8
+                self._radar_cache = compute_radar_8(
+                    self._set_obj, self._pokemon, self._kg)
+                return [self._radar_cache[n] for n in (
+                    "attack", "threat", "speed", "punish",
+                    "utility", "sponge", "defense", "counter")]
+            except Exception:
+                pass  # fall through to matrix fallback
+
+        # Fallback: read from cached 8×18 matrix
+        if self.node is not None:
+            attrs = self.node.attributes
+            if attrs.size > 0 and attrs.shape[0] == 8:
+                vals = np.clip(attrs.max(axis=1), 0.0, 100.0)
+                return [float(v) for v in vals]
+
+        return None
+
     def _redraw(self) -> None:
         c = self.canvas
         c.delete("all")
         w = c.winfo_width()
         h = c.winfo_height()
-        if w < 50 or h < 50 or self.node is None:
+        if w < 50 or h < 50:
             return
+
+        # Get 8 radar values (on-the-fly or fallback)
+        axis_vals = self._get_radar_values()
+        if axis_vals is None:
+            return
+
+        # Attribute names for labels
+        try:
+            from pokeredus.graph.radar_attributes import ATTRIBUTE_NAMES as _AN
+        except ImportError:
+            _AN = ["attack", "threat", "speed", "punish",
+                   "utility", "sponge", "defense", "counter"]
+
         cx, cy = w / 2, h / 2
-        # Auto-fit: largest axis (max value 0-100) maps to 40% of the
-        # shorter canvas side.  No zoom factor.
         radius = min(w, h) * 0.40
-        # Per-axis max across 18 types (in 0-100).  The page tuner
-        # keeps node.attributes in 0-100; raw sums would dwarf the
-        # canvas, so we always read from the already-scaled matrix.
-        attrs = self.node.attributes
-        if attrs.size == 0 or attrs.shape[0] != 8:
-            return
-        axis_vals = np.clip(attrs.max(axis=1), 0.0, 100.0)  # (8,)
-        # Render the per-axis bar length as a fraction of `radius`,
-        # where 100 → full radius.  Clamp to [0, radius].
         scale = radius / 100.0
+
+        # ── Draw concentric guide rings (25, 50, 75, 100) ─────────
+        for pct in (25, 50, 75, 100):
+            r = pct * scale
+            c.create_oval(cx - r, cy - r, cx + r, cy + r,
+                          outline="#1e2330", width=1, dash=(2, 4))
+
+        # ── Draw the 8 radial bars ─────────────────────────────────
         pts = [
             attribute_polygon_points_one(
-                i, float(axis_vals[i]), (cx, cy), scale, self.rotation,
+                i, axis_vals[i], (cx, cy), scale, self.rotation,
             )
             for i in range(8)
         ]
-        # Polygon fill
+
+        # Polygon fill (translucent dark)
         c.create_polygon(*sum(pts, ()), fill="#1c1f26", outline="#3a86ff", width=2)
-        # Spokes + tips
-        try:
-            from pokeredus.graph.matchup_graph import ATTRIBUTE_NAMES, volume_of
-        except ImportError:
-            ATTRIBUTE_NAMES = ["attack", "utility", "defense", "speed",
-                                "counter", "sponge", "threat", "punish"]
-            def volume_of(attributes, bias=1.0):  # type: ignore
-                C, G, T, P = 4, 5, 6, 7
-                per_type = attributes[C] * attributes[G] + attributes[T] * attributes[P]
-                return float(per_type.sum() * bias)
-        for (x, y), name, v in zip(pts, ATTRIBUTE_NAMES, axis_vals):
-            c.create_line(cx, cy, x, y, fill=attribute_color(name), width=2)
-            c.create_oval(x - 4, y - 4, x + 4, y + 4,
-                          fill=attribute_color(name), outline="")
-            c.create_text(x + 8, y - 8, text=f"{name}\n{v:.0f}",
-                          fill=attribute_color(name), anchor="w",
+
+        # Spokes + labels + tips
+        for i, ((x, y), name, v) in enumerate(zip(pts, _AN, axis_vals)):
+            color = attribute_color(name)
+            # Bar (spoke line)
+            c.create_line(cx, cy, x, y, fill=color, width=3)
+            # Tip dot
+            c.create_oval(x - 5, y - 5, x + 5, y + 5,
+                          fill=color, outline="")
+            # Label: name + value
+            ang = attribute_angle(i) + self.rotation
+            label_r = max(v, 10) * scale + 18
+            lx = cx + label_r * math.cos(ang)
+            ly = cy - label_r * math.sin(ang)
+            c.create_text(lx, ly, text=f"{name}\n{v:.0f}",
+                          fill=color, anchor="center",
                           font=("TkFixedFont", 8))
-        if self.elaborate:
-            from pokeredus.graph.matchup_graph import CANONICAL_TYPES
-            bars = elaborate_bars_per_attribute(
-                self.node.attributes, self.node.vase_order,
-            )
-            for ai, seg_values in enumerate(bars):
-                ang = attribute_angle(ai) + self.rotation
-                dx, dy = math.cos(ang), -math.sin(ang)
-                cursor = 0.0
-                for ti, val in enumerate(seg_values):
-                    tname = CANONICAL_TYPES[self.node.vase_order[ti]]
-                    seg = max(val, 0.0) * scale * 0.02
-                    x0 = cx + dx * cursor
-                    y0 = cy + dy * cursor
-                    x1 = cx + dx * (cursor + seg)
-                    y1 = cy + dy * (cursor + seg)
-                    c.create_line(x0, y0, x1, y1,
-                                  fill=type_color(tname), width=3)
-                    cursor += seg + 1.0  # small gap
-        # Header line: volume + view state
+
+        # ── Elaborate by types (still uses 8×18 matrix from node) ──
+        if self.elaborate and self.node is not None:
+            try:
+                from pokeredus.graph.matchup_graph import CANONICAL_TYPES
+                bars = elaborate_bars_per_attribute(
+                    self.node.attributes, self.node.vase_order,
+                )
+                for ai, seg_values in enumerate(bars):
+                    ang = attribute_angle(ai) + self.rotation
+                    dx, dy = math.cos(ang), -math.sin(ang)
+                    cursor = 0.0
+                    for ti, val in enumerate(seg_values):
+                        tname = CANONICAL_TYPES[self.node.vase_order[ti]]
+                        seg = max(val, 0.0) * scale * 0.02
+                        x0 = cx + dx * cursor
+                        y0 = cy + dy * cursor
+                        x1 = cx + dx * (cursor + seg)
+                        y1 = cy + dy * (cursor + seg)
+                        c.create_line(x0, y0, x1, y1,
+                                      fill=type_color(tname), width=3)
+                        cursor += seg + 1.0
+            except Exception:
+                pass
+
+        # ── Header: composite score + controls ─────────────────────
+        # Compute a composite "volume" from the radar values directly
+        radar = self._radar_cache
+        if radar:
+            vol = (radar["counter"] * radar["sponge"]
+                   + radar["threat"] * radar["punish"])
+        elif self.node is not None:
+            try:
+                from pokeredus.graph.matchup_graph import volume_of
+                vol = volume_of(self.node.attributes, self.node.bias)
+            except ImportError:
+                vol = 0.0
+        else:
+            vol = 0.0
         c.create_text(10, 10, anchor="nw", fill="#e6edf3",
                       font=("TkFixedFont", 10, "bold"),
-                      text=("Volume: "
-                            + f"{volume_of(self.node.attributes, self.node.bias):.1f}"))
+                      text=f"Volume: {vol:.1f}")
         c.create_text(10, 32, anchor="nw", fill="#8b949e",
                       font=("TkFixedFont", 8),
-                      text=(f"rot={math.degrees(self.rotation):.0f}°  "
+                      text=(f"rot={math.degrees(self.rotation):.0f}° "
                             f"(drag · dbl-click resets · arrows rotate)"))
 
 
@@ -559,10 +642,10 @@ class MatchupGraph3D(tk.Frame):
             CANONICAL_TYPES = ["Normal", "Fire", "Water", "Electric", "Grass", "Ice",
                                 "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug",
                                 "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy"]
-            ATTRIBUTE_NAMES = ["attack", "utility", "defense", "speed",
-                                "counter", "sponge", "threat", "punish"]
+            ATTRIBUTE_NAMES = ["attack", "threat", "speed", "punish",
+                                "utility", "sponge", "defense", "counter"]
             def volume_of(attributes, bias=1.0):  # type: ignore
-                C, G, T, P = 4, 5, 6, 7
+                C, G, T, P = 7, 5, 1, 3  # counter, sponge, threat, punish in new order
                 per_type = attributes[C] * attributes[G] + attributes[T] * attributes[P]
                 return float(per_type.sum() * bias)
         a = self.node.attributes
@@ -659,19 +742,20 @@ class MatchupGraphView(tk.Frame):
             load_node_cache, build_node, save_node_cache,
         )
         node = load_node_cache(pokemon_id, set_id, self.sets_dir)
+        set_obj, pokemon, kg = None, None, None
         if node is None:
             try:
                 from pokeredus.graph.knowledge_graph import KnowledgeGraph
                 kg = KnowledgeGraph()
-                s = kg.get_set(set_id)
-                p = kg.get_pokemon(pokemon_id) if s else None
-                if s and p:
-                    node = build_node(s, p, kg=kg)
+                set_obj = kg.get_set(set_id)
+                pokemon = kg.get_pokemon(pokemon_id) if set_obj else None
+                if set_obj and pokemon:
+                    node = build_node(set_obj, pokemon, kg=kg)
                     save_node_cache(node, self.sets_dir)
             except Exception:
                 node = None
         self._current_node = node
-        self.set_node(node)
+        self.set_node(node, set_obj=set_obj, pokemon=pokemon, kg=kg)
 
     def set_team(self, set_ids: list[str], kg=None) -> None:
         """Build a team node from the given set ids and display it.
@@ -693,6 +777,7 @@ class MatchupGraphView(tk.Frame):
             except Exception:
                 kg = None
         nodes = []
+        first_set, first_poke = None, None
         for sid in set_ids:
             if kg is None:
                 continue
@@ -702,16 +787,25 @@ class MatchupGraphView(tk.Frame):
             p = kg.get_pokemon(s.pokemon_id)
             if p is None:
                 continue
+            if first_set is None:
+                first_set, first_poke = s, p
             nodes.append(build_node(s, p, kg=kg))
         if not nodes:
             self.set_node(None)
             return
         team_node = compose_team_node(nodes)
         self._current_node = team_node
+        # For team nodes, radar data uses fallback (8×18 matrix)
+        # since a team has no single set/pokemon
         self.set_node(team_node)
 
-    def set_node(self, node) -> None:
-        self.view_2d.set_node(node)
+    def set_node(self, node, set_obj=None, pokemon=None, kg=None) -> None:
+        """Propagate node + radar data to both 2D and 3D views.
+
+        The 2D view uses set_obj/pokemon/kg for on-the-fly radar
+        computation. The 3D view still uses node.attributes.
+        """
+        self.view_2d.set_node(node, set_obj=set_obj, pokemon=pokemon, kg=kg)
         self.view_3d.set_node(node)
 
 
@@ -838,6 +932,7 @@ class MatchupGraphPage(tk.Frame):
         # Mutate the node in-place so the 2D/3D renderers pick it up
         # on the next redraw.
         node.attributes = new_attrs
+        # Invalidate radar cache so 2D view re-reads the tuned matrix
         self._view.set_node(node)
 
 
