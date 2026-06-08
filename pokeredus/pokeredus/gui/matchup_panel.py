@@ -1,8 +1,7 @@
-"""
-matchup_panel — Team analysis panel for the team builder.
+"""matchup_panel — Team analysis panel for the team builder.
 
 Provides a self-contained panel that combines:
-  * A miniature 3D graph of the current team + its relations to the meta
+  * A miniature 2D radial graph of the current team + its relations to the meta
   * Quick stat summaries (set scores, coverage, type balance)
   * A dynamic "Open Full Analysis" link that jumps to the main
     MatchupGraphPage with the current team highlighted
@@ -24,12 +23,9 @@ from pokeredus.gui.theme import (
     FG_PRIMARY, FG_SECONDARY, FG_DIM,
     TYPE_COLORS, MATCHUP_WIN, MATCHUP_LOSE, MATCHUP_NEUTRAL,
     NEON_CYAN, NEON_GREEN, NEON_YELLOW, NEON_PINK, NEON_ORANGE, NEON_RED,
-    FONT_SMALL, FONT_BODY, FONT_BODY_BOLD, FONT_HEADING, FONT_BUTTON,
+    FONT_SMALL, FONT_BODY, FONT_HEADING, FONT_BUTTON,
 )
-# Task 16: the mini-graph in the team builder is now a 2D-only slice
-# of the new MatchupGraphView.  The full MatchupGraphView is reserved
-# for the dedicated matchup-graph page (see app.py).
-from pokeredus.gui.matchup_graph_view import MatchupGraph2D  # noqa: F401
+from pokeredus.gui.matchup_graph_view import TeamRadialGraph  # noqa: F401
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -64,7 +60,6 @@ class ScoreBar(tk.Canvas):
         # Fill
         fw = int(w * self._value)
         if fw > 0:
-            # Slight gradient effect via two layers
             self.create_rectangle(0, 0, fw, h, fill=self._color, outline="")
             self.create_rectangle(0, 0, fw, h // 2, fill=shade_color(self._color, 1.3), outline="")
 
@@ -97,14 +92,15 @@ class TeamAnalysisPanel(tk.Frame):
 
     Layout:
       ┌──────────────────────────────────┐
-      │ Team Analysis      [Open full →] │
+      │ Team Analysis      [Open full ↗] │
       │ ┌──────────────────────────────┐ │
-      │ │  mini 3D graph (300×180)     │ │
+      │ │  mini radial graph (full)    │ │
       │ └──────────────────────────────┘ │
       │ Team score      ████░░░░  0.62   │
       │ Coverage        ██████░░  0.78   │
       │ Synergy         ██████░░  0.81   │
       │ Type balance: 12 types, no ice   │
+      │ Sets list                        │
       └──────────────────────────────────┘
     """
 
@@ -139,8 +135,8 @@ class TeamAnalysisPanel(tk.Frame):
         ).pack(side="left")
 
         self._open_link = tk.Label(
-            header, text="Open full graph  →",
-            font=FONT_BODY_BOLD, fg=NEON_PINK, bg=BG_PANEL,
+            header, text="Open full graph  ↗",
+            font=("Consolas", 11, "bold"), fg=NEON_PINK, bg=BG_PANEL,
             cursor="hand2",
         )
         self._open_link.pack(side="right")
@@ -154,10 +150,7 @@ class TeamAnalysisPanel(tk.Frame):
         graph_frame = tk.Frame(self, bg=BG_PANEL)
         graph_frame.pack(fill="x", padx=10, pady=4)
 
-        from pokeredus.config import SETS_DIR
-        self._mini_graph = MatchupGraph2D(
-            graph_frame, sets_dir=str(SETS_DIR),
-        )
+        self._mini_graph = TeamRadialGraph(graph_frame)
         self._mini_graph.pack(fill="x")
 
         # "Click graph to open full" hint label
@@ -247,11 +240,11 @@ class TeamAnalysisPanel(tk.Frame):
                 "coverage": cov,
             })
 
-        # Refresh mini graph — show the composed team node (or first set)
-        from pokeredus.graph.matchup_graph import (
-            build_node, compose_team_node,
+        # Refresh mini graph — show team radial breakdown
+        from pokeredus.gui.matchup_graph_view import (
+            PokemonRadialScores, TeamRadialData, ATTRIBUTE_NAMES,
         )
-        nodes = []
+        members: list[PokemonRadialScores] = []
         for sid in self._team_set_ids:
             s = self.kg.get_set(sid)
             if s is None:
@@ -259,16 +252,30 @@ class TeamAnalysisPanel(tk.Frame):
             p = self.kg.get_pokemon(s.pokemon_id)
             if p is None:
                 continue
-            nodes.append(build_node(s, p, kg=self.kg))
-        if nodes:
-            team_node = (compose_team_node(nodes) if len(nodes) > 1
-                         else nodes[0])
-            self._mini_graph.set_node(team_node)
+            scores = []
+            try:
+                from pokeredus.graph.radar_attributes import compute_radar_8
+                radar = compute_radar_8(s, p, self.kg)
+                scores = [radar[n] for n in ATTRIBUTE_NAMES]
+            except Exception:
+                pass
+            if not scores:
+                scores = [0.0] * 8
+            matchups = self.kg.get_matchups(sid, min_confidence=0.0)
+            n_fav = sum(1 for m in matchups if getattr(m, "score", 0) > 0)
+            coverage = n_fav / max(len(matchups), 1) if matchups else 0.0
+            members.append(PokemonRadialScores(
+                pokemon_id=s.pokemon_id, name=p.name,
+                scores=scores, coverage=coverage,
+            ))
+        if members:
+            td = TeamRadialData(members=members)
+            self._mini_graph.set_team(td)
             self._hint.config(
-                text=("Team polygon · click 'Open full graph' for 2D/3D view")
+                text=("Team radial · hover sectors for details · ↗ for detailed view")
             )
         else:
-            self._mini_graph.set_node(None)
+            self._mini_graph.set_team(None)
             self._hint.config(text="Add Pokémon to see team analysis")
 
         # Update stat bars

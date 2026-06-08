@@ -4,7 +4,7 @@ Team Builder — 6-slot team construction panel with save/load/export.
 Layout:
   - Top bar: back button, team name, save/load/export controls
   - Left half (~50%): 2x3 grid of team slot cards
-  - Right half (~50%): placeholder for future team analysis
+  - Right half (~50%): team analysis panel with radial graph + stat breakdow
 
 Each slot card shows: sprite, name, set, type badges, role, key info.
 Empty slots show a "+" button that opens the Pokemon/Set selector dialog.
@@ -731,18 +731,119 @@ class TeamManagerPage(tk.Frame):
 
 
 # ═══════════════════════════════════════════════════════════════════════
+# 2D MATCHUP MINI GRAPH — clickable widget for team builder
+# ═══════════════════════════════════════════════════════════════════════
+
+class MatchupMini2DWidget(tk.Frame):
+    """Mini 2D team matchup graph — click to open full matchup page.
+
+    Shows a simple 2D representation of the team's aggregated matchup
+    scores across the 8 attribute dimensions.
+
+    Clicking on it triggers the on_open_full callback to navigate to
+    the full MatchupGraphPage.
+    """
+
+    def __init__(self, parent, kg, on_open_full=None, **kwargs):
+        super().__init__(parent, bg=BG_PANEL, padx=6, pady=4, **kwargs)
+        self.kg = kg
+        self._on_open_full = on_open_full
+        self._team_set_ids: list[str] = []
+        self._scores: list[float] = [0.0] * 8
+        self._photo_refs: list = []
+
+        self._build_ui()
+
+    def _build_ui(self):
+        # Header
+        header = tk.Frame(self, bg=BG_PANEL)
+        header.pack(fill="x", pady=(0, 2))
+
+        tk.Label(header, text="TEAM RADAR", font=("Consolas", 7, "bold"),
+                 fg=NEON_CYAN, bg=BG_PANEL).pack(side="left")
+
+        self._expand_label = tk.Label(
+            header, text="↗", font=("Consolas", 9, "bold"),
+            fg=NEON_PINK, bg=BG_PANEL, cursor="hand2",
+        )
+        self._expand_label.pack(side="right")
+
+        # Canvas for the mini radial graph
+        self._canvas = tk.Canvas(
+            self, bg=BG_DARK, highlightthickness=0,
+            width=140, height=110,
+        )
+        self._canvas.pack(fill="both", expand=True)
+        self._canvas.bind("<Configure>", lambda _e: self._draw())
+        self._canvas.bind("<Button-1>", lambda e: self._on_click())
+
+        # Make it feel clickable
+        self._canvas.bind("<Enter>", lambda e: self._canvas.config(cursor="hand2"))
+        self._canvas.bind("<Leave>", lambda e: self._canvas.config(cursor=""))
+
+    def set_data(self, team_set_ids: list[str], scores: list[float]):
+        """Update with team set IDs and attribute scores."""
+        self._team_set_ids = list(team_set_ids)
+        self._scores = list(scores) if scores else [0.0] * 8
+        self._draw()
+
+    def _draw(self):
+        c = self._canvas
+        c.delete("all")
+        w = c.winfo_width() or 140
+        h = c.winfo_height() or 110
+        if w < 20 or h < 20:
+            return
+
+        cx, cy = w / 2, h / 2 - 4
+        radius = min(w, h) * 0.30  # compact
+
+        # Draw mini radial bars
+        scale = radius / 100.0
+        for i, (val, color) in enumerate(zip(self._scores, [
+            "#ff6b35", "#f6ae2d", "#00d4ff", "#3a86ff",
+            "#b24dff", "#39ff14", "#118ab2", "#ff6ec7",
+        ])):
+            ang = i * math.pi / 4
+            r = max(val, 0) * scale
+            x = cx + r * math.cos(ang)
+            y = cy - r * math.sin(ang)
+            # Line from center
+            c.create_line(cx, cy, x, y, fill=color, width=2)
+            # Tip dot
+            dot_r = 2
+            c.create_oval(x - dot_r, y - dot_r, x + dot_r, y + dot_r,
+                          fill=color, outline="")
+
+        # Center hub
+        c.create_oval(cx - 3, cy - 3, cx + 3, cy + 3,
+                      fill="#161b22", outline=NEON_CYAN, width=1)
+
+        # "Click to open" hint
+        c.create_text(cx, cy + radius + 12,
+                      text="click to open full graph",
+                      fill="#484f58", font=("Consolas", 6), anchor="n")
+
+    def _on_click(self):
+        if self._on_open_full and self._team_set_ids:
+            self._on_open_full(self._team_set_ids)
+
+
+# ═══════════════════════════════════════════════════════════════════════
 # MAIN TEAM BUILDER PAGE
 # ═══════════════════════════════════════════════════════════════════════
 
 class TeamBuilderPage(tk.Frame):
-    """Full-page team builder with 2x3 slot grid + analysis placeholder."""
+    """Full-page team builder with 2x3 slot grid + analysis panel."""
 
     def __init__(self, parent, kg: KnowledgeGraph, go_back_cb,
-                 team_record: TeamRecord):
+                 team_record: TeamRecord,
+                 on_open_matchup_graph=None):
         super().__init__(parent, bg=BG_DARK)
         self.kg = kg
         self._go_back = go_back_cb   # back to team manager
         self._team_record = team_record
+        self._on_open_matchup_graph = on_open_matchup_graph
         self._store = TeamStore()
         self._sprite_mgr = get_sprite_manager()
         self._photo_refs: list = []
@@ -791,7 +892,7 @@ class TeamBuilderPage(tk.Frame):
                       activeforeground=color, bd=0, padx=12, pady=4,
                       cursor="hand2", command=cmd).pack(side="left", padx=4)
 
-        # ── Main body: slots (left) + analysis placeholder (right) ──
+        # ── Main body: slots (left) + analysis panel (right) ──
         body = tk.Frame(self, bg=BG_DARK)
         body.pack(fill="both", expand=True, padx=12, pady=12)
         body.columnconfigure(0, weight=1, uniform="body_cols")
@@ -819,45 +920,111 @@ class TeamBuilderPage(tk.Frame):
             card.grid(row=r, column=c, padx=4, pady=4, sticky="nsew")
             self._slots.append(card)
 
-        # Right: analysis placeholder (50%)
+        # Right: analysis panel (50%)
         self._analysis_frame = tk.Frame(body, bg=BG_PANEL)
         self._analysis_frame.grid(row=0, column=1, sticky="nsew", padx=(8, 0))
 
         self._build_analysis_placeholder()
 
     def _build_analysis_placeholder(self):
-        """Placeholder panel for future team analysis features."""
+        """Build the analysis panel with radial graph + stat breakdown + open full."""
         for w in self._analysis_frame.winfo_children():
             w.destroy()
 
-        center = tk.Frame(self._analysis_frame, bg=BG_PANEL)
-        center.pack(expand=True)
+        container = tk.Frame(self._analysis_frame, bg=BG_PANEL)
+        container.pack(fill="both", expand=True)
+        container.rowconfigure(0, weight=0)  # header
+        container.rowconfigure(1, weight=0)  # mini graph
+        container.rowconfigure(2, weight=0)  # summary bars
+        container.rowconfigure(3, weight=0)  # type balance
+        container.rowconfigure(4, weight=1)  # set list (flex)
+        container.columnconfigure(0, weight=1)
 
-        tk.Label(center, text="Team Analysis", font=FONT_HEADING,
-                 fg=FG_PRIMARY, bg=BG_PANEL).pack(pady=(0, 8))
+        # ── Header ──────────────────────────────────────
+        header = tk.Frame(container, bg=BG_PANEL)
+        header.grid(row=0, column=0, sticky="ew", padx=10, pady=(10, 4))
 
-        tk.Label(center, text="Coming soon:", font=FONT_BODY,
-                 fg=FG_SECONDARY, bg=BG_PANEL).pack()
+        tk.Label(
+            header, text="Team Analysis", font=FONT_HEADING,
+            fg=NEON_CYAN, bg=BG_PANEL,
+        ).pack(side="left")
 
-        features = [
-            "Type Coverage Matrix",
-            "Defensive Profile",
-            "Speed Tier Chart",
-            "Role Distribution",
-            "Matchup Table vs Meta",
-            "Gap Analysis & Suggestions",
-        ]
-        for feat in features:
-            tk.Label(center, text=f"  · {feat}", font=FONT_SMALL,
-                     fg=FG_DIM, bg=BG_PANEL).pack(anchor="w")
-
-        # Team summary (basic)
-        self._summary_label = tk.Label(
-            center, text="", font=FONT_BODY, fg=NEON_CYAN, bg=BG_PANEL,
+        # "Open full graph ↗" link
+        self._open_link = tk.Label(
+            header, text="Open full graph  ↗",
+            font=FONT_BODY_BOLD, fg=NEON_PINK, bg=BG_PANEL,
+            cursor="hand2",
         )
-        self._summary_label.pack(pady=(16, 0))
+        self._open_link.pack(side="right")
+        self._open_link.bind("<Button-1>", lambda e: self._trigger_open_full())
+        self._open_link.bind("<Enter>",
+            lambda e: self._open_link.config(fg=NEON_YELLOW))
+        self._open_link.bind("<Leave>",
+            lambda e: self._open_link.config(fg=NEON_PINK))
 
-        self._update_summary()
+        # ── Mini 2D graph widget (clickable) ───────────
+        self._mini_graph = MatchupMini2DWidget(
+            container, self.kg,
+            on_open_full=self._trigger_open_full,
+        )
+        self._mini_graph.grid(row=1, column=0, sticky="ew", padx=10, pady=4)
+
+        # ── Separator ───────────────────────────────────
+        tk.Frame(container, bg=BG_CARD, height=1).grid(row=2, column=0, sticky="ew", padx=10, pady=4)
+
+        # ── Stat bars ───────────────────────────────────
+        stats = tk.Frame(container, bg=BG_PANEL)
+        stats.grid(row=3, column=0, sticky="ew", padx=10, pady=(4, 2))
+
+        self._team_score_bar = self._make_stat_row(
+            stats, "Team", NEON_CYAN,
+        )
+        self._coverage_bar = self._make_stat_row(
+            stats, "Cover", NEON_GREEN,
+        )
+        self._synergy_bar = self._make_stat_row(
+            stats, "Synergy", NEON_PINK,
+        )
+        self._threat_bar = self._make_stat_row(
+            stats, "vs Meta", NEON_ORANGE,
+        )
+
+        # ── Type balance text ──────────────────────────
+        self._type_text = tk.Label(
+            container, text="", font=FONT_SMALL, fg=FG_SECONDARY,
+            bg=BG_PANEL, justify="left", anchor="w",
+        )
+        self._type_text.grid(row=4, column=0, sticky="ew", padx=10, pady=(4, 0))
+
+        # ── Set list (scrollable) ──────────────────────
+        set_list_outer = tk.Frame(container, bg=BG_PANEL)
+        set_list_outer.grid(row=5, column=0, sticky="nsew", padx=10, pady=(4, 10))
+        container.rowconfigure(5, weight=1)
+
+        self._set_text = tk.Text(
+            set_list_outer, font=("Consolas", 8), bg=BG_INPUT,
+            fg=FG_SECONDARY, relief="flat", padx=6, pady=4,
+            height=5, highlightthickness=0, borderwidth=0,
+        )
+        self._set_text.pack(fill="both", expand=True)
+        self._set_text.config(state="disabled")
+
+    def _make_stat_row(self, parent, label_text: str, color: str):
+        from pokeredus.gui.matchup_panel import ScoreBar
+
+        row = tk.Frame(parent, bg=BG_PANEL)
+        row.pack(fill="x", pady=1)
+        tk.Label(row, text=label_text, font=FONT_SMALL,
+                 fg=FG_SECONDARY, bg=BG_PANEL,
+                 width=8, anchor="w").pack(side="left")
+        bar = ScoreBar(row, width=120, height=6)
+        bar.pack(side="left", padx=(4, 4))
+        val_label = tk.Label(row, text="—", font=FONT_SMALL,
+                             fg=color, bg=BG_PANEL, width=5, anchor="e")
+        val_label.pack(side="left")
+        bar._val_label = val_label
+        bar._color_default = color
+        return bar
 
     # ── Team state ──────────────────────────────────────────────────
 
@@ -867,34 +1034,157 @@ class TeamBuilderPage(tk.Frame):
 
     def _on_team_changed(self):
         """Called whenever a slot changes (add/remove)."""
-        self._update_summary()
+        self._update_analysis_panel()
         self._auto_save()
 
-    def _update_summary(self):
-        """Update the basic team summary text."""
+    def _update_analysis_panel(self):
+        """Update all widgets in the analysis panel."""
+        from pokeredus.graph.analytics import rank_sets
+        from pokeredus.graph.radar_attributes import compute_radar_8
+        from pokeredus.gui.matchup_graph_view import (
+            PokemonRadialScores, TeamRadialData, ATTRIBUTE_NAMES,
+        )
+
         team_ids = self._get_team_set_ids()
         count = len(team_ids)
+
         if count == 0:
-            self._summary_label.config(text="No Pokemon selected")
+            self._team_score_bar.set(0.0)
+            self._coverage_bar.set(0.0)
+            self._synergy_bar.set(0.0)
+            self._threat_bar.set(0.0)
+            for bar, color in [(self._team_score_bar, NEON_CYAN),
+                               (self._coverage_bar, NEON_GREEN),
+                               (self._synergy_bar, NEON_PINK),
+                               (self._threat_bar, NEON_ORANGE)]:
+                bar._val_label.config(text="—")
+            self._type_text.config(text="No Pokémon in team")
+            self._set_text.config(state="normal")
+            self._set_text.delete("1.0", "end")
+            self._set_text.config(state="disabled")
+            self._mini_graph.set_data([], [0.0] * 8)
             return
 
-        # Gather types and roles
-        all_types: list[str] = []
-        all_roles: list[str] = []
+        # Compute per-set data
+        rankings = rank_sets(self.kg)
+        score_by_set = {r.set_id: r.composite_score for r in rankings}
+
+        # Gather pokemon data
+        all_set_ids = {s.id for s in self.kg.get_all_sets()}
+        total_others = max(len(all_set_ids) - 1, 1)
+
+        pokemon_data = []
+        team_radar_scores = [0.0] * 8
         for sid in team_ids:
             s = self.kg.get_set(sid)
-            if s:
-                p = self.kg.get_pokemon(s.pokemon_id)
-                if p:
-                    all_types.extend(p.types)
-                if s.role:
-                    all_roles.append(s.role)
+            if s is None:
+                continue
+            p = self.kg.get_pokemon(s.pokemon_id)
+            if p is None:
+                continue
 
-        type_text = ", ".join(sorted(set(all_types)))
-        role_text = ", ".join(sorted(set(all_roles)))
+            # Radar scores
+            scores = [0.0] * 8
+            try:
+                radar = compute_radar_8(s, p, self.kg)
+                scores = [radar.get(n, 0.0) for n in ATTRIBUTE_NAMES]
+            except Exception:
+                pass
+            for i, v in enumerate(scores):
+                team_radar_scores[i] += v
 
-        summary = f"{count}/6 Pokemon\nTypes: {type_text}\nRoles: {role_text}"
-        self._summary_label.config(text=summary)
+            matchups = self.kg.get_matchups(sid, min_confidence=0.0)
+            cov = len(matchups) / total_others if matchups else 0.0
+
+            # Favorable rate for coverage
+            n_fav = sum(1 for m in matchups if getattr(m, "score", 0) > 0) if matchups else 0
+            coverage_rate = n_fav / max(len(matchups), 1) if matchups else 0.0
+
+            pokemon_data.append({
+                "set_id": sid,
+                "name": p.name,
+                "types": list(p.types),
+                "score": score_by_set.get(sid, 0.0),
+                "coverage": coverage_rate,
+            })
+
+        # Normalize team radar scores
+        max_score = max(team_radar_scores) if max(team_radar_scores) > 0 else 1.0
+        norm_scores = [v / max_score * 100.0 for v in team_radar_scores]
+
+        # Update mini graph
+        self._mini_graph.set_data(team_ids, norm_scores)
+
+        # ── Stat bars ───────────────────────────────────
+        if pokemon_data:
+            team_score = sum(d["score"] for d in pokemon_data) / len(pokemon_data)
+            self._team_score_bar.set(team_score, NEON_CYAN)
+            self._team_score_bar._val_label.config(text=f"{team_score:.2f}")
+
+            cov_avg = sum(d["coverage"] for d in pokemon_data) / len(pokemon_data)
+            self._coverage_bar.set(cov_avg, NEON_GREEN)
+            self._coverage_bar._val_label.config(text=f"{cov_avg * 100:.0f}%")
+
+            # Synergy
+            all_types = set()
+            for d in pokemon_data:
+                all_types.update(d["types"])
+            synergy = min(1.0, len(all_types) / 6.0)
+            self._synergy_bar.set(synergy, NEON_PINK)
+            self._synergy_bar._val_label.config(text=f"{synergy:.2f}")
+
+            # vs Meta
+            threat_scores = []
+            for d in pokemon_data:
+                inbound = self.kg.get_matchups_against(d["set_id"], min_confidence=0.0)
+                if not inbound:
+                    continue
+                favorable = sum(1 for m in inbound if m.score > 0)
+                threat_scores.append(favorable / len(inbound))
+            vs_meta = sum(threat_scores) / len(threat_scores) if threat_scores else 0.0
+            self._threat_bar.set(vs_meta, NEON_ORANGE)
+            self._threat_bar._val_label.config(text=f"{vs_meta * 100:.0f}%")
+
+        # ── Type balance ────────────────────────────────
+        all_types: set[str] = set()
+        for d in pokemon_data:
+            all_types.update(d["types"])
+        all_18 = {
+            "Normal", "Fire", "Water", "Electric", "Grass", "Ice",
+            "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug",
+            "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy",
+        }
+        weak = all_18 - all_types
+        if not weak:
+            type_text = f"Types: {len(all_types)} (perfect coverage)"
+        else:
+            sample = sorted(weak)[:4]
+            type_text = (
+                f"Types: {len(all_types)}  ·  "
+                f"Missing: {', '.join(sample)}"
+            )
+        self._type_text.config(text=type_text)
+
+        # ── Set list ─────────────────────────────────────
+        self._set_text.config(state="normal")
+        self._set_text.delete("1.0", "end")
+        lines = []
+        for d in pokemon_data:
+            t = "/".join(d["types"]) if d["types"] else "???"
+            lines.append(f"  {d['name']:<14}  {t:<12}  score {d['score']:.2f}")
+        self._set_text.insert("1.0", "\n".join(lines) if lines else "No data")
+        self._set_text.config(state="disabled")
+
+    def _trigger_open_full(self):
+        """Open the full matchup graph page for this team."""
+        if self._on_open_matchup_graph:
+            team_ids = self._get_team_set_ids()
+            if team_ids:
+                self._on_open_matchup_graph(
+                    team_ids,
+                    team_name=self._name_var.get(),
+                    team_record=self._team_record,
+                )
 
     # ── Save / Load / Export ─────────────────────────────────────────
 
@@ -995,3 +1285,7 @@ class TeamBuilderPage(tk.Frame):
         text_widget.pack(fill="both", expand=True, padx=12, pady=(0, 12))
         text_widget.insert("1.0", showdown_text)
         text_widget.config(state="disabled")
+
+    def _update_summary(self):
+        """Backward-compat stub — now handled by _update_analysis_panel."""
+        pass
