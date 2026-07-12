@@ -27,7 +27,6 @@ class SetClass:
     ivs: dict[str, int] = field(default_factory=dict) # defaults to 31
     role: str = ""                  # "sweeper", "wall", "pivot", etc.
     tera_type: str = ""             # Gen 9 Tera type
-    cumulative_score: float = 0.0   # Calculated via dynamic_engine during build
 
     def __post_init__(self) -> None:
         # Fill in default IVs (31) for any missing stats

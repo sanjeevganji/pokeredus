@@ -933,12 +933,9 @@ CANONICAL_TYPES: list[str] = [
     "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug",
     "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy",
 ]
-# Interleaved order: base → compound around the compass rose.
-# 0°: attack, 45°: threat, 90°: speed, 135°: punish,
-# 180°: utility, 225°: sponge, 270°: defense, 315°: counter.
 ATTRIBUTE_NAMES: list[str] = [
-    "attack", "threat", "speed", "punish",
-    "utility", "sponge", "defense", "counter",
+    "attack", "utility", "defense", "speed",
+    "counter", "sponge", "threat", "punish",
 ]
 ATTRIBUTE_INDEX: dict[str, int] = {n: i for i, n in enumerate(ATTRIBUTE_NAMES)}
 

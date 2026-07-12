@@ -7,6 +7,7 @@ from pokeredus.graph.matchup_engine import compute_matchup, compute_all_matchups
 from pokeredus.graph.damage_calc import (
     DamageCalculator, DamageResult, DamageModifier,
     get_calculator, calculate_damage, best_move_ttk,
+    calculate_damage_with_state,
 )
 from pokeredus.graph.analytics import (
     SetStats, SpeciesMatchup, SetRanking,
@@ -35,11 +36,6 @@ from pokeredus.graph.common_attributes import (
     get_all_common_attributes,
 )
 from pokeredus.graph.species_matchup_cache import SpeciesMatchupCache
-# Matchup cache for species-level damage/TTK lookups
-from pokeredus.graph.matchup_cache import MatchupCache, CachedMatchup
-from pokeredus.graph.matchup_cache_provider import (
-    CachedMatchupProvider, MatchupSnapshot,
-)
 # Phase 8: 3D matchup graph + AI query layer
 from pokeredus.graph.matchup_graph import (
     MatchupGraphNode, GraphProjection, MatchupGraph,
@@ -57,6 +53,7 @@ __all__ = [
     # Damage calculator
     "DamageCalculator", "DamageResult", "DamageModifier",
     "get_calculator", "calculate_damage", "best_move_ttk",
+    "calculate_damage_with_state",
     # Analytics
     "SetStats", "SpeciesMatchup", "SetRanking",
     "compute_set_stats", "compute_all_set_stats",
@@ -75,9 +72,6 @@ __all__ = [
     "COMMON_ITEM_ATTRIBUTES", "COMMON_ABILITY_ATTRIBUTES", "COMMON_MOVE_ATTRIBUTES",
     "get_all_common_attributes",
     "SpeciesMatchupCache",
-    # Matchup cache (species-level damage/TTK)
-    "MatchupCache", "CachedMatchup",
-    "CachedMatchupProvider", "MatchupSnapshot",
     # Phase 8: 3D matchup graph + AI queries
     "MatchupGraphNode", "GraphProjection", "MatchupGraph",
     "MoveRanking", "SwitchRanking", "TurnPlan",

@@ -14,8 +14,8 @@ import tkinter as tk
 from pokeredus.graph.attribute_engine import AttributeTuning
 
 
-SLIDER_MIN, SLIDER_MAX = 0, 100    # raw slider value
-SLIDER_SCALE = 1.0               # maps slider 0..100 to 0.0..100.0
+SLIDER_MIN, SLIDER_MAX = 0, 200    # raw slider value
+SLIDER_SCALE = 100.0               # maps slider 0..200 to 0.0..2.0
 
 
 def format_slider_value(v: float) -> int:
@@ -28,14 +28,14 @@ def parse_slider_value(s) -> float:
 
 # (label, AttributeTuning field name, default value)
 SLIDER_SPECS: list[tuple[str, str, float]] = [
-    ("Attack amp",    "axis_attack",    100.0),
-    ("Utility amp",   "axis_utility",   100.0),
-    ("Defense amp",   "axis_defense",   100.0),
-    ("Speed amp",     "axis_speed",     100.0),
-    ("Counter amp",   "compound_counter", 100.0),
-    ("Sponge amp",    "compound_sponge",  100.0),
-    ("Threat amp",    "compound_threat",  100.0),
-    ("Punish amp",    "compound_punish",  100.0),
+    ("Attack weight",  "axis_attack",    1.0),
+    ("Utility weight", "axis_utility",   1.0),
+    ("Defense weight", "axis_defense",   1.0),
+    ("Speed weight",   "axis_speed",     1.0),
+    ("Counter ×",      "compound_counter", 1.0),
+    ("Sponge ×",       "compound_sponge",  1.0),
+    ("Threat ×",       "compound_threat",  1.0),
+    ("Punish ×",       "compound_punish",  1.0),
 ]
 
 

@@ -78,20 +78,6 @@ class KnowledgeGraph:
 
     def add_set(self, set_obj: SetClass) -> None:
         """Add a set node and edges to its pokemon, moves, ability, item, nature."""
-        # Invalidate cached fingerprint
-        self._cached_set_fingerprint = None  # type: ignore[attr-defined]
-
-        # --- Dynamic Score Calculation ---
-        from pokeredus.graph.dynamic_engine import load_formulas, compute_all_scores, calculate_cumulative_score
-        pokemon = self.get_pokemon(set_obj.pokemon_id)
-        if pokemon:
-            formulas = load_formulas()
-            scores = compute_all_scores(pokemon, set_obj, formulas)
-            set_obj.cumulative_score = calculate_cumulative_score(scores)
-        else:
-            set_obj.cumulative_score = 0.0
-        # -------------------------------
-
         self.graph.add_node(set_obj.id, node_type="set", data=set_obj.to_dict())
         self._set_index[set_obj.id] = set_obj
 
@@ -321,7 +307,6 @@ class KnowledgeGraph:
 
     def remove_set(self, set_id: str) -> None:
         """Remove a set node and all its edges from the graph."""
-        self._cached_set_fingerprint = None  # type: ignore[attr-defined]
         if self.graph.has_node(set_id):
             self.graph.remove_node(set_id)
         self._set_index.pop(set_id, None)
@@ -496,52 +481,6 @@ class KnowledgeGraph:
             pass
 
         return path
-
-    # ────────────────────────────────────────────────────────────────
-    # Set Fingerprinting
-    # ────────────────────────────────────────────────────────────────
-
-    def compute_set_fingerprint(self) -> str:
-        """Compute a hash fingerprint of all sets in the knowledge graph.
-
-        Covers Pokémon IDs, primary_set_ids, and the full composition of
-        every set (moves, item, ability, nature, EVs, IVs).  Any change
-        to any set produces a different fingerprint.
-
-        This is the authoritative fingerprint for cache invalidation —
-        downstream caches (MatchupCache, SpeciesMatchupCache) compare
-        against this to decide whether their stored data is stale.
-        """
-        import hashlib as _hashlib
-
-        h = _hashlib.sha256()
-
-        for p in sorted(self.get_all_pokemon(), key=lambda p: p.id):
-            h.update(p.id.encode())
-            h.update((p.primary_set_id or "").encode())
-
-        for s in sorted(self.get_all_sets(), key=lambda s: s.id):
-            h.update(s.id.encode())
-            for move_id in s.moves:
-                h.update(move_id.encode())
-            h.update(s.item.encode())
-            h.update(s.ability.encode())
-            h.update(getattr(s.nature, 'name', '').encode())
-            h.update(repr(s.evs).encode())
-            h.update(repr(dict(s.ivs)).encode())
-
-        return h.hexdigest()
-
-    @property
-    def set_fingerprint(self) -> str:
-        """Cached property — recomputed lazily when sets change.
-
-        The cache is cleared internally whenever a set is added or
-        removed (see :meth:`add_set` and :meth:`remove_set`).
-        """
-        if not hasattr(self, '_cached_set_fingerprint'):
-            self._cached_set_fingerprint = self.compute_set_fingerprint()
-        return self._cached_set_fingerprint
 
     def __repr__(self) -> str:
         return self.summary()
