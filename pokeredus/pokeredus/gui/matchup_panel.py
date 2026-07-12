@@ -40,8 +40,8 @@ class ScoreBar(tk.Canvas):
             parent, width=width, height=height,
             bg=BG_PANEL, highlightthickness=0, bd=0, **kwargs,
         )
-        self._w = width
-        self._h = height
+        self._bar_width = width
+        self._bar_height = height
         self._value = 0.0
         self._color = NEON_CYAN
         self.bind("<Configure>", lambda e: self._draw())
@@ -53,8 +53,8 @@ class ScoreBar(tk.Canvas):
 
     def _draw(self) -> None:
         self.delete("all")
-        w = self.winfo_width() or self._w
-        h = self.winfo_height() or self._h
+        w = self.winfo_width() or self._bar_width
+        h = self.winfo_height() or self._bar_height
         # Track
         self.create_rectangle(0, 0, w, h, fill=BG_INPUT, outline="")
         # Fill

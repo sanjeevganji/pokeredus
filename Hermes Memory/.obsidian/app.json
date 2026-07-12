@@ -1,0 +1,19 @@
+{
+  "promptDelete": false,
+  "alwaysUpdateLinks": true,
+  "attachmentFolderPath": "Resources/Assets",
+  "newFileLocation": "current",
+  "showLineNumber": true,
+  "spellcheck": false,
+  "tabSize": 2,
+  "useTab": false,
+  "readableLineLength": true,
+  "strictLineBreaks": true,
+  "showIndentGuide": true,
+  "rightToLeft": false,
+  "showFrontmatter": true,
+  "focusNewTab": true,
+  "defaultViewMode": "reading",
+  "livePreview": true,
+  "communityPluginSortOrder": "download"
+}

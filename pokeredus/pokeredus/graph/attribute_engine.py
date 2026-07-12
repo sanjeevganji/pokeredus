@@ -10,6 +10,18 @@ from __future__ import annotations
 from dataclasses import dataclass
 import numpy as np
 
+# Lazy import to avoid circular dependency at module level.
+# Used inside functions that need the canonical attribute index.
+_ATTRIBUTE_INDEX: dict[str, int] | None = None
+
+
+def _attr_idx(name: str) -> int:
+    global _ATTRIBUTE_INDEX
+    if _ATTRIBUTE_INDEX is None:
+        from pokeredus.graph.matchup_graph import ATTRIBUTE_INDEX
+        _ATTRIBUTE_INDEX = ATTRIBUTE_INDEX
+    return _ATTRIBUTE_INDEX[name]
+
 
 # Compound ordering matches the existing polygonal-solid model:
 #   counter, sponge, threat, punish
@@ -46,27 +58,26 @@ MOVE_ROLE_BOOSTS: dict[str, tuple[set[str], float]] = {
 
 @dataclass
 class AttributeTuning:
-    """All tunables for the attribute engine.  Defaults reproduce the
-    existing per-type sums from ``compute_compound_attributes``."""
+    """All tunables for the attribute engine. Defaults are set to 100.0
+    for a balanced baseline across all 8 sectors."""
 
-    # 4 base-axis weights (applied to the inputs of every compound)
-    axis_attack: float = 1.0
-    axis_utility: float = 1.0
-    axis_defense: float = 1.0
-    axis_speed: float = 1.0
+    # 4 base-axis amplitudes
+    axis_attack: float = 100.0
+    axis_utility: float = 100.0
+    axis_defense: float = 100.0
+    axis_speed: float = 100.0
 
-    # 4 per-compound multipliers (applied after the weighted sum)
-    compound_counter: float = 1.0
-    compound_sponge: float = 1.0
-    compound_threat: float = 1.0
-    compound_punish: float = 1.0
+    # 4 per-compound amplitudes
+    compound_counter: float = 100.0
+    compound_sponge: float = 100.0
+    compound_threat: float = 100.0
+    compound_punish: float = 100.0
 
     # Polynomial-scaling parameters (logistic midpoint k + steepness p)
-    # per axis (4 base + 4 compound = 8 axes total).  Defaults are
-    # chosen so the linear regime covers typical per-type sums.
-    k_base: tuple = (1.0, 1.0, 1.0, 1.0)
+    # per axis (4 base + 4 compound = 8 axes total).
+    k_base: tuple = (100.0, 100.0, 100.0, 100.0)
     p_base: tuple = (1.0, 1.0, 1.0, 1.0)
-    k_compound: tuple = (1.0, 1.0, 1.0, 1.0)
+    k_compound: tuple = (100.0, 100.0, 100.0, 100.0)
     p_compound: tuple = (1.0, 1.0, 1.0, 1.0)
 
     def as_dict(self) -> dict:
@@ -138,8 +149,10 @@ def compute_attributes(base_per_type: np.ndarray,
             elif cname == "punish":
                 punish += boost * n
 
-    raw = np.stack([base[0], base[1], base[2], base[3],
-                    counter, sponge, threat, punish], axis=0)  # (8, 18)
+    raw = np.stack([base[0],  threat, base[3], punish,
+                    base[1], sponge, base[2], counter], axis=0)  # (8, 18)
+    # Row order: attack(0) threat(1) speed(2) punish(3)
+    #            utility(4) sponge(5) defense(6) counter(7)
 
     # ── Polynomial 0-100 scaling, per axis ───────────────────────
     out = np.zeros_like(raw)
@@ -155,7 +168,8 @@ def compute_attributes(base_per_type: np.ndarray,
 def volume_of_tuned(attributes_8x18: np.ndarray, bias: float = 1.0) -> float:
     """Volume of the 3D polygonal solid given an *already-scaled* 8x18
     attribute matrix.  Same shape as the existing ``volume_of``."""
-    C, G, T, P = 4, 5, 6, 7
+    C = _attr_idx("counter"); G = _attr_idx("sponge")
+    T = _attr_idx("threat");  P = _attr_idx("punish")
     per_type = (attributes_8x18[C] * attributes_8x18[G]
                 + attributes_8x18[T] * attributes_8x18[P])
     return float(per_type.sum() * bias)
@@ -163,11 +177,17 @@ def volume_of_tuned(attributes_8x18: np.ndarray, bias: float = 1.0) -> float:
 
 def tune_existing_node(node, tuning: AttributeTuning | None = None) -> np.ndarray:
     """Re-derive a SetMatchupNode's 8x18 attribute matrix using
-    ``AttributeTuning``.  The first 4 rows are taken from the node's
-    base attributes; the last 4 are recomputed with the new weights.
+    ``AttributeTuning``.  The base attributes are extracted by name
+    (attack, utility, defense, speed) since the row order changed to
+    the interleaved compass-rose layout.
     """
     tuning = tuning or AttributeTuning()
-    base = node.attributes[:4]   # (4, 18) — already per-type
+    A = _attr_idx("attack"); U = _attr_idx("utility")
+    D = _attr_idx("defense"); S = _attr_idx("speed")
+    base = np.stack([
+        node.attributes[A], node.attributes[U],
+        node.attributes[D], node.attributes[S],
+    ], axis=0)  # (4, 18) in canonical base order: attack, utility, defense, speed
     # SetMatchupNode may or may not carry `moves`; if not, no nudges fire.
     moves = getattr(node, "moves", None)
     return compute_attributes(base, tuning=tuning, moves=moves)

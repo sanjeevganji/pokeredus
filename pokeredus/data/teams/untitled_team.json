@@ -1,10 +1,13 @@
 {
-  "team_name": "Untitled Team",
+  "team_name": "sample 1",
   "created": "2026-05-30T07:47:52.528750+00:00",
-  "modified": "2026-05-30T07:51:22.755678+00:00",
+  "modified": "2026-06-18T18:14:55.995683+00:00",
   "sets": [
     "armarouge_showdown-usage",
     "barraskewda_rain-sweeper",
-    "blaziken_swords-dance"
+    "blaziken_swords-dance",
+    "amoonguss_defensive",
+    "azumarill_showdown-usage",
+    "blissey_showdown-usage"
   ]
 }

@@ -1,0 +1,23 @@
+{
+  "enabledPlugins": [
+    "templates",
+    "daily-notes",
+    "backlink",
+    "outline",
+    "tag-pane",
+    "graph",
+    "page-preview",
+    "starred"
+  ],
+  "disabledPlugins": [
+    "sync",
+    "publish",
+    "audio-recorder",
+    "slides",
+    "canvas"
+  ],
+  "communityPlugins": [
+    "obsidian-excel-to-markdown-table",
+    "dataview"
+  ]
+}

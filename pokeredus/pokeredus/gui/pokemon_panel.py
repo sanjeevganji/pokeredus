@@ -523,6 +523,9 @@ class PokemonPage(tk.Frame):
         name_col = tk.Frame(header, bg=BG_CARD)
         name_col.pack(side="left", fill="y")
 
+        # Max Score for this Pokemon across all sets
+        max_score = max([s.cumulative_score for s in sets], default=0.0)
+
         tk.Label(name_col, text=pokemon.name, font=("Consolas", 18, "bold"),
                  fg=FG_PRIMARY, bg=BG_CARD).pack(anchor="w")
 
@@ -537,6 +540,11 @@ class PokemonPage(tk.Frame):
             cls_color = NEON_PURPLE if pokemon.is_paradox else NEON_PINK if pokemon.is_mega else NEON_YELLOW if pokemon.is_legendary else NEON_ORANGE
             tk.Label(type_row, text=f" {pokemon.classification} ", font=("Consolas", 9),
                      fg=cls_color, bg=BG_CARD).pack(side="left", padx=(8, 0))
+
+        # Score Badge (Top right of card)
+        score_badge = tk.Label(card, text=f"Score: {max_score:.1f}", font=("Consolas", 12, "bold"),
+                               fg=BG_DARK, bg=NEON_CYAN, padx=8, pady=4)
+        score_badge.place(relx=1.0, rely=0.0, anchor="ne", x=-12, y=12)
 
         # Abilities
         ab_row = tk.Frame(name_col, bg=BG_CARD)
