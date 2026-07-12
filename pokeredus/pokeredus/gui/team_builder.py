@@ -12,6 +12,7 @@ Empty slots show a "+" button that opens the Pokemon/Set selector dialog.
 
 from __future__ import annotations
 
+import math
 import tkinter as tk
 from tkinter import ttk, messagebox
 from typing import TYPE_CHECKING
@@ -826,7 +827,7 @@ class MatchupMini2DWidget(tk.Frame):
 
     def _on_click(self):
         if self._on_open_full and self._team_set_ids:
-            self._on_open_full(self._team_set_ids)
+            self._on_open_full()
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -1038,142 +1039,168 @@ class TeamBuilderPage(tk.Frame):
         self._auto_save()
 
     def _update_analysis_panel(self):
-        """Update all widgets in the analysis panel."""
-        from pokeredus.graph.analytics import rank_sets
-        from pokeredus.graph.radar_attributes import compute_radar_8
-        from pokeredus.gui.matchup_graph_view import (
-            PokemonRadialScores, TeamRadialData, ATTRIBUTE_NAMES,
-        )
+            """Update all widgets in the analysis panel (cached)."""
+            from pokeredus.gui.team_analysis_cache import (
+                get_team_analysis_cache, TeamAnalysisResult,
+            )
 
-        team_ids = self._get_team_set_ids()
-        count = len(team_ids)
+            team_ids = self._get_team_set_ids()
+            count = len(team_ids)
 
-        if count == 0:
-            self._team_score_bar.set(0.0)
-            self._coverage_bar.set(0.0)
-            self._synergy_bar.set(0.0)
-            self._threat_bar.set(0.0)
-            for bar, color in [(self._team_score_bar, NEON_CYAN),
-                               (self._coverage_bar, NEON_GREEN),
-                               (self._synergy_bar, NEON_PINK),
-                               (self._threat_bar, NEON_ORANGE)]:
-                bar._val_label.config(text="—")
-            self._type_text.config(text="No Pokémon in team")
+            if count == 0:
+                self._team_score_bar.set(0.0)
+                self._coverage_bar.set(0.0)
+                self._synergy_bar.set(0.0)
+                self._threat_bar.set(0.0)
+                for bar, color in [(self._team_score_bar, NEON_CYAN),
+                                   (self._coverage_bar, NEON_GREEN),
+                                   (self._synergy_bar, NEON_PINK),
+                                   (self._threat_bar, NEON_ORANGE)]:
+                    bar._val_label.config(text="\u2014")
+                self._type_text.config(text="No Pok\u00e9mon in team")
+                self._set_text.config(state="normal")
+                self._set_text.delete("1.0", "end")
+                self._set_text.config(state="disabled")
+                self._mini_graph.set_data([], [0.0] * 8)
+                return
+
+            # Check cache first
+            cache = get_team_analysis_cache()
+            cache.ensure_valid(self.kg)
+            full_slots = list(self._get_team_set_ids()) + [None] * (6 - count)
+            cached = cache.get(full_slots[:6])
+            if cached is not None:
+                self._apply_cached_result(cached)
+                return
+
+            # Cache miss -- compute from scratch
+            from pokeredus.graph.analytics import rank_sets
+            from pokeredus.graph.radar_attributes import compute_radar_8
+            from pokeredus.gui.matchup_graph_view import ATTRIBUTE_NAMES
+
+            rankings = rank_sets(self.kg)
+            score_by_set = {r.set_id: r.composite_score for r in rankings}
+
+            all_set_ids = {s.id for s in self.kg.get_all_sets()}
+            total_others = max(len(all_set_ids) - 1, 1)
+
+            full_team_ids = [s for s in full_slots[:6] if s is not None]
+            pokemon_data = []
+            team_radar_scores = [0.0] * 8
+            for sid in full_team_ids:
+                s = self.kg.get_set(sid)
+                if s is None:
+                    continue
+                p = self.kg.get_pokemon(s.pokemon_id)
+                if p is None:
+                    continue
+
+                scores = [0.0] * 8
+                try:
+                    radar = compute_radar_8(s, p, self.kg)
+                    scores = [radar.get(n, 0.0) for n in ATTRIBUTE_NAMES]
+                except Exception:
+                    pass
+                for i, v in enumerate(scores):
+                    team_radar_scores[i] += v
+
+                matchups = self.kg.get_matchups(sid, min_confidence=0.0)
+                cov = len(matchups) / total_others if matchups else 0.0
+                n_fav = sum(1 for m in matchups if getattr(m, "score", 0) > 0) if matchups else 0
+                coverage_rate = n_fav / max(len(matchups), 1) if matchups else 0.0
+
+                pokemon_data.append({
+                    "set_id": sid,
+                    "name": p.name,
+                    "types": list(p.types),
+                    "score": score_by_set.get(sid, 0.0),
+                    "coverage": coverage_rate,
+                })
+
+            # Normalize team radar scores
+            max_score = max(team_radar_scores) if max(team_radar_scores) > 0 else 1.0
+            norm_scores = [v / max_score * 100.0 for v in team_radar_scores]
+
+            # Compute stat bars
+            team_score = 0.0
+            cov_avg = 0.0
+            synergy = 0.0
+            vs_meta = 0.0
+            if pokemon_data:
+                team_score = sum(d["score"] for d in pokemon_data) / len(pokemon_data)
+                cov_avg = sum(d["coverage"] for d in pokemon_data) / len(pokemon_data)
+                all_types = set()
+                for d in pokemon_data:
+                    all_types.update(d["types"])
+                synergy = min(1.0, len(all_types) / 6.0)
+                threat_scores = []
+                for d in pokemon_data:
+                    inbound = self.kg.get_matchups_against(d["set_id"], min_confidence=0.0)
+                    if not inbound:
+                        continue
+                    favorable = sum(1 for m in inbound if m.score > 0)
+                    threat_scores.append(favorable / len(inbound))
+                vs_meta = sum(threat_scores) / len(threat_scores) if threat_scores else 0.0
+
+            # Type balance
+            all_types_set: set[str] = set()
+            for d in pokemon_data:
+                all_types_set.update(d["types"])
+            all_18 = {
+                "Normal", "Fire", "Water", "Electric", "Grass", "Ice",
+                "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug",
+                "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy",
+            }
+            weak = all_18 - all_types_set
+            if not weak:
+                type_text = f"Types: {len(all_types_set)} (perfect coverage)"
+            else:
+                sample = sorted(weak)[:4]
+                type_text = (
+                    f"Types: {len(all_types_set)}  \u00b7  "
+                    f"Missing: {', '.join(sample)}"
+                )
+
+            # Set list lines
+            set_lines = []
+            for d in pokemon_data:
+                t = "/".join(d["types"]) if d["types"] else "???"
+                set_lines.append(f"  {d['name']:<14}  {t:<12}  score {d['score']:.2f}")
+
+            # Cache result
+            result = TeamAnalysisResult(
+                team_score=team_score,
+                coverage=cov_avg,
+                synergy=synergy,
+                vs_meta=vs_meta,
+                radar_scores=norm_scores,
+                type_text=type_text,
+                set_lines=set_lines,
+            )
+            cache.put(full_slots[:6], result)
+            cache.save()
+
+            # Apply to UI
+            self._apply_cached_result(result)
+
+    def _apply_cached_result(self, result):
+            """Apply a cached TeamAnalysisResult to all UI widgets."""
+            self._mini_graph.set_data(
+                self._get_team_set_ids(), result.radar_scores,
+            )
+            self._team_score_bar.set(result.team_score, NEON_CYAN)
+            self._team_score_bar._val_label.config(text=f"{result.team_score:.2f}")
+            self._coverage_bar.set(result.coverage, NEON_GREEN)
+            self._coverage_bar._val_label.config(text=f"{result.coverage * 100:.0f}%")
+            self._synergy_bar.set(result.synergy, NEON_PINK)
+            self._synergy_bar._val_label.config(text=f"{result.synergy:.2f}")
+            self._threat_bar.set(result.vs_meta, NEON_ORANGE)
+            self._threat_bar._val_label.config(text=f"{result.vs_meta * 100:.0f}%")
+            self._type_text.config(text=result.type_text)
             self._set_text.config(state="normal")
             self._set_text.delete("1.0", "end")
+            self._set_text.insert("1.0", "\n".join(result.set_lines) if result.set_lines else "No data")
             self._set_text.config(state="disabled")
-            self._mini_graph.set_data([], [0.0] * 8)
-            return
-
-        # Compute per-set data
-        rankings = rank_sets(self.kg)
-        score_by_set = {r.set_id: r.composite_score for r in rankings}
-
-        # Gather pokemon data
-        all_set_ids = {s.id for s in self.kg.get_all_sets()}
-        total_others = max(len(all_set_ids) - 1, 1)
-
-        pokemon_data = []
-        team_radar_scores = [0.0] * 8
-        for sid in team_ids:
-            s = self.kg.get_set(sid)
-            if s is None:
-                continue
-            p = self.kg.get_pokemon(s.pokemon_id)
-            if p is None:
-                continue
-
-            # Radar scores
-            scores = [0.0] * 8
-            try:
-                radar = compute_radar_8(s, p, self.kg)
-                scores = [radar.get(n, 0.0) for n in ATTRIBUTE_NAMES]
-            except Exception:
-                pass
-            for i, v in enumerate(scores):
-                team_radar_scores[i] += v
-
-            matchups = self.kg.get_matchups(sid, min_confidence=0.0)
-            cov = len(matchups) / total_others if matchups else 0.0
-
-            # Favorable rate for coverage
-            n_fav = sum(1 for m in matchups if getattr(m, "score", 0) > 0) if matchups else 0
-            coverage_rate = n_fav / max(len(matchups), 1) if matchups else 0.0
-
-            pokemon_data.append({
-                "set_id": sid,
-                "name": p.name,
-                "types": list(p.types),
-                "score": score_by_set.get(sid, 0.0),
-                "coverage": coverage_rate,
-            })
-
-        # Normalize team radar scores
-        max_score = max(team_radar_scores) if max(team_radar_scores) > 0 else 1.0
-        norm_scores = [v / max_score * 100.0 for v in team_radar_scores]
-
-        # Update mini graph
-        self._mini_graph.set_data(team_ids, norm_scores)
-
-        # ── Stat bars ───────────────────────────────────
-        if pokemon_data:
-            team_score = sum(d["score"] for d in pokemon_data) / len(pokemon_data)
-            self._team_score_bar.set(team_score, NEON_CYAN)
-            self._team_score_bar._val_label.config(text=f"{team_score:.2f}")
-
-            cov_avg = sum(d["coverage"] for d in pokemon_data) / len(pokemon_data)
-            self._coverage_bar.set(cov_avg, NEON_GREEN)
-            self._coverage_bar._val_label.config(text=f"{cov_avg * 100:.0f}%")
-
-            # Synergy
-            all_types = set()
-            for d in pokemon_data:
-                all_types.update(d["types"])
-            synergy = min(1.0, len(all_types) / 6.0)
-            self._synergy_bar.set(synergy, NEON_PINK)
-            self._synergy_bar._val_label.config(text=f"{synergy:.2f}")
-
-            # vs Meta
-            threat_scores = []
-            for d in pokemon_data:
-                inbound = self.kg.get_matchups_against(d["set_id"], min_confidence=0.0)
-                if not inbound:
-                    continue
-                favorable = sum(1 for m in inbound if m.score > 0)
-                threat_scores.append(favorable / len(inbound))
-            vs_meta = sum(threat_scores) / len(threat_scores) if threat_scores else 0.0
-            self._threat_bar.set(vs_meta, NEON_ORANGE)
-            self._threat_bar._val_label.config(text=f"{vs_meta * 100:.0f}%")
-
-        # ── Type balance ────────────────────────────────
-        all_types: set[str] = set()
-        for d in pokemon_data:
-            all_types.update(d["types"])
-        all_18 = {
-            "Normal", "Fire", "Water", "Electric", "Grass", "Ice",
-            "Fighting", "Poison", "Ground", "Flying", "Psychic", "Bug",
-            "Rock", "Ghost", "Dragon", "Dark", "Steel", "Fairy",
-        }
-        weak = all_18 - all_types
-        if not weak:
-            type_text = f"Types: {len(all_types)} (perfect coverage)"
-        else:
-            sample = sorted(weak)[:4]
-            type_text = (
-                f"Types: {len(all_types)}  ·  "
-                f"Missing: {', '.join(sample)}"
-            )
-        self._type_text.config(text=type_text)
-
-        # ── Set list ─────────────────────────────────────
-        self._set_text.config(state="normal")
-        self._set_text.delete("1.0", "end")
-        lines = []
-        for d in pokemon_data:
-            t = "/".join(d["types"]) if d["types"] else "???"
-            lines.append(f"  {d['name']:<14}  {t:<12}  score {d['score']:.2f}")
-        self._set_text.insert("1.0", "\n".join(lines) if lines else "No data")
-        self._set_text.config(state="disabled")
 
     def _trigger_open_full(self):
         """Open the full matchup graph page for this team."""

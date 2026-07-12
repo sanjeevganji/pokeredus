@@ -1,0 +1,285 @@
+{
+  "moves": {
+    "swordsdance": {
+      "attribute_type": "stat_mod",
+      "name": "swords_dance",
+      "params": {
+        "stat": "atk",
+        "stages": 2,
+        "target": "self"
+      },
+      "tags": ["move", "setup", "stat_boost"]
+    },
+    "dragondance": {
+      "effects": [
+        {
+          "attribute_type": "stat_mod",
+          "name": "dragon_dance_atk",
+          "params": {"stat": "atk", "stages": 1, "target": "self"},
+          "tags": ["move", "setup", "stat_boost"]
+        },
+        {
+          "attribute_type": "stat_mod",
+          "name": "dragon_dance_spe",
+          "params": {"stat": "spe", "stages": 1, "target": "self"},
+          "tags": ["move", "setup", "stat_boost"]
+        }
+      ]
+    },
+    "nastyplot": {
+      "attribute_type": "stat_mod",
+      "name": "nasty_plot",
+      "params": {
+        "stat": "spa",
+        "stages": 2,
+        "target": "self"
+      },
+      "tags": ["move", "setup", "stat_boost"]
+    },
+    "calmmind": {
+      "effects": [
+        {
+          "attribute_type": "stat_mod",
+          "name": "calm_mind_spa",
+          "params": {"stat": "spa", "stages": 1, "target": "self"}
+        },
+        {
+          "attribute_type": "stat_mod",
+          "name": "calm_mind_spd",
+          "params": {"stat": "spd", "stages": 1, "target": "self"}
+        }
+      ]
+    },
+    "willowisp": {
+      "attribute_type": "condition",
+      "name": "burn",
+      "params": {
+        "condition": "burn",
+        "volatile": false,
+        "damage_per_turn": 0.0625,
+        "physical_damage_mult": 0.5
+      },
+      "tags": ["move", "status", "burn"]
+    },
+    "thunderwave": {
+      "attribute_type": "condition",
+      "name": "paralysis",
+      "params": {
+        "condition": "paralysis",
+        "volatile": false,
+        "speed_mult": 0.5,
+        "move_fail_chance": 0.25
+      },
+      "tags": ["move", "status", "paralysis"]
+    },
+    "toxic": {
+      "attribute_type": "condition",
+      "name": "toxic",
+      "params": {
+        "condition": "toxic",
+        "volatile": false,
+        "damage_per_turn": 0.0625,
+        "escalating": true
+      },
+      "tags": ["move", "status", "poison"]
+    },
+    "stealthrock": {
+      "attribute_type": "field",
+      "name": "stealth_rock",
+      "params": {
+        "field": "stealth_rock",
+        "side": "opponent",
+        "damage_on_switch": "type_effectiveness",
+        "base_damage_fraction": 0.125
+      },
+      "tags": ["move", "hazard", "entry_hazard"]
+    },
+    "spikes": {
+      "attribute_type": "field",
+      "name": "spikes",
+      "params": {
+        "field": "spikes",
+        "side": "opponent",
+        "layers": 1,
+        "max_layers": 3
+      },
+      "tags": ["move", "hazard", "entry_hazard"]
+    },
+    "toxicspikes": {
+      "attribute_type": "field",
+      "name": "toxic_spikes",
+      "params": {
+        "field": "toxic_spikes",
+        "side": "opponent",
+        "layers": 1,
+        "max_layers": 2
+      },
+      "tags": ["move", "hazard", "entry_hazard"]
+    },
+    "stickyweb": {
+      "attribute_type": "field",
+      "name": "sticky_web",
+      "params": {
+        "field": "sticky_web",
+        "side": "opponent",
+        "speed_drop": 1
+      },
+      "tags": ["move", "hazard", "entry_hazard"]
+    },
+    "raindance": {
+      "attribute_type": "field",
+      "name": "rain",
+      "params": {
+        "field": "rain",
+        "side": "global",
+        "duration": 5,
+        "type_boosts": {"Water": 1.5, "Fire": 0.5}
+      },
+      "tags": ["move", "weather"]
+    },
+    "sunnyday": {
+      "attribute_type": "field",
+      "name": "sun",
+      "params": {
+        "field": "sun",
+        "side": "global",
+        "duration": 5,
+        "type_boosts": {"Fire": 1.5, "Water": 0.5}
+      },
+      "tags": ["move", "weather"]
+    },
+    "sandstorm": {
+      "attribute_type": "field",
+      "name": "sand",
+      "params": {
+        "field": "sand",
+        "side": "global",
+        "duration": 5,
+        "damage_per_turn": 0.0625
+      },
+      "tags": ["move", "weather"]
+    },
+    "hail": {
+      "attribute_type": "field",
+      "name": "hail",
+      "params": {
+        "field": "hail",
+        "side": "global",
+        "duration": 5,
+        "damage_per_turn": 0.0625
+      },
+      "tags": ["move", "weather"]
+    },
+    "reflect": {
+      "attribute_type": "field",
+      "name": "reflect",
+      "params": {
+        "field": "reflect",
+        "side": "self",
+        "duration": 5,
+        "damage_reduction": 0.5,
+        "applies_to": "physical"
+      },
+      "tags": ["move", "screen"]
+    },
+    "lightscreen": {
+      "attribute_type": "field",
+      "name": "light_screen",
+      "params": {
+        "field": "light_screen",
+        "side": "self",
+        "duration": 5,
+        "damage_reduction": 0.5,
+        "applies_to": "special"
+      },
+      "tags": ["move", "screen"]
+    },
+    "tailwind": {
+      "attribute_type": "field",
+      "name": "tailwind",
+      "params": {
+        "field": "tailwind",
+        "side": "self",
+        "duration": 4,
+        "speed_mult": 2.0
+      },
+      "tags": ["move", "team_support"]
+    },
+    "trickroom": {
+      "attribute_type": "field",
+      "name": "trick_room",
+      "params": {
+        "field": "trick_room",
+        "side": "global",
+        "duration": 5,
+        "reverses_speed": true
+      },
+      "tags": ["move", "speed_control"]
+    },
+    "defog": {
+      "attribute_type": "event",
+      "name": "defog",
+      "params": {
+        "event": "on_use",
+        "effect_type": "remove_attribute",
+        "effect_params": {
+          "attribute_type": "field",
+          "tag": "hazard",
+          "target": "both_sides"
+        }
+      },
+      "tags": ["move", "hazard_removal"]
+    },
+    "rapidspin": {
+      "attribute_type": "event",
+      "name": "rapid_spin",
+      "params": {
+        "event": "on_use",
+        "effect_type": "remove_attribute",
+        "effect_params": {
+          "attribute_type": "field",
+          "tag": "hazard",
+          "target": "self_side"
+        }
+      },
+      "tags": ["move", "hazard_removal"]
+    },
+    "scald": {
+      "effects": [
+        {
+          "attribute_type": "condition",
+          "name": "scald_burn",
+          "params": {
+            "condition": "burn",
+            "volatile": false,
+            "damage_per_turn": 0.0625,
+            "physical_damage_mult": 0.5
+          },
+          "duration": null
+        }
+      ],
+      "tags": ["move", "status", "burn"],
+      "chance": 0.3
+    },
+    "uturn": {
+      "attribute_type": "event",
+      "name": "u_turn",
+      "params": {
+        "event": "on_after_move",
+        "effect_type": "switch",
+        "effect_params": {"forced": true}
+      },
+      "tags": ["move", "pivot"]
+    },
+    "voltswitch": {
+      "attribute_type": "event",
+      "name": "volt_switch",
+      "params": {
+        "event": "on_after_move",
+        "effect_type": "switch",
+        "effect_params": {"forced": true}
+      },
+      "tags": ["move", "pivot"]
+    }
+  }
+}

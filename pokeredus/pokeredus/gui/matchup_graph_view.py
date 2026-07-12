@@ -68,8 +68,8 @@ ATTRIBUTE_COLORS_HOVER: list[str] = [
 
 # Neon glow color per attribute (lighter for bloom effect)
 ATTRIBUTE_GLOW: list[str] = [
-    "#ff884422", "#fcc04e22", "#44eeff22", "#5599ff22",
-    "#cc66ff22", "#66ff4422", "#3399cc22", "#ff88dd22",
+    "#ff8844", "#fcc04e", "#44eeff", "#5599ff",
+    "#cc66ff", "#66ff44", "#3399cc", "#ff88dd",
 ]
 
 # Stat breakdown display colors
@@ -92,6 +92,8 @@ class PokemonRadialScores:
     # Coverage effectiveness against the opposing set [0, 1]
     # Higher = this Pokemon covers more of the opponent's threats
     coverage: float = 0.5
+    # Pokemon type(s) for color coding (1 or 2 elements)
+    types: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -137,10 +139,51 @@ class TeamRadialData:
             return [1.0 / len(self.members)] * len(self.members)
         return [v / total for v in raw]
 
+    def type_contributions_for_attr(self, attr_index: int) -> dict[str, float]:
+        """Return {type: total_weight} for attribute i based on member contributions.
+
+        Weight per member = contribution amplitude / max_contribution (0-1).
+        A dual-typed Pokemon splits weight between both types (60/40).
+        """
+        if not self.members:
+            return {}
+        amps = self.contribution_amplitudes(attr_index)
+        total = sum(amps)
+        if total <= 0:
+            return {}
+        result: dict[str, float] = {}
+        for m, amp in zip(self.members, amps):
+            weight = amp / total
+            if len(m.types) >= 2:
+                result[m.types[0]] = result.get(m.types[0], 0) + weight * 0.6
+                result[m.types[1]] = result.get(m.types[1], 0) + weight * 0.4
+            elif m.types:
+                result[m.types[0]] = result.get(m.types[0], 0) + weight
+        return result
+
+    def member_type_color(self, member_idx: int) -> str:
+        """Return the primary type color for a member."""
+        if self.members is None or member_idx >= len(self.members):
+            return "#8b949e"
+        m = self.members[member_idx]
+        if not m.types:
+            return "#8b949e"
+        return TYPE_COLORS.get(m.types[0], "#8b949e")
+
+    def member_type_gradient_color(self, member_idx: int) -> str | None:
+        """Return the secondary gradient color for a dual-typed member."""
+        m = self.members[member_idx]
+        if not m.types or len(m.types) < 2:
+            return None
+        secondary = TYPE_COLORS.get(m.types[1], None)
+        if secondary is None:
+            return None
+        primary = TYPE_COLORS.get(m.types[0], "#8b949e")
+        return lerp_color(primary, secondary, 0.35)
+
 
 # ═══════════════════════════════════════════════════════════════════════
 # Geometry helpers
-# ═══════════════════════════════════════════════════════════════════════
 
 def attribute_angle(index: int, rotation: float = 0.0) -> float:
     """Angle (radians) of attribute #index on the 8-axis radial layout."""
@@ -196,6 +239,18 @@ def lerp_color(c1: str, c2: str, t: float) -> str:
     g = int(g1 + (g2 - g1) * t)
     b = int(b1 + (b2 - b1) * t)
     return f"#{r:02x}{g:02x}{b:02x}"
+
+
+def _alpha_blend(col1: str, col2: str, t: float) -> str:
+    """Blend col1→col2 at strength t, return hex color (no alpha channel)."""
+    h1 = col1.lstrip("#")
+    h2 = col2.lstrip("#")
+    r1, g1, b1 = int(h1[0:2], 16), int(h1[2:4], 16), int(h1[4:6], 16)
+    r2, g2, b2 = int(h2[0:2], 16), int(h2[2:4], 16), int(h2[4:6], 16)
+    r = int(r1 + (r2 - r1) * t)
+    g = int(g1 + (g2 - g1) * t)
+    b = int(b1 + (b2 - b1) * t)
+    return f"#{max(0,min(255,r)):02x}{max(0,min(255,g)):02x}{max(0,min(255,b)):02x}"
 
 
 def shade_color(hex_color: str, factor: float) -> str:
@@ -323,6 +378,15 @@ class TeamRadialGraph(tk.Frame):
         # Sprite label refs for cleanup
         self._label_refs: list[int] = []
 
+        # Breathing animation state
+        self._breath_phase: float = 0.0       # 0..1 sinusoidal phase
+        self._breath_dir: int = 1             # +1 or -1
+        self._smoke_images: dict[int, tk.PhotoImage] = {}  # cached smoke per sector
+        self._smoke_dirty: bool = True        # recompute smoke on next draw
+        self._breath_after_id: str | None = None  # after() job id
+        self._last_breath_redraw: int = 0     # frame counter for economic redraws
+        self._anim_smoke_t: float = 0.0       # 0..1 smoke transition progress during expansion
+
         self._build()
         self._bind_inputs()
 
@@ -354,6 +418,7 @@ class TeamRadialGraph(tk.Frame):
         c = self.canvas
         c.bind("<Button-1>", self._on_click)
         c.bind("<Double-Button-1>", self._on_double_click)
+        c.bind("<Button-3>", self._on_right_click)
         c.bind("<Key-r>", lambda _e: self._reset_view())
         c.bind("<Key-R>", lambda _e: self._reset_view())
         c.bind("<Motion>", self._on_motion)
@@ -364,6 +429,7 @@ class TeamRadialGraph(tk.Frame):
     def set_single(self, scores: list[float] | None,
                    pokemon_name: str = "") -> None:
         """Switch to single-Pokemon mode with 8 attribute scores (0-100)."""
+        self._stop_breathing()
         self._single_scores = scores
         self._team_data = None
         self._expanded_attr = None
@@ -376,6 +442,7 @@ class TeamRadialGraph(tk.Frame):
 
     def set_team(self, data: TeamRadialData | None) -> None:
         """Switch to team mode with per-member scores + coverage."""
+        self._stop_breathing()
         self._team_data = data
         self._single_scores = None
         self._expanded_attr = None
@@ -383,8 +450,10 @@ class TeamRadialGraph(tk.Frame):
         self._anim_progress = 0.0
         self._hovered_sector = None
         n = len(data.members) if data else 0
-        self.info.config(text=f"  Team Analysis · {n} Pokémon  (hover sectors for details)")
+        self.info.config(text=f"  Team Analysis · {n} Pokémon  (hover sectors for details · right-click to collapse)")
         self._mode_badge.config(text=f"TEAM ({n})", bg=NEON_GREEN)
+        if data is not None:
+            self._start_breathing()
         self._redraw()
 
     def _reset_view(self) -> None:
@@ -392,7 +461,7 @@ class TeamRadialGraph(tk.Frame):
         self._anim_attr = None
         self._anim_progress = 0.0
         self._hovered_sector = None
-        self.info.config(text="  Team Overview  (click sector to expand · double-click to reset)")
+        self.info.config(text="  Team Overview  (click sector to expand · right-click to reset)")
         self._redraw()
 
     # ── motion / hover ───────────────────────────────────────────
@@ -529,6 +598,27 @@ class TeamRadialGraph(tk.Frame):
         """Double-click resets to collapsed view."""
         self._reset_view()
 
+    def _on_right_click(self, _e):
+        """Right-click collapses expanded sector or navigates back."""
+        if self._anim_attr is not None:
+            # Mid-animation: snap to final state immediately
+            snapping_expanding = (self._anim_dir > 0)
+            self._anim_progress = 1.0
+            self._anim_smoke_t = 1.0
+            self._anim_attr = None
+            # If we were collapsing, snap back to team overview and restart breathing
+            if not snapping_expanding:
+                self._expanded_attr = None
+                self._start_breathing()
+                self.info.config(text="  Team Overview · click sector to expand · right-click to collapse")
+            self._redraw()
+            return
+        if self._expanded_attr is not None:
+            self._start_animation(self._expanded_attr, -1)
+        elif self._team_data is not None:
+            # In team overview: nothing to collapse, could navigate back
+            pass
+
     # ── animation engine ─────────────────────────────────────────
 
     def _start_animation(self, attr_idx: int, direction: int) -> None:
@@ -556,27 +646,229 @@ class TeamRadialGraph(tk.Frame):
             self._anim_target_angles = self._team_sector_angles(n)
             self.info.config(text="  Collapsing...")
 
+        if direction > 0:
+            self._stop_breathing()
         self._tick_animation()
 
     def _tick_animation(self) -> None:
         """One frame of the sector-expansion animation."""
         self._anim_progress += 1.0 / self.ANIM_FRAMES
+        self._anim_smoke_t = min(1.0, self._anim_progress * 1.4)  # smoke leads slightly
         if self._anim_progress >= 1.0:
             self._anim_progress = 1.0
+            self._anim_smoke_t = 1.0
             self._anim_attr = None
             if self._anim_dir < 0:
                 self._expanded_attr = None
-                self.info.config(text="  Team Overview · click sector to expand")
+                self.info.config(text="  Team Overview · click sector to expand · right-click to collapse")
+                self._start_breathing()
             else:
+                self._stop_breathing()
                 n = len(self._team_data.members) if self._team_data else 0
                 attr = ATTRIBUTE_NAMES[self._expanded_attr].upper() if self._expanded_attr is not None else ""
                 self.info.config(
-                    text=f"  {attr} breakdown · {n} members  (double-click to collapse)"
+                    text=f"  {attr} breakdown · {n} members  (right-click to collapse)"
                 )
             self._redraw()
             return
         self._redraw()
         self.after(self.ANIM_MS, self._tick_animation)
+
+    # ── breathing animation ─────────────────────────────────────────
+
+    def _start_breathing(self) -> None:
+        """Begin continuous breathing animation (team mode only)."""
+        if self._breath_after_id is not None:
+            return
+        self._breath_dir = 1
+        self._breath_phase = 0.0
+        self._tick_breath()
+
+    def _stop_breathing(self) -> None:
+        """Halt breathing animation."""
+        if self._breath_after_id is not None:
+            self.after_cancel(self._breath_after_id)
+            self._breath_after_id = None
+
+    def _tick_breath(self) -> None:
+        """One frame of the slow breathing oscillation (~0.3 Hz)."""
+        if self._breath_after_id is None:
+            return
+        # Sinusoidal phase, full cycle ~3 seconds at 50ms interval
+        self._breath_phase += 0.016
+        if self._breath_phase >= 1.0:
+            self._breath_phase = 0.0
+
+        # Economic redraw: only every 3rd frame when not hovering
+        self._last_breath_redraw += 1
+        if self._hovered_sector is None and self._last_breath_redraw >= 3:
+            self._last_breath_redraw = 0
+            self._redraw()
+
+        # 50ms between frames ≈ 0.3 Hz breathing
+        self._breath_after_id = self.after(50, self._tick_breath)
+
+    # ── smoke rendering ─────────────────────────────────────────────
+
+    def _smoke_color_for_sector(self, attr_idx: int) -> str:
+        """Blend of constituent Pokemon type colors for a sector, weighted by coverage."""
+        if self._team_data is None or not self._team_data.members:
+            return ATTRIBUTE_COLORS[attr_idx]
+        amps = self._team_data.contribution_amplitudes(attr_idx)
+        weights = self._team_data.coverage_weights()
+        total = sum(w * a for w, a in zip(weights, amps))
+        if total <= 0:
+            return ATTRIBUTE_COLORS[attr_idx]
+
+        r_total, g_total, b_total = 0, 0, 0
+        for m, amp, wt in zip(self._team_data.members, amps, weights):
+            if not m.types:
+                continue
+            frac = (wt * amp) / total
+            col = TYPE_COLORS.get(m.types[0], "#8b949e")
+            h = col.lstrip("#")
+            r, g, b = int(h[0:2], 16), int(h[2:4], 16), int(h[4:6], 16)
+            r_total += r * frac
+            g_total += g * frac
+            b_total += b * frac
+
+        return f"#{int(r_total):02x}{int(g_total):02x}{int(b_total):02x}"
+
+    def _type_color_for_member(self, member_idx: int) -> tuple[str, str | None]:
+        """Return (primary_color, gradient_color_or_None) for a team member."""
+        if self._team_data is None:
+            return "#8b949e", None
+        return (
+            self._team_data.member_type_color(member_idx),
+            self._team_data.member_type_gradient_color(member_idx),
+        )
+
+    def _draw_smoke_sector(self, c: tk.Canvas,
+                           cx: float, cy: float,
+                           radius: float,
+                           attr_idx: int,
+                           half_angle: float,
+                           breath_phase: float) -> None:
+        """Draw a wispy smoke overlay for one team-sector wedge.
+
+        Uses layered semi-transparent polygons in constituent type colors
+        with a stipple-like banding pattern for the smoke texture.
+        """
+        if self._team_data is None or not self._team_data.members:
+            return
+
+        amps = self._team_data.contribution_amplitudes(attr_idx)
+        weights = self._team_data.coverage_weights()
+        ang = attribute_angle(attr_idx)
+
+        # Breathing modulates opacity and radius slightly
+        breath = 0.88 + 0.12 * math.sin(breath_phase * 2 * math.pi)
+
+        # Build weighted color list with densities
+        member_colors: list[tuple[str, float]] = []
+        total = sum(w * a for w, a in zip(weights, amps))
+        if total <= 0:
+            return
+
+        for m, amp, wt in zip(self._team_data.members, amps, weights):
+            if not m.types:
+                continue
+            density = (wt * amp) / total  # relative fill density
+            col = TYPE_COLORS.get(m.types[0], "#8b949e")
+            member_colors.append((col, density))
+
+        # Draw smoke as multiple offset layers
+        for layer in range(3):
+            layer_frac = 0.55 + layer * 0.12
+            layer_offset = layer * 2
+            opacity = (0.18 - layer * 0.04) * breath
+
+            # Draw each color band as a partial wedge
+            cumulative = 0.0
+            for col, density in member_colors:
+                # Band angular width proportional to density
+                band_hw = half_angle * density * 0.9
+                smoke_r = radius * layer_frac * breath
+                if smoke_r < 2:
+                    continue
+
+                # Slight angular offset per layer for smoke wisping
+                band_mid = ang - half_angle + cumulative + band_hw + layer_offset * 0.02
+
+                # Darken color to create depth
+                dark_col = shade_color(col, 0.65)
+
+                # Create wedge with stipple pattern
+                pts = _wedge_points(cx, cy, smoke_r, band_mid, band_hw)
+                # Use stipple="gray25" for semi-transparent noise-like texture
+                c.create_polygon(
+                    *pts,
+                    fill=dark_col,
+                    outline="",
+                    stipple="gray25" if layer == 0 else None,
+                )
+                cumulative += band_hw * 2
+
+    def _draw_smoke_transition(self, c: tk.Canvas,
+                                cx: float, cy: float,
+                                radius: float,
+                                attr_idx: int,
+                                anim_progress: float) -> None:
+        """During expansion: smoke flows from sector into constituent colors.
+
+        As anim_progress goes 0→1, the sector's smoke blob expands outward
+        then coalesces into the individual member color streams.
+        """
+        if self._team_data is None or not self._team_data.members:
+            return
+
+        t = anim_progress
+        # Phase 1 (t 0→0.5): smoke expands and lifts off sector
+        # Phase 2 (t 0.5→1): smoke separates into member streams
+        expand_t = min(1.0, t * 2.0)
+        coalesce_t = max(0.0, (t - 0.5) * 2.0)
+
+        amps = self._team_data.contribution_amplitudes(attr_idx)
+        weights = self._team_data.coverage_weights()
+        start_angle = attribute_angle(attr_idx) - math.pi
+        half_angles = [w * math.pi for w in weights]
+        ang = attribute_angle(attr_idx)
+
+        # Smoke center drifts outward during transition
+        drift = expand_t * radius * 0.3
+        smoke_cx = cx + drift * math.cos(ang) * 0.3
+        smoke_cy = cy - drift * math.sin(ang) * 0.3
+
+        # Opacity fades as smoke "leaves" the sector
+        smoke_alpha = (1.0 - expand_t) * 0.5
+        if smoke_alpha < 0.01:
+            return
+
+        # Build color mix
+        member_color_list: list[tuple[str, float]] = []
+        total = sum(w * a for w, a in zip(weights, amps))
+        if total <= 0:
+            return
+        for m, amp, wt in zip(self._team_data.members, amps, weights):
+            if not m.types:
+                continue
+            density = (wt * amp) / total
+            col = TYPE_COLORS.get(m.types[0], "#8b949e")
+            member_color_list.append((col, density))
+
+        # Draw expanding smoke blob
+        for i, (col, density) in enumerate(member_color_list):
+            # Angular band for this member's contribution
+            band_hw = self.SECTOR_HALF_ANGLE * density * (1.0 - coalesce_t * 0.5)
+            smoke_r = radius * (0.5 + expand_t * 0.4) * density
+
+            ang_mid = start_angle + sum(half_angles[:i]) + half_angles[i]
+            pts = _wedge_points(smoke_cx, smoke_cy, smoke_r, ang_mid, band_hw)
+            dark_col = shade_color(col, 0.6)
+            c.create_polygon(
+                *pts, fill=dark_col, outline="",
+                stipple="gray12",
+            )
 
     def _team_sector_angles(self, n_members: int) -> list[float]:
         """Return 8 sector angles for the team overview.
@@ -623,11 +915,15 @@ class TeamRadialGraph(tk.Frame):
         if w < 50 or h < 50:
             return
 
-        cx, cy = w / 2, h / 2
-        radius = min(w, h) * 0.40
-
+        # Defensive: stop breathing if in single or expanded mode
+        # (should already be stopped but guards against animation edge cases)
         is_expanded = self._expanded_attr is not None
         is_single = self._single_scores is not None
+        if (is_expanded or is_single) and self._breath_after_id is not None:
+            self._stop_breathing()
+
+        cx, cy = w / 2, h / 2
+        radius = min(w, h) * 0.40
 
         # ── Glow background ───────────────────────────────────────
         glow_r = radius * 1.05
@@ -728,18 +1024,21 @@ class TeamRadialGraph(tk.Frame):
                            cx: float, cy: float, radius: float) -> None:
         """Draw 8 filled wedges, one per attribute, for the team overview.
 
-        Each wedge has a label and a coloured fill.  The wedge angle
-        is proportional to SECTOR_HALF_ANGLE.
+        Each wedge is colored with a smoke fill derived from the constituent
+        Pokemon type colors, with a gentle breathing animation overlay.
         """
         if self._team_data is None:
             return
         scores = self._team_norm_scores()
+        breath = self._breath_phase  # 0..1 for breathing modulation
 
         for i, (val, name) in enumerate(zip(scores, ATTRIBUTE_NAMES)):
             ang = attribute_angle(i)
             r = max(val, 0) * radius / 100.0
-            base_color = ATTRIBUTE_COLORS[i]
-            color = base_color
+            # Base color on attribute, but tinted by constituent Pokemon types
+            attr_color = ATTRIBUTE_COLORS[i]
+            smoke_col = self._smoke_color_for_sector(i)
+            color = smoke_col  # type-colored sector
             is_hovered = self._hovered_sector == i
 
             if is_hovered:
@@ -748,23 +1047,35 @@ class TeamRadialGraph(tk.Frame):
 
             half_a = self.SECTOR_HALF_ANGLE
 
+            # ── Smoke fill (type-colored wispy base) ─────
+            # Draw first so it sits behind the crisp wedge
+            self._draw_smoke_sector(c, cx, cy, r * 1.05, i, half_a * 1.05, breath)
+
             # ── Glow layer (behind wedge) ──────────────────
             glow_r = r * 1.1
             glow_pts = _wedge_points(cx, cy, glow_r, ang, half_a * 1.1)
-            glow_color = ATTRIBUTE_GLOW[i]
+            glow_color = shade_color(smoke_col, 1.4)  # tinted by smoke color
             c.create_polygon(*glow_pts, fill=glow_color, outline="")
 
             # ── Wedge fill ────────────────────────────────
             pts = _wedge_points(cx, cy, r, ang, half_a)
-            # Semi-transparent fill with solid outline
-            fill_color = shade_color(base_color, 0.7) if not is_hovered else color
-            c.create_polygon(*pts, fill=fill_color,
-                             outline=color, width=2 if is_hovered else 1)
+            # Use type-smoke color for fill with breathing opacity
+            if is_hovered:
+                c.create_polygon(*pts, fill=shade_color(color, 0.85),
+                                 outline=color, width=2)
+            else:
+                # Breathing: subtle radius pulse + smoke-blend fill
+                r_breath = r * (1.0 + 0.04 * math.sin(breath * 2 * math.pi))
+                pts = _wedge_points(cx, cy, r_breath, ang, half_a)
+                fill_col = _alpha_blend(smoke_col, attr_color, 0.35)
+                c.create_polygon(*pts, fill=shade_color(fill_col, 0.70),
+                                 outline=shade_color(smoke_col, 1.25),
+                                 width=1)
 
             # ── Inner highlight for depth ────────────────
-            inner_r = r * 0.85
-            inner_pts = _wedge_points(cx, cy, inner_r, ang, half_a * 0.85)
-            c.create_polygon(*inner_pts, fill=shade_color(fill_color, 1.2),
+            inner_r = r * 0.82
+            inner_pts = _wedge_points(cx, cy, inner_r, ang, half_a * 0.82)
+            c.create_polygon(*inner_pts, fill=shade_color(smoke_col, 1.25),
                              outline="", stipple="gray50")
 
             # ── Sparkle highlight on hover ──────────────
@@ -778,7 +1089,7 @@ class TeamRadialGraph(tk.Frame):
                 c.create_line(cx, cy,
                               cx + r * 1.1 * math.cos(ang),
                               cy - r * 1.1 * math.sin(ang),
-                              fill="#ffffff44", width=2, dash=(2, 3))
+                              fill="#ffffff", width=2, dash=(2, 3))
 
             # ── Value label at tip ────────────────────────
             label_r = r + 16
@@ -801,6 +1112,9 @@ class TeamRadialGraph(tk.Frame):
         """Draw the expanded breakdown for one attribute.
 
         Full circle of radial segments, one per team member.
+        Each member is colored by their primary Pokemon type with a
+        gradient overlay for dual-typed Pokemon.  During expansion,
+        smoke flows from the sector and combines into these color wedges.
         """
         if self._team_data is None or self._expanded_attr is None:
             return
@@ -811,8 +1125,10 @@ class TeamRadialGraph(tk.Frame):
         scores_raw = [m.scores[attr_idx] for m in self._team_data.members]
 
         # Determine half-angles
+        anim_t = 0.0
         if self._anim_attr == attr_idx and self._anim_progress < 1.0:
             half_angles = self._interpolated_angles()
+            anim_t = self._anim_progress
         else:
             half_angles = [w * math.pi for w in self._team_data.coverage_weights()]
 
@@ -821,46 +1137,61 @@ class TeamRadialGraph(tk.Frame):
         cumulative = start_angle
 
         scale = radius / 100.0
+        breath = self._breath_phase
 
-        # Palette per Pokémon — vibrant neon
-        member_colors = [
-            "#f94144", "#f3722c", "#f8961e", "#f9c74f",
-            "#90be6d", "#43aa8b", "#4d908e", "#577590",
-        ]
-        member_colors_hover = [
-            "#ff6666", "#ff8844", "#ffaa33", "#ffdd66",
-            "#aadd77", "#55cc99", "#66aaaa", "#7799aa",
-        ]
+        # During expansion: draw smoke transition first
+        if anim_t > 0 and anim_t < 1.0:
+            self._draw_smoke_transition(c, cx, cy, radius, attr_idx, anim_t)
 
         for i, (amp, hw, name, raw_score) in enumerate(
                 zip(amplitudes, half_angles, names, scores_raw)):
             r = max(amp, 0) * scale
             ang_mid = cumulative + hw
-            color = member_colors[i % len(member_colors)]
+            # Type-based color: primary type of the Pokemon
+            base_color, grad_color = self._type_color_for_member(i)
             is_hovered = self._hovered_sector == i
 
+            # Breathing modulation
+            breath_r = r * (1.0 + 0.03 * math.sin(breath * 2 * math.pi))
             if is_hovered:
-                color = member_colors_hover[i % len(member_colors_hover)]
-                r = max(amp, 0) * scale * 1.05
+                breath_r = max(amp, 0) * scale * 1.05
+                base_color = ATTRIBUTE_COLORS_HOVER[attr_idx]  # use bright version
+
+            # ── Gradient overlay for dual-type ──────────────
+            if grad_color is not None:
+                # Draw primary wedge
+                pts = _wedge_points(cx, cy, breath_r, ang_mid, hw)
+                c.create_polygon(*pts, fill=shade_color(base_color, 0.80),
+                                 outline="#0d1117" if not is_hovered else base_color,
+                                 width=1 if not is_hovered else 2)
+                # Gradient overlay: second wedge at slightly different angle, semi-transparent
+                grad_hw = hw * 0.75
+                grad_offset = hw * 0.3  # offset slightly
+                grad_mid = ang_mid + grad_offset
+                grad_r = breath_r * 0.92
+                grad_pts = _wedge_points(cx, cy, grad_r, grad_mid, grad_hw)
+                c.create_polygon(*grad_pts, fill=shade_color(grad_color, 0.75),
+                                 outline="", stipple="gray50")
+            else:
+                # Single type: simple solid fill
+                pts = _wedge_points(cx, cy, breath_r, ang_mid, hw)
+                c.create_polygon(*pts, fill=shade_color(base_color, 0.82),
+                                 outline="#0d1117" if not is_hovered else base_color,
+                                 width=1 if not is_hovered else 2)
 
             # ── Glow behind ────────────────────────────────
-            glow_r = r * 1.08
-            glow_pts = _wedge_points(cx, cy, glow_r, ang_mid, hw * 1.05)
-            c.create_polygon(*glow_pts, fill=shade_color(color, 0.4), outline="")
-
-            # ── Draw filled wedge ─────────────────────────
-            pts = _wedge_points(cx, cy, r, ang_mid, hw)
-            c.create_polygon(*pts, fill=shade_color(color, 0.85),
-                             outline="#0d1117" if not is_hovered else color,
-                             width=1 if not is_hovered else 2)
+            glow_r = breath_r * 1.1
+            glow_pts = _wedge_points(cx, cy, glow_r, ang_mid, hw * 1.08)
+            glow_c = shade_color(base_color, 1.5) if grad_color is None else shade_color(grad_color, 1.3)
+            c.create_polygon(*glow_pts, fill=glow_c, outline="")
 
             # ── Label at midpoint ─────────────────────────
-            label_r = max(r, 12) + 16
+            label_r = max(breath_r, 12) + 16
             lx = cx + label_r * math.cos(ang_mid)
             ly = cy - label_r * math.sin(ang_mid)
             pct = f"{amp:.0f}"
             c.create_text(lx, ly, text=f"{name}\n{pct}",
-                          fill=color, anchor="center",
+                          fill=base_color, anchor="center",
                           font=("Consolas", 8, "bold") if is_hovered else ("Consolas", 7))
 
             cumulative += 2 * hw
@@ -870,7 +1201,7 @@ class TeamRadialGraph(tk.Frame):
         c.create_text(cx, cy - 6, text=attr_name,
                       fill=ATTRIBUTE_COLORS[attr_idx],
                       font=("Consolas", 10, "bold"))
-        c.create_text(cx, cy + 8, text="double-click to collapse",
+        c.create_text(cx, cy + 8, text="right-click to collapse",
                       fill="#484f58", font=("Consolas", 7))
 
         # ── Center hub ────────────────────────────────────────

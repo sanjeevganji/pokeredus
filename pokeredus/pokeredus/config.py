@@ -29,7 +29,7 @@ NATURES_FILE = "natures.json"
 TYPECHART_FILE = "typechart.json"
 
 # ── Matchup engine defaults ────────────────────────────────────────
-DEFAULT_MATCHUP_CONFIDENCE: float = 0.3   # type-calc only, no battle data yet
+DEFAULT_MATCHUP_CONFIDENCE: float = 0.5   # type-calc only, no battle data yet
 MIN_MATCHUP_CONFIDENCE: float = 0.1       # floor for inclusion in graph
 MAX_MATCHUP_SAMPLE_COUNT: int = 0         # no battle data at startup
 

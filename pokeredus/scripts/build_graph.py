@@ -1,5 +1,6 @@
 """
-build_graph.py — CLI entry point to import data and compute matchups.
+build_graph.py — CLI entry point to import data, compute matchups, and
+build the species-level matchup cache for the simulator.
 
 Usage:
     python scripts/build_graph.py
@@ -7,11 +8,13 @@ Usage:
 Reads:
     - resources/gen9ou.json          (sets data)
     - data/raw/base_stats.json       (Pokémon base stats, types, abilities)
+    - data/raw/moves.json            (move data)
     - data/graphs/ou_matchup_graph.json (existing graph, if any)
 
 Writes:
     - data/graphs/ou_matchup_graph.json (full serialized graph)
     - data/sets/{pokemon_id}/{set_name}.yaml (individual set files)
+    - data/cache/matchup_cache.json  (species-level damage/TTK cache)
 """
 
 import sys
@@ -42,7 +45,7 @@ def main():
     print("=" * 60)
 
     # ── Step 1: Import data ─────────────────────────────────────────
-    print("\n[1/4] Importing Pokémon and sets...")
+    print("\n[1/5] Importing Pokémon and sets...")
     kg = KnowledgeGraph()
 
     if not GEN9OU_JSON.exists():
@@ -56,30 +59,48 @@ def main():
         move_data_path=MOVES_JSON if MOVES_JSON.exists() else None,
     )
     print(f"  Imported: {counts['pokemon']} Pokémon, {counts['sets']} sets, "
-          f"{counts['moves']} moves, {counts['abilities']} abilities, {counts['items']} items")
+          f"{counts['moves']} moves, {counts['abilities']} abilities, "
+          f"{counts['items']} items")
 
     # ── Step 2: Compute matchups ────────────────────────────────────
-    print("\n[2/4] Computing pairwise matchups...")
+    print("\n[2/5] Computing pairwise matchups...")
     matchup_count = compute_all_matchups(kg)
     print(f"  Computed {matchup_count} matchup edges")
 
     # ── Step 3: Save graph ──────────────────────────────────────────
-    print(f"\n[3/4] Saving graph to {OUTPUT_GRAPH}...")
+    print(f"\n[3/5] Saving graph to {OUTPUT_GRAPH}...")
     GRAPHS_DIR.mkdir(parents=True, exist_ok=True)
     kg.save(OUTPUT_GRAPH)
     print(f"  Saved: {OUTPUT_GRAPH.stat().st_size:,} bytes")
 
     # ── Step 4: Save individual sets ────────────────────────────────
-    print(f"\n[4/4] Saving individual set YAML files...")
+    print(f"\n[4/5] Saving individual set YAML files...")
     saved = 0
     for s in kg.get_all_sets():
         kg.save_set_yaml(s, SETS_DIR)
         saved += 1
     print(f"  Saved {saved} set files to {SETS_DIR}")
 
+    # ── Step 5: Build species-level matchup cache ───────────────────
+    print(f"\n[5/5] Building species-level matchup cache...")
+    from pokeredus.graph.matchup_cache import MatchupCache
+
+    cache = MatchupCache.load_or_build(
+        kg,
+        force=True,
+        progress_cb=lambda done, total: (
+            print(f"\r  {done}/{total} pairs ({100*done//max(total,1)}%)", end="", flush=True)
+            if done % 100 == 0 or done == total else None
+        ),
+    )
+    print()  # newline after progress
+    print(f"  Cache built: {cache.size:,} entries, "
+          f"fingerprint={cache._fingerprint[:16]}...")
+
     # ── Summary ─────────────────────────────────────────────────────
     print("\n" + "=" * 60)
     print(kg.summary())
+    print(f"MatchupCache: {cache.size:,} species-pair entries computed")
     print("=" * 60)
 
     # ── Quick validation ────────────────────────────────────────────

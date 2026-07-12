@@ -136,6 +136,10 @@ class PokeRedusApp(tk.Tk):
         # Build pages (lazy — created on first visit)
         self._pokemon_page = None
         self._team_builder_page = None
+        self._simulator_page = None
+
+        # Lazy init: BattleSimulator for use by simulator page
+        self._battle_simulator = None
 
     # ── TTK Styles ───────────────────────────────────────────────────
 
@@ -292,9 +296,10 @@ class PokeRedusApp(tk.Tk):
             ("Pokémon Stats", NEON_CYAN, self._go_pokemon),
             ("Team Builder", NEON_GREEN, self._go_team_builder),
             ("Matchup Graph", NEON_PINK, self._go_matchup_graph),
+            ("Game Simulator", NEON_ORANGE, self._go_simulator),
         ]
 
-        btn_w, btn_h = 200, 60
+        btn_w, btn_h = 160, 60
         gap = 20
         total_w = len(buttons) * btn_w + (len(buttons) - 1) * gap
         start_x = (w - total_w) // 2
@@ -440,6 +445,31 @@ class PokeRedusApp(tk.Tk):
 
     def _go_home(self):
         self._show_page("title")
+
+    def _go_simulator(self):
+        """Open the game state simulator (4th page)."""
+        if self._simulator_page is None:
+            from pokeredus.gui.simulator_page import SimulatorPage
+            bs = self._get_battle_simulator()
+            page = SimulatorPage(
+                self._container, self.kg, self.matchup_cache,
+                self._go_home, bs,
+            )
+            page.grid(row=0, column=0, sticky="nsew")
+            self._pages["simulator"] = page
+            self._simulator_page = page
+        self._show_page("simulator")
+
+    def _get_battle_simulator(self):
+        """Get or create the shared BattleSimulator instance."""
+        if self._battle_simulator is None:
+            from pokeredus.graph.damage_calc import get_calculator
+            from pokeredus.graph.battle_simulator import BattleSimulator
+            calc = get_calculator()
+            self._battle_simulator = BattleSimulator(
+                calc, self.kg, attribute_manager=None,
+            )
+        return self._battle_simulator
 
     def invalidate_matchup_cache(self):
         """Rebuild the matchup cache with a progress indicator."""

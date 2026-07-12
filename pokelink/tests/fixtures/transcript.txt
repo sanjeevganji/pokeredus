@@ -1,0 +1,10 @@
+|turn|1
+|switch|p1a: Venusaur|Venusaur, L82, M|100/100
+|switch|p2a: Clefable|Clefable, L80, F|100/100
+|-damage|p2a: Clefable|71/100
+|move|p1a: Venusaur|Sludge Bomb|[of] p2a: Clefable
+|-damage|p2a: Clefable|42/100 brn
+|-boost|p1a: Venusaur|spa|1
+|-weather|SunnyDay
+|-sidestart|p1: Player|move: Stealth Rock
+|request|{"side":{"id":"p1","name":"Player","pokemon":[{"ident":"p1: Venusaur","details":"Venusaur, L82, M","condition":"100/100","active":true,"moves":[{"move":"Sludge Bomb","id":"sludgebomb","pp":8,"maxpp":8,"disabled":false},{"move":"Giga Drain","id":"gigadrain","pp":16,"maxpp":16,"disabled":false},{"move":"Sleep Powder","id":"sleeppowder","pp":15,"maxpp":15,"disabled":false},{"move":"Toxic","id":"toxic","pp":15,"maxpp":15,"disabled":false}],"baseAbility":"Chlorophyll","item":"Leftovers","teraType":"Fire","terastallized":false}]},"active":[{"moves":[{"move":"Sludge Bomb","id":"sludgebomb","pp":8,"maxpp":8,"disabled":false},{"move":"Giga Drain","id":"gigadrain","pp":16,"maxpp":16,"disabled":false},{"move":"Sleep Powder","id":"sleeppowder","pp":15,"maxpp":15,"disabled":false},{"move":"Toxic","id":"toxic","pp":15,"maxpp":15,"disabled":false}],"canTerastallize":true}],"rqid":123}
