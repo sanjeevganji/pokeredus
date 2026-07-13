@@ -1,0 +1,23 @@
+{
+  "name": "@pokeredus/bridge",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "exports": { ".": "./src/index.ts" },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run --passWithNoTests"
+  },
+  "dependencies": {
+    "@pokeredus/engine": "*",
+    "@pokeredus/pack": "*",
+    "@pokeredus/biases": "*",
+    "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "@types/ws": "^8.5.10",
+    "@types/node": "^20.11.0"
+  }
+}

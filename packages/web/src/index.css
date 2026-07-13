@@ -1,0 +1,33 @@
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: 220px;
+  background: var(--bg-panel);
+  border-right: 1px solid var(--fg-dim);
+  padding: 20px 12px;
+  flex-shrink: 0;
+}
+
+.main {
+  flex: 1;
+  padding: 24px;
+  overflow: auto;
+}
+
+.brand {
+  margin-bottom: 24px;
+  padding: 0 8px;
+}
+
+.brand h2 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: var(--neon-pink);
+}
+
+.brand small {
+  color: var(--fg-dim);
+}

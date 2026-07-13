@@ -1,0 +1,29 @@
+{
+  "name": "@pokeredus/cli",
+  "version": "0.1.0",
+  "type": "module",
+  "bin": {
+    "pokelink": "./src/cli.ts"
+  },
+  "scripts": {
+    "dev": "tsx src/cli.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@pokeredus/biases": "*",
+    "@pokeredus/bridge": "*",
+    "@pokeredus/core": "*",
+    "@pokeredus/engine": "*",
+    "@pokeredus/pack": "*",
+    "ws": "^8.18.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "tsx": "^4.7.0",
+    "typescript": "^5.4.0",
+    "vitest": "^1.6.0",
+    "@types/ws": "^8.5.10",
+    "@types/node": "^20.11.0"
+  }
+}

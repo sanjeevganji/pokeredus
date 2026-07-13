@@ -1,0 +1,138 @@
+/* PokeRedus neon theme — from pokeredus/gui/theme.py */
+
+:root {
+  --bg-dark: #0d1117;
+  --bg-panel: #161b22;
+  --bg-card: #1c2333;
+  --bg-input: #21262d;
+  --bg-hover: #292e36;
+  --bg-selected: #1a2744;
+
+  --fg-primary: #e6edf3;
+  --fg-secondary: #8b949e;
+  --fg-dim: #484f58;
+
+  --neon-cyan: #00d4ff;
+  --neon-pink: #ff6ec7;
+  --neon-green: #39ff14;
+  --neon-orange: #ff6b35;
+  --neon-purple: #b24dff;
+  --neon-yellow: #ffe600;
+  --neon-red: #ff3366;
+
+  --matchup-win: #39ff14;
+  --matchup-lose: #ff3366;
+  --matchup-neutral: #ffe600;
+
+  --type-normal: #a8a878;
+  --type-fire: #ff6b35;
+  --type-water: #00d4ff;
+  --type-electric: #ffe600;
+  --type-grass: #39ff14;
+  --type-ice: #98d8d8;
+  --type-fighting: #c03028;
+  --type-poison: #b24dff;
+  --type-ground: #e0c068;
+  --type-flying: #a890f0;
+  --type-psychic: #f85888;
+  --type-bug: #a8b820;
+  --type-rock: #b8a038;
+  --type-ghost: #705898;
+  --type-dragon: #7038f8;
+  --type-dark: #705848;
+  --type-steel: #b8b8d0;
+  --type-fairy: #ffaec9;
+
+  --font-mono: Consolas, 'Courier New', monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: var(--font-mono);
+  background: var(--bg-dark);
+  color: var(--fg-primary);
+  min-height: 100vh;
+}
+
+a {
+  color: var(--neon-cyan);
+  text-decoration: none;
+}
+
+a:hover { color: var(--neon-pink); }
+
+button, select, input, textarea {
+  font-family: inherit;
+  background: var(--bg-input);
+  color: var(--fg-primary);
+  border: 1px solid var(--fg-dim);
+  border-radius: 4px;
+  padding: 6px 10px;
+}
+
+button {
+  cursor: pointer;
+  border-color: var(--neon-cyan);
+}
+
+button:hover { background: var(--bg-hover); }
+
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid var(--fg-dim);
+  border-radius: 8px;
+  padding: 16px;
+}
+
+.card {
+  background: var(--bg-card);
+  border: 1px solid var(--fg-dim);
+  border-radius: 6px;
+  padding: 12px;
+}
+
+.neon-title {
+  font-size: 2.5rem;
+  font-weight: bold;
+  color: var(--neon-cyan);
+  text-shadow: 0 0 8px var(--neon-cyan);
+  margin: 0;
+}
+
+.neon-subtitle {
+  color: var(--fg-secondary);
+  font-size: 1.1rem;
+}
+
+.nav-link {
+  display: block;
+  padding: 10px 14px;
+  border-radius: 6px;
+  color: var(--fg-primary);
+  border: 1px solid transparent;
+}
+
+.nav-link:hover, .nav-link.active {
+  background: var(--bg-selected);
+  border-color: var(--neon-cyan);
+  color: var(--neon-cyan);
+}
+
+.score-win { color: var(--matchup-win); }
+.score-lose { color: var(--matchup-lose); }
+.score-neutral { color: var(--matchup-neutral); }
+
+.muted { color: var(--fg-secondary); }
+.dim { color: var(--fg-dim); }
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+@media (max-width: 800px) {
+  .grid-2 { grid-template-columns: 1fr; }
+}
