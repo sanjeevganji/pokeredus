@@ -23,10 +23,78 @@ CLI mode. If the quantum process fails, no battle action is sent.
 | `packages/pack` | Knowledge-pack schema/load |
 | `quantum-policy` | Persistent PennyLane QAOA JSON-lines subprocess |
 | `pokeredus/` | Python KG / team-builder GUI (visualization only) |
+| `tools/pr.py` | Arrow-key launcher and one-liner commands |
 
 Graph-only role/coverage weights in the team builder are visualization, not
 battle policy. Pokémon physical `weight` (mass) is a species field, not a
 policy weight.
+
+**PokeLink** is the Showdown battle CLI (`packages/cli`). **PokeRedus** is the
+team-builder GUI / web UI and knowledge-graph pipeline.
+
+## Terminal launcher
+
+Arrow-key menu for setup, PokeRedus, PokeLink, combined launch, training,
+quantum, maintain, and settings:
+
+```bash
+python tools/pr.py
+```
+
+Keys: `↑` `↓` move · Enter run · Esc / Backspace back · `q` quit.
+
+Saved options (policy, dry-run, Showdown account, decision log, QAOA seed/shots)
+live in `tools/launch-settings.json` (gitignored). Env overrides:
+`POKELINK_USER`, `POKELINK_PASS`, `POKELINK_URL`, `POKEREDUS_POLICY`.
+
+### Simple commands
+
+Battle id is a Showdown room (`gen9randombattle-…` or `battle-gen9randombattle-…`).
+Default live mode is dry-run; pass `--send` to actually choose moves.
+
+```bash
+python tools/pr.py setup
+python tools/pr.py gui
+python tools/pr.py web
+python tools/pr.py pokelink <battle-id>
+python tools/pr.py live <battle-id>
+python tools/pr.py combined <battle-id>
+python tools/pr.py quantum <battle-id>
+python tools/pr.py softmax <battle-id>
+python tools/pr.py train
+python tools/pr.py settings
+python tools/pr.py settings policy=quantum dry_run=true
+```
+
+npm equivalents (from repo root):
+
+```bash
+npm run menu
+npm run setup
+npm run gui
+npm run web
+npm run pokelink -- <battle-id>
+npm run live -- <battle-id> --send
+npm run combined -- <battle-id>
+npm run train
+```
+
+| Command | Purpose |
+| --- | --- |
+| `setup` | `npm install` + `pip install -e pokeredus[dev]` + `pip install -e quantum-policy` |
+| `gui` | Python team-builder (`pokeredus/scripts/launch.py`) |
+| `web` | Vite team-builder UI |
+| `pokelink` / `live` | Join a Showdown battle with the quantum (or settings) policy |
+| `combined` | GUI + web; with a battle id, also start PokeLink live |
+| `quantum` / `softmax` | Live battle forcing QAOA or the softmax benchmark |
+| `train` | Generate Random Battle pool + export pack + rebuild matchup graph |
+| `pool` / `pack` / `graph` | Standalone model/data updates |
+| `score` | Replay a transcript into the decision log |
+| `quantum-test` | `python -m unittest discover -s quantum-policy/tests` |
+| `test` | npm test + typecheck + build + pytest + quantum tests |
+| `settings` | Print or set launcher options (`key=value`) |
+
+`setup` also accepts `node`, `python`, or `quantum` to install one stack.
 
 ## Random Battle assumptions
 
@@ -41,7 +109,7 @@ policy weight.
 Generate the pool from the official generator:
 
 ```bash
-npx tsx packages/cli/src/cli.ts generate-pool --samples 200 --seed 1 --out packages/engine/data/gen9randombattle-pool.v1.json
+python tools/pr.py pool
 ```
 
 ## Formulas
@@ -73,6 +141,13 @@ effects, and chance branches. Battles are cloned with `Battle.toJSON` /
 ## Quantum policy
 
 ```bash
+python tools/pr.py setup quantum
+python tools/pr.py quantum-test
+```
+
+Or by hand:
+
+```bash
 pip install -e quantum-policy
 python -m unittest discover -s quantum-policy/tests
 ```
@@ -91,14 +166,26 @@ Node talks to `python -m pokeredus_quantum` over JSON lines:
 
 ## CLI
 
+PokeLink one-liners (battle id required for live):
+
+```bash
+python tools/pr.py pokelink <battle-id>
+python tools/pr.py pokelink <battle-id> --send
+python tools/pr.py score
+python tools/pr.py pack --mini
+```
+
+Underlying `packages/cli` (same flags as before):
+
 ```bash
 npx tsx packages/cli/src/cli.ts render-pack --pack pokeredus/data/knowledge-pack/knowledge-pack-mini.json
 npx tsx packages/cli/src/cli.ts export-pack --mini
+npx tsx packages/cli/src/cli.ts generate-pool --samples 200 --seed 1 --out packages/engine/data/gen9randombattle-pool.v1.json
 npx tsx packages/cli/src/cli.ts score --replay packages/cli/tests/fixtures/transcript.txt --pool packages/engine/data/gen9randombattle-pool.v1.json --policy softmax --dry-run
 npx tsx packages/cli/src/cli.ts live --battle <roomid> --policy quantum --dry-run --decision-log decisions.jsonl
 ```
 
-`--dry-run` logs the sampled choice and never sends it.
+`--dry-run` logs the sampled choice and never sends it. The launcher default is dry-run; `--send` turns that off.
 
 ## Decision log
 
@@ -109,12 +196,16 @@ this change does not train weights.
 
 ## Knowledge graph / team builder
 
-Python GUI: `python pokeredus/scripts/launch.py`
+```bash
+python tools/pr.py gui
+python tools/pr.py web
+python tools/pr.py graph
+```
+
+Or by hand: `python pokeredus/scripts/launch.py` and `npm --workspace @pokeredus/web run dev`.
 
 Attribute formula inputs live in `pokeredus/data/config/` (`attribute_formulas.yaml`,
 `team_radial_formulas.json`, `radar_config.json`).
-
-Web UI: `npm --workspace @pokeredus/web run dev`
 
 ## Limitations
 
@@ -124,6 +215,13 @@ Web UI: `npm --workspace @pokeredus/web run dev`
 - Finite-shot QAOA is optional; exact `default.qubit` is the correctness default.
 
 ## Verification
+
+```bash
+python tools/pr.py test
+python tools/pr.py --self-check
+```
+
+Or by hand:
 
 ```bash
 npm test && npm run typecheck && npm run build
