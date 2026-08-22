@@ -1,0 +1,62 @@
+{
+  "format": "gen9randombattle",
+  "version": 1,
+  "samples": 10,
+  "seed": 1,
+  "species": {
+    "garchomp": [
+      {
+        "set": {
+          "species": "Garchomp",
+          "level": 80,
+          "item": "loadeddice",
+          "ability": "roughskin",
+          "moves": ["earthquake", "outrage", "scaleshot", "swordsdance"],
+          "nature": "Jolly",
+          "teraType": "Ground"
+        },
+        "count": 7
+      },
+      {
+        "set": {
+          "species": "Garchomp",
+          "level": 80,
+          "item": "choicescarf",
+          "ability": "roughskin",
+          "moves": ["earthquake", "outrage", "stoneedge", "poisonjab"],
+          "nature": "Jolly",
+          "teraType": "Fire"
+        },
+        "count": 3
+      }
+    ],
+    "toxapex": [
+      {
+        "set": {
+          "species": "Toxapex",
+          "level": 88,
+          "item": "blacksludge",
+          "ability": "regenerator",
+          "moves": ["recover", "scald", "haze", "toxic"],
+          "nature": "Bold",
+          "teraType": "Steel"
+        },
+        "count": 10
+      }
+    ],
+    "clefable": [
+      {
+        "set": {
+          "species": "Clefable",
+          "level": 84,
+          "item": "leftovers",
+          "ability": "magicguard",
+          "moves": ["moonblast", "softboiled", "stealthrock", "thunderwave"],
+          "nature": "Bold",
+          "teraType": "Steel"
+        },
+        "count": 5
+      }
+    ]
+  }
+}

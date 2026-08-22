@@ -5,8 +5,8 @@ build-backend = "setuptools.backends._legacy:_Backend"
 [project]
 name = "pokeredus"
 version = "0.1.0"
-description = "Class-based Pokémon intelligence system for the OU tier"
-readme = "README.md"
+description = "Class-based Pokémon knowledge graph and team-builder GUI (OU). Battle policy lives in the TypeScript packages plus quantum-policy."
+readme = { text = "PokeRedus Python package: knowledge graph, pairwise matchups, and team-builder GUI. The live Random Battle policy is the TS engine + PennyLane QAOA subprocess documented in the repository root README.", content-type = "text/plain" }
 requires-python = ">=3.11"
 license = {text = "MIT"}
 

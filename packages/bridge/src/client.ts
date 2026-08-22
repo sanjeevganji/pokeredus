@@ -53,15 +53,15 @@ export class ShowdownClient {
       const ws = new WebSocket(this.url);
       this.ws = ws;
       ws.on('open', () => {
-        console.log(`[pokelink] connected to ${this.url}`);
+        console.log(`[pokeredus] connected to ${this.url}`);
         resolve();
       });
       ws.on('message', (data: Buffer | ArrayBuffer | string) => {
         const text = typeof data === 'string' ? data : data.toString();
         this.onMessage(text);
       });
-      ws.on('error', (err) => console.error('[pokelink] ws error:', err));
-      ws.on('close', () => console.log('[pokelink] ws closed'));
+      ws.on('error', (err) => console.error('[pokeredus] ws error:', err));
+      ws.on('close', () => console.log('[pokeredus] ws closed'));
       ws.on('unexpected-response', (_req, res) => reject(new Error(`ws unexpected response ${res.statusCode}`)));
     });
   }
@@ -69,7 +69,7 @@ export class ShowdownClient {
   /** Send a raw protocol message. */
   send(msg: string): void {
     if (!this.ws) {
-      console.warn('[pokelink] send before connect:', msg);
+      console.warn('[pokeredus] send before connect:', msg);
       return;
     }
     this.ws.send(msg);
@@ -101,7 +101,7 @@ export class ShowdownClient {
         const assertion = await getAssertion(this.user, this.pass, challstr);
         this.send(`|/trn ${this.user},0,${assertion}`);
       } catch (e) {
-        console.error('[pokelink] auth failed, falling back to guest:', e);
+        console.error('[pokeredus] auth failed, falling back to guest:', e);
         this.send(`|/trn ${guestName()},0,`);
       }
     } else {

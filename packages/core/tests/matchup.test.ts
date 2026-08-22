@@ -104,7 +104,7 @@ describe('computeMatchup', () => {
     expect(rel.tags.some((t) => t === 'OHKO' || t === '2HKO' || t === 'faster')).toBe(true);
   });
 
-  it('matchup scores are clamped to [-1, 1]', () => {
+  it('characterization: pairwise matchup graph scores stay in [-1, 1] for the mini pack', () => {
     for (const setA of kg.getAllSets()) {
       for (const setB of kg.getAllSets()) {
         if (setA.id === setB.id) continue;

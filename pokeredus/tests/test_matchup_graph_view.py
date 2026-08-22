@@ -1,9 +1,4 @@
-"""
-Tests for the 2D radial + 3D cylinder matchup-graph renderer (Tasks 11-15).
-
-The pure-math helpers are tested headlessly (no tk root required).  The
-canvas widgets are exercised via a brief Tk root where unavoidable.
-"""
+"""Characterization tests for the team-builder radial matchup graph view."""
 
 import os
 import sys
@@ -11,11 +6,8 @@ import math
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-import numpy as np
 import pytest
 
-
-# ── Task 11: 2D radial geometry helpers ────────────────────────────
 
 def test_attribute_angle_spaced_at_45_deg():
     from pokeredus.gui.matchup_graph_view import attribute_angle
@@ -23,232 +15,29 @@ def test_attribute_angle_spaced_at_45_deg():
         assert attribute_angle(i) == pytest.approx(i * math.pi / 4)
 
 
-def test_polygon_points_returns_8_vertices():
-    from pokeredus.gui.matchup_graph_view import attribute_polygon_points
-    attrs = [1.0] * 8
-    pts = attribute_polygon_points(attrs, center=(0, 0), scale=10.0)
-    assert len(pts) == 8
-    for (x, y), ang, a in zip(pts, [i * math.pi / 4 for i in range(8)], attrs):
-        r = math.hypot(x, y)
-        assert r == pytest.approx(a * 10.0)
+def test_sector_points_returns_spoke_or_wedge():
+    from pokeredus.gui.matchup_graph_view import sector_points
+    spoke = sector_points(0, 0, 10, 0.0)
+    assert spoke[0] == 0 and spoke[1] == 0
+    assert spoke[2] == pytest.approx(10.0)
+    wedge = sector_points(0, 0, 10, math.pi / 2, half_width=0.1)
+    assert len(wedge) == 6
 
 
-def test_polygon_points_attribute_two_at_top_of_screen():
-    """Index 2 is at angle pi/2; with screen-Y flipped, it sits at the top."""
-    from pokeredus.gui.matchup_graph_view import attribute_polygon_points
-    pts = attribute_polygon_points([1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                                    center=(0, 0), scale=10.0)
-    # Attribute 0 is at angle 0 (eastward)
-    assert pts[0] == (pytest.approx(10.0), pytest.approx(0.0))
-    # Attribute 2 is at angle pi/2 (math-up); with screen-Y flip, it sits at the top.
-    pts2 = attribute_polygon_points([0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0],
-                                    center=(0, 0), scale=10.0)
-    assert pts2[2] == (pytest.approx(0.0), pytest.approx(-10.0))
+def test_team_radial_formulas_load_from_repo_config():
+    from pokeredus.config import CONFIG_DIR
+    from pokeredus.gui.matchup_graph_view import load_team_radial_formulas
+    formulas = load_team_radial_formulas()
+    assert (CONFIG_DIR / "team_radial_formulas.json").exists()
+    assert formulas["coverage_exponent"] == 1.5
+    assert formulas["score_aggregation"] == "sum"
 
 
-def test_attribute_color_returns_distinct_per_axis():
-    from pokeredus.gui.matchup_graph_view import attribute_color
-    for name in ("attack", "utility", "defense", "speed",
-                 "counter", "sponge", "threat", "punish"):
-        col = attribute_color(name)
-        assert col.startswith("#")
-        assert len(col) == 7
-
-
-# ── Task 12: per-attribute bar elaboration ─────────────────────────
-
-def test_elaborate_bars_returns_18_segments_per_attribute():
-    from pokeredus.gui.matchup_graph_view import elaborate_bars_per_attribute
-    base = np.zeros((8, 18), dtype=np.float32)
-    base[0] = 1.0  # attack = 1 for all types
-    bars = elaborate_bars_per_attribute(base, vase_order=list(range(18)))
-    assert len(bars) == 8
-    for b in bars:
-        assert len(b) == 18
-        assert all(seg >= 0 for seg in b)
-
-
-# ── Task 13: 3D camera math + disc hit-test ────────────────────────
-
-def test_disc_radius_proportional_to_compound_area():
-    from pokeredus.gui.matchup_graph_view import disc_radius
-    full = np.zeros((8, 18), dtype=np.float32)
-    # Set counter (row 4) AND sponge (row 5) for a non-zero compound area.
-    full[ATT_COUNTER := 4] = 1.0
-    full[ATT_SPONGE := 5] = 1.0
-    r = disc_radius(full, type_index=3, base=10.0)
-    assert r > 10.0
-
-
-def test_world_to_screen_roundtrip_preserves_xy():
+def test_radial_page_classes_exist():
     from pokeredus.gui.matchup_graph_view import (
-        world_to_screen, screen_to_world, Camera,
+        TeamRadialGraph, MatchupGraphPage, PokemonRadialScores, TeamRadialData,
     )
-    # Test with identity rotations + camera centered at z=0 so the
-    # forward/inverse use the same depth (cam.distance).
-    cam = Camera(yaw=0.0, pitch=0.0, distance=300,
-                 center=(0.0, 0.0, 0.0),
-                 width=600, height=400)
-    p = np.array([10.0, 20.0, 0.0])
-    s = world_to_screen(p, cam)
-    p2 = screen_to_world(np.array(s[:2]), cam)
-    # The roundtrip is approximate; the depth is inferred, but x/y should
-    # recover when rotations are identity and center.z == p.z.
-    np.testing.assert_allclose(p[:2], p2[:2], atol=1e-4)
-
-
-def test_pick_disc_finds_closest_within_radius():
-    from pokeredus.gui.matchup_graph_view import pick_disc, Camera
-    # Discs at world_z = 0, 20, 40, ..., 340 (18 of them)
-    centers = [(0.0, 0.0, 20.0 * i) for i in range(18)]
-    radii = [10.0] * 18
-    cam = Camera(yaw=0.0, pitch=0.0, distance=300,
-                 width=600, height=400)
-    # Look at the first disc; mouse is centered → first disc should win
-    cam_mouse = cam._replace(center=(0.0, 0.0, 0.0), mouse=(300, 200))
-    idx = pick_disc(centers, radii, cam_mouse)
-    assert idx is not None
-    assert 0 <= idx < 18
-
-
-# ── Task 14: disc_centers layout helper ────────────────────────────
-
-def test_disc_centers_stacked_along_z():
-    from pokeredus.gui.matchup_graph_view import disc_centers, SLAB_HEIGHT
-    centers = disc_centers(slab_height=20.0, base_z=0.0, n=18)
-    assert len(centers) == 18
-    for i, (x, y, z) in enumerate(centers):
-        assert z == pytest.approx(i * 20.0)
-        assert x == 0.0 and y == 0.0
-
-
-# ── Task 15: combined view toggle (uses Tk) ────────────────────────
-
-def test_2d_polygon_fits_canvas_for_large_attributes():
-    """Even with per-type sums of 1e6, the 2D polygon must fit inside
-    the canvas (no zoom, auto-fit scale)."""
-    import tkinter as tk
-    from pokeredus.gui.matchup_graph_view import MatchupGraph2D
-    root = tk.Tk()
-    root.geometry("400x300")
-    try:
-        v = MatchupGraph2D(root, sets_dir=".")
-        v.pack(fill="both", expand=True)
-        n = type("N", (), {})()
-        n.attributes = np.ones((8, 18), dtype=np.float32) * 1e6
-        n.vase_order = list(range(18))
-        n.bias = 1.0
-        v.set_node(n)
-        root.update()
-        v._redraw()
-        bbox = v.canvas.bbox("all")
-        assert bbox is not None, "polygon should be drawn"
-        x0, y0, x1, y1 = bbox
-        # Auto-fit: polygon must lie inside the canvas (tolerance for
-        # sub-pixel + 4-pixel text markers, but no 1e6 overflow).
-        assert x0 >= 0 and y0 >= 0, f"x0={x0} y0={y0}"
-        assert x1 <= 400 and y1 <= 300, f"x1={x1} y1={y1} (huge polygon)"
-    finally:
-        root.destroy()
-
-
-def test_2d_no_zoom_attribute_after_init():
-    """The 2D view must not expose a `zoom` attribute (per plan: drop zoom)."""
-    import tkinter as tk
-    from pokeredus.gui.matchup_graph_view import MatchupGraph2D
-    root = tk.Tk(); root.withdraw()
-    try:
-        v = MatchupGraph2D(root, sets_dir=".")
-        assert not hasattr(v, "zoom"), "MatchupGraph2D must not expose `zoom`"
-    finally:
-        root.destroy()
-
-
-def test_2d_drag_rotates_only_horizontally():
-    """Vertical drag must not change rotation (only horizontal does)."""
-    import tkinter as tk
-    from pokeredus.gui.matchup_graph_view import MatchupGraph2D
-    root = tk.Tk(); root.withdraw()
-    try:
-        v = MatchupGraph2D(root, sets_dir=".")
-        v._on_press(fake_event_factory := type("E", (), {"x": 200, "y": 200})())
-        # 100px right + 100px up
-        ev_drag = type("E", (), {"x": 300, "y": 100})()
-        v._on_drag(ev_drag)
-        v._on_release(type("E", (), {"x": 300, "y": 100})())
-        # 100 px right at 0.01 rad/px = 1.0 rad; vertical should NOT subtract
-        assert v.rotation == pytest.approx(1.0), \
-            f"rotation={v.rotation} (vertical drag should be ignored)"
-    finally:
-        root.destroy()
-
-
-def test_3d_world_to_screen_origin_anchored_no_translation():
-    """world_to_screen with cam.center=(0,0,0) should NOT translate."""
-    from pokeredus.gui.matchup_graph_view import world_to_screen, Camera
-    cam = Camera(center=(0.0, 0.0, 0.0), yaw=0.0, pitch=0.0,
-                 distance=300, width=600, height=400)
-    p = np.array([10.0, 20.0, 0.0])
-    s = world_to_screen(p, cam)
-    # At identity rotations + distance 300 + focal 400:
-    # xr = 10, yr = 20, d = 300
-    # sx = 300 + 10*400/300 = 300 + 13.33
-    # sy = 200 - 20*400/300 = 200 - 26.67
-    assert abs(s[0] - 600/2 - 10*400/300) < 1.0
-    assert abs(s[1] - 400/2 + 20*400/300) < 1.0
-
-
-def test_3d_default_camera_centered_at_world_origin():
-    """The 3D camera must look at the world origin, not the middle of
-    the disc stack, so dragging rotates the world around (0,0,0)."""
-    from pokeredus.gui.matchup_graph_view import Camera
-    cam = Camera()
-    assert cam.center == (0.0, 0.0, 0.0)
-
-
-def test_3d_no_zoom_method():
-    """The 3D view must not expose a wheel-zoom method (per plan: drop zoom)."""
-    import tkinter as tk
-    from pokeredus.gui.matchup_graph_view import MatchupGraph3D
-    root = tk.Tk(); root.withdraw()
-    try:
-        v = MatchupGraph3D(root, sets_dir=".")
-        assert not hasattr(v, "_zoom_by"), "MatchupGraph3D must not expose _zoom_by"
-    finally:
-        root.destroy()
-
-
-def test_disc_radius_uses_scaled_attributes():
-    """With 0-100 attrs the disc radius must stay bounded — the plan
-    caps it at ~12 (base=8, multiplier=0.005, max area=10000)."""
-    from pokeredus.gui.matchup_graph_view import disc_radius
-    full = np.zeros((8, 18), dtype=np.float32)
-    full[4] = 100.0  # counter at max
-    full[5] = 100.0  # sponge at max
-    full[6] = 100.0  # threat at max
-    full[7] = 100.0  # punish at max
-    r = disc_radius(full, type_index=3, base=8.0)
-    # Max compound area = 100*100 + 100*100 = 20000; sqrt = 141.42
-    # r = 8 * (1 + 141.42 * 0.005) = 8 * 1.707 ≈ 13.66
-    # Hard ceiling from the plan is around 12-14; assert it stays there.
-    assert 8.0 < r < 16.0, f"disc radius {r} not in expected range (8, 16)"
-    # And an all-zero node should give exactly base (no compound area).
-    zero = np.zeros((8, 18), dtype=np.float32)
-    r0 = disc_radius(zero, type_index=3, base=8.0)
-    assert r0 == 8.0, f"zero attrs should give base radius, got {r0}"
-
-
-def test_combined_view_starts_in_2d():
-    from pokeredus.gui.matchup_graph_view import MatchupGraphView
-    import tkinter as tk
-    root = tk.Tk()
-    root.withdraw()
-    try:
-        v = MatchupGraphView(root, sets_dir=".")
-        assert v.mode == "2d"
-        v.toggle_mode()
-        assert v.mode == "3d"
-        v.toggle_mode()
-        assert v.mode == "2d"
-    finally:
-        root.destroy()
+    assert TeamRadialGraph is not None
+    assert MatchupGraphPage is not None
+    assert PokemonRadialScores is not None
+    assert TeamRadialData is not None

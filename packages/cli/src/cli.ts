@@ -1,33 +1,20 @@
-// cli.ts — the pokelink entrypoint.
-//
-// Subcommands:
-//   pokelink render-pack --pack <pack.json>
-//       Print pack stats (#species, #sets, #edges, byteSizeMB, version).
-//   pokelink export-pack [--template <pack.json>] [--out <path>] [--mini]
-//       Recompute knowledge-pack edges from template data (TS computeMatchup).
-//   pokelink score --replay <transcript.txt> --pack <pack.json> [--biases <b>] [--dry-run]
-//       Offline tuning surface: replay a saved battle transcript and print a
-//       decision per |request|. Never connects to a server.
-//   pokelink live --battle <roomid> --pack <pack.json> [--user <u> --pass <p>] [--dry-run]
-//       Connect to play.pokemonshowdown.com and play a real battle, posting
-//       chosen moves back over the websocket.
-//
-// Arg parsing is stdlib-only (no yargs) — ponytail: a tiny parser is enough.
+// PokeRedus CLI — knowledge-pack tools, Random Battle scoring, live play.
 import * as fs from 'node:fs';
 import { loadKnowledgePack } from '@pokeredus/pack/load';
-import { loadBiases } from '@pokeredus/biases';
-import { BattleTracker, type BattleEvent, decideAndAct, type DecideClient, ShowdownClient } from '@pokeredus/bridge';
-import type { Biases } from '@pokeredus/biases';
+import { BattleTracker, decideAndAct, ShowdownClient, type BattleEvent } from '@pokeredus/bridge';
+import {
+  QuantumPolicyProcess,
+  generateRandomSetPool,
+  loadPool,
+  defaultPoolPath,
+  type CanonicalSet,
+  type PolicyMode,
+} from '@pokeredus/engine';
 import {
   exportKnowledgePack,
   formatExportSummary,
   resolveExportPaths,
 } from './export-pack.js';
-import {
-  exportTrainingData,
-  resolveTrainingOutPath,
-  defaultTrainingPackPath,
-} from './export-training.js';
 
 interface Args {
   cmd: string;
@@ -52,6 +39,25 @@ function parseArgs(argv: string[]): Args {
     }
   }
   return args;
+}
+
+function policyMode(flags: Record<string, string>): PolicyMode {
+  return flags['policy'] === 'softmax' ? 'softmax' : 'quantum';
+}
+
+function ourSetsFromFlag(raw?: string): CanonicalSet[] {
+  if (!raw) return [];
+  return JSON.parse(fs.readFileSync(raw, 'utf8')) as CanonicalSet[];
+}
+
+async function withPolicy<T>(fn: (proc: QuantumPolicyProcess) => Promise<T>): Promise<T> {
+  const proc = new QuantumPolicyProcess();
+  try {
+    proc.start();
+    return await fn(proc);
+  } finally {
+    proc.close();
+  }
 }
 
 async function main(): Promise<void> {
@@ -82,26 +88,25 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (cmd === 'export-training') {
-    const packPath = flags['pack'] ?? defaultTrainingPackPath();
-    const outPath = resolveTrainingOutPath(flags['out']);
-    if (!fs.existsSync(packPath)) {
-      console.error(`export-training: pack not found: ${packPath}`);
-      process.exit(1);
-    }
-    const maxPairs = flags['max-pairs'] ? Number(flags['max-pairs']) : undefined;
-    const result = exportTrainingData({ packPath, outPath, maxPairs });
-    console.log(`export-training: wrote ${result.samples} sample(s) → ${result.outPath}`);
+  if (cmd === 'generate-pool') {
+    const samples = flags['samples'] ? Number(flags['samples']) : 64;
+    const seed = flags['seed'] ? Number(flags['seed']) : 1;
+    const outPath = flags['out'] ?? defaultPoolPath();
+    const pool = generateRandomSetPool({ samples, seed, outPath });
+    console.log(`generate-pool: ${pool.samples} teams, ${Object.keys(pool.species).length} species → ${outPath}`);
     return;
   }
 
   const packPath = flags['pack'] ?? 'knowledge-pack-v1.json';
-  const pack = loadKnowledgePack(packPath);
-
-  let biases: Biases = loadBiases(flags['biases']);
-  if (bools['dry-run'] || flags['dry-run'] !== undefined) biases = { ...biases, dry_run: true };
+  const dryRun = Boolean(bools['dry-run'] || flags['dry-run'] !== undefined);
+  const pool = loadPool(flags['pool'] ?? defaultPoolPath());
+  const ourSets = ourSetsFromFlag(flags['our-sets']);
+  const logPath = flags['decision-log'];
+  const seed = flags['seed'] ? Number(flags['seed']) : undefined;
+  const shots = flags['shots'] ? Number(flags['shots']) : null;
 
   if (cmd === 'render-pack') {
+    const pack = loadKnowledgePack(packPath);
     console.log(pack.summary());
     return;
   }
@@ -112,20 +117,29 @@ async function main(): Promise<void> {
       console.error('score requires --replay <transcript.txt>');
       process.exit(1);
     }
-    const tracker = new BattleTracker();
-    const log: DecideClient = { send() {} }; // dry-run: decisions are logged, never sent
-    const lines = fs.readFileSync(replay, 'utf8').split('\n');
-    let turns = 0;
-    for (const line of lines) {
-      const ev: BattleEvent | null = tracker.applyLine(line);
-      if (ev && ev.type === 'request') {
-        const state = tracker.toTurnState(pack, { allowThin: true });
-        console.log(`\n=== turn ${state.turn} (request) ===`);
-        decideAndAct(log, state, pack, biases);
-        turns++;
+    await withPolicy(async (proc) => {
+      const tracker = new BattleTracker();
+      const log = { send() {} };
+      const lines = fs.readFileSync(replay, 'utf8').split('\n');
+      let turns = 0;
+      for (const line of lines) {
+        const ev: BattleEvent | null = tracker.applyLine(line);
+        if (ev && ev.type === 'request') {
+          const obs = tracker.toObservation(pool, ourSets);
+          console.log(`\n=== turn ${obs.turn} (request) ===`);
+          await decideAndAct(log, obs, {
+            dryRun: true,
+            policy: policyMode(flags),
+            process: proc,
+            seed,
+            shots,
+            logPath,
+          });
+          turns++;
+        }
       }
-    }
-    console.log(`\n[pokelink] replayed ${turns} decision point(s).`);
+      console.log(`\n[pokeredus] replayed ${turns} decision point(s).`);
+    });
     return;
   }
 
@@ -136,31 +150,41 @@ async function main(): Promise<void> {
       process.exit(1);
     }
     const room = battle.startsWith('battle-') ? battle : `battle-${battle}`;
-    const client = new ShowdownClient({
-      url: flags['url'],
-      user: flags['user'],
-      pass: flags['pass'],
-      battleRoom: room,
-      dryRun: biases.dry_run,
-    });
-    const tracker = new BattleTracker();
-    client.onEvent((ev) => {
-      tracker.apply(ev);
-      if (ev.type === 'request') {
-        if (!ev.json.active || ev.json.active.length === 0) return; // team preview — no move yet
-        const state = tracker.toTurnState(pack);
-        console.log(`\n=== turn ${state.turn} (your move) ===`);
-        decideAndAct(client, state, pack, biases);
-      }
-    });
-    console.log(`[pokelink] joining ${room} ...`);
-    await client.connect();
-    console.log('[pokelink] connected. Waiting for your turn — Ctrl-C to quit.');
-    await new Promise<void>((resolve) => {
-      process.on('SIGINT', () => {
-        console.log('\n[pokelink] shutting down.');
-        client.close();
-        resolve();
+    await withPolicy(async (proc) => {
+      const client = new ShowdownClient({
+        url: flags['url'],
+        user: flags['user'],
+        pass: flags['pass'],
+        battleRoom: room,
+        dryRun,
+      });
+      const tracker = new BattleTracker();
+      client.onEvent((ev) => {
+        tracker.apply(ev);
+        if (ev.type === 'request') {
+          if (!ev.json.active || ev.json.active.length === 0) return;
+          const obs = tracker.toObservation(pool, ourSets);
+          console.log(`\n=== turn ${obs.turn} (your move) ===`);
+          void decideAndAct(client, obs, {
+            dryRun,
+            policy: policyMode(flags),
+            process: proc,
+            seed,
+            shots,
+            logPath,
+          }).catch((err) => console.error(err));
+        }
+      });
+      console.log(`[pokeredus] joining ${room} ...`);
+      await client.connect();
+      console.log('[pokeredus] connected. Waiting for your turn — Ctrl-C to quit.');
+      await new Promise<void>((resolve) => {
+        process.on('SIGINT', () => {
+          console.log('\n[pokeredus] shutting down.');
+          client.close();
+          proc.close();
+          resolve();
+        });
       });
     });
     return;
@@ -171,33 +195,24 @@ async function main(): Promise<void> {
 }
 
 function printHelp(): void {
-  console.log(`pokelink — PokeRedus external battle bridge
+  console.log(`pokeredus — Random Battle quantum policy CLI
 
 Usage:
-  pokelink render-pack --pack <pack.json>
-  pokelink export-pack [--template <pack.json>] [--out <path>] [--mini] [--max-species <n>]
-  pokelink export-training [--pack <pack.json>] [--out <path>] [--max-pairs <n>]
-  pokelink score  --replay <transcript.txt> --pack <pack.json> [--biases <biases.json>] [--dry-run]
-  pokelink live   --battle <roomid> --pack <pack.json> [--user <u> --pass <p>] [--url <ws>] [--dry-run]
-
-Subcommands:
-  render-pack  Print pack stats (#species, #sets, #edges, byteSizeMB, version).
-  export-pack      Recompute knowledge-pack edges from template (default: pokeredus/data/knowledge-pack/).
-  export-training  Write JSONL training corpus from pack set pairs (demo warm-start).
-  score        Offline: replay a saved transcript and print a decision per turn.
-  live         Connect to play.pokemonshowdown.com and play a real battle.
+  pokeredus render-pack --pack <pack.json>
+  pokeredus export-pack [--template <pack.json>] [--out <path>] [--mini]
+  pokeredus generate-pool [--samples <n>] [--seed <n>] [--out <path>]
+  pokeredus score --replay <transcript.txt> [--pool <pool.json>] [--policy quantum|softmax] [--dry-run]
+  pokeredus live  --battle <roomid> [--policy quantum|softmax] [--dry-run]
 
 Flags:
-  --pack <f>     Knowledge Pack JSON (default: knowledge-pack-v1.json).
-  --template <f> Source pack for export-pack (default: pokeredus/data/knowledge-pack/knowledge-pack-v1.json).
-  --out <f>      Output path for export-pack.
-  --mini         Export first 5 species only (export-pack).
-  --max-species  Cap species count (export-pack debugging).
-  --biases <f>   Biases JSON (default: built-in defaults / biases.json).
-  --replay <f>   Transcript file for 'score'.
-  --battle <id>  Battle room id (or bare id) for 'live'.
-  --user/--pass  Named Showdown account (omit for guest).
-  --dry-run      Log the chosen move but never send it.
+  --pack <f>          Knowledge Pack JSON.
+  --pool <f>          Empirical Random Battle set pool.
+  --our-sets <f>      JSON array of our six known CanonicalSets.
+  --policy <m>        quantum (default) or softmax (benchmark only).
+  --seed <n>          Policy / pool seed.
+  --shots <n>         Finite-shot QAOA (omit for exact).
+  --decision-log <f>  Append-only JSONL decision records.
+  --dry-run           Log the chosen move but never send it.
 `);
 }
 

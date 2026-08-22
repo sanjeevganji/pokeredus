@@ -4,14 +4,12 @@ import Home from './pages/Home';
 import TeamBuilder from './pages/TeamBuilder';
 import PokemonBrowser from './pages/PokemonBrowser';
 import MatchupGraph from './pages/MatchupGraph';
-import Simulator from './pages/Simulator';
 
 const NAV = [
   { to: '/', label: 'Home' },
   { to: '/teams', label: 'Team Builder' },
   { to: '/browser', label: 'Pokémon Browser' },
   { to: '/graph', label: 'Matchup Graph' },
-  { to: '/simulator', label: 'Simulator' },
 ];
 
 export default function App() {
@@ -37,7 +35,6 @@ export default function App() {
             <Route path="/teams" element={<TeamBuilder />} />
             <Route path="/browser" element={<PokemonBrowser />} />
             <Route path="/graph" element={<MatchupGraph />} />
-            <Route path="/simulator" element={<Simulator />} />
           </Routes>
         </main>
       </div>

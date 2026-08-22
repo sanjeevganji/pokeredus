@@ -1,58 +1,92 @@
-// decide.ts — wire the runtime engine to the bridge.
-//
-// On each `|request|` the CLI builds a TurnState (via BattleTracker) and calls
-// `decideAndAct`. It scores the turn, logs the top-3 actions with reasoning
-// (the human-tuning audit trail), and posts the chosen move back over the
-// client — unless `biases.dry_run` is set, in which case it only logs.
-import type { TurnState, Action } from '@pokeredus/engine';
-import type { PackIndex } from '@pokeredus/pack';
-import type { Biases } from '@pokeredus/biases';
-import { scoreTurn, type ScoredAction } from '@pokeredus/engine';
+import type { BattleObservation, CanonicalSet, PolicyMode } from '@pokeredus/engine';
+import {
+  evaluateRound,
+  formatChoice,
+  sampleAction,
+  appendDecisionLog,
+  QuantumPolicyProcess,
+  type RoundEvaluation,
+} from '@pokeredus/engine';
 
-/** Minimal client surface decide.ts needs (satisfied by ShowdownClient). */
 export interface DecideClient {
   send(msg: string): void;
 }
 
-/**
- * Score the turn and act on it. Returns the full ranked list. When
- * `biases.dry_run` is true, the chosen command is logged but not sent.
- */
-export function decideAndAct(client: DecideClient, state: TurnState, pack: PackIndex, biases: Biases): ScoredAction[] {
-  const scored = scoreTurn(state, pack, biases);
-
-  const top = scored.slice(0, 3);
-  for (let i = 0; i < top.length; i++) {
-    const a = top[i]!;
-    const label = formatAction(a.action);
-    const reason = a.reasoning.slice(0, 4).join(', ');
-    console.log(`[#${i + 1}] ${label}  score=${a.score.toFixed(2)}  (${reason})`);
-  }
-
-  const best = scored[0];
-  if (!best) {
-    console.warn('[pokelink] no legal actions this turn');
-    return scored;
-  }
-
-  const cmd = formatChoice(best.action);
-  if (biases.dry_run) {
-    console.log(`[dry-run] would send: ${cmd}`);
-  } else {
-    client.send(cmd);
-  }
-  return scored;
+export interface DecideOptions {
+  dryRun?: boolean;
+  policy?: PolicyMode;
+  process: QuantumPolicyProcess;
+  seed?: number;
+  shots?: number | null;
+  logPath?: string;
+  rng?: () => number;
+  evaluate?: (obs: BattleObservation) => RoundEvaluation;
 }
 
-function formatAction(a: Action): string {
-  if (a.type === 'move') return `move:${a.moveId}${a.tera ? ' (tera)' : ''}`;
-  if (a.type === 'switch') return `switch:${a.slot! + 1}`;
-  return a.type;
+export interface DecideResult {
+  evaluation: RoundEvaluation;
+  probabilities: number[];
+  sampledId: string;
+  sent: boolean;
 }
 
-/** Format a Showdown `|/choose` command for an action. */
-export function formatChoice(a: Action): string {
-  if (a.type === 'move') return `|/choose move ${a.moveId}${a.tera ? ' tera' : ''}`;
-  if (a.type === 'switch') return `|/choose switch ${(a.slot ?? 0) + 1}`;
-  return `|/choose ${a.type} ${a.moveId ?? a.slot}`;
+export async function decideAndAct(
+  client: DecideClient,
+  obs: BattleObservation,
+  opts: DecideOptions,
+): Promise<DecideResult> {
+  const evaluation = (opts.evaluate ?? evaluateRound)(obs);
+  const ids = evaluation.choices.map((c) => c.action.id);
+  if (!ids.length) {
+    console.warn('[pokeredus] no legal actions this turn');
+    return { evaluation, probabilities: [], sampledId: '', sent: false };
+  }
+  const scores = evaluation.choices.map((c) => c.scaledChoiceScore);
+  let response;
+  try {
+    response = await opts.process.decide({
+      actions: ids,
+      scores,
+      mode: opts.policy ?? 'quantum',
+      seed: opts.seed,
+      shots: opts.shots ?? null,
+    });
+  } catch (err) {
+    console.error('[pokeredus] quantum policy failed; not sending a choice:', err);
+    throw err;
+  }
+  const probabilities = response.probabilities;
+  if (probabilities.length !== ids.length) {
+    throw new Error('quantum policy returned a distribution that does not match legal actions');
+  }
+  const sampledId = sampleAction(ids, probabilities, opts.rng);
+  const choice = evaluation.choices.find((c) => c.action.id === sampledId);
+  if (!choice) throw new Error(`sampled illegal action ${sampledId}`);
+
+  for (const c of evaluation.choices) {
+    const tag = c.action.type === 'move' ? `cta=${(c.cta ?? 0).toFixed(3)}` : `cts=${(c.cts ?? 0).toFixed(3)}`;
+    console.log(`[${c.action.id}] ${tag} impact=${c.expectedImpact.toFixed(3)} choice=${c.choiceScore.toFixed(3)}`);
+  }
+  console.log(`roundScore=${evaluation.roundScore.toFixed(3)} mate=${evaluation.forcedOutcome} p=${evaluation.mateProbability.toFixed(3)}`);
+  console.log(`sampled ${sampledId}`);
+
+  const cmd = formatChoice(choice.action);
+  const sent = !opts.dryRun;
+  if (opts.dryRun) console.log(`[dry-run] would send: ${cmd}`);
+  else client.send(cmd);
+
+  if (opts.logPath) {
+    appendDecisionLog(opts.logPath, {
+      ts: new Date().toISOString(),
+      observation: obs,
+      evaluation,
+      probabilities,
+      sampledAction: sampledId,
+      policy: opts.policy ?? 'quantum',
+      diagnostics: response.diagnostics,
+    });
+  }
+  return { evaluation, probabilities, sampledId, sent };
 }
+
+export type { CanonicalSet };

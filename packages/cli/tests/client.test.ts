@@ -1,6 +1,6 @@
 // Task 12 — client.ts: mocked `ws`, no real network. A `|challstr|` triggers a
 // guest `|/trn`, and a `|request|` is parsed into a BattleEvent that, fed
-// through a BattleTracker, yields the expected TurnState.
+// through a BattleTracker, yields the expected BattleObservation.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('ws', () => {
@@ -31,6 +31,12 @@ import { WebSocket } from 'ws';
 import { ShowdownClient, BattleTracker } from '@pokeredus/bridge';
 import { KnowledgePackSchema } from '@pokeredus/pack/schema';
 import { PackIndex } from '@pokeredus/pack';
+import { loadPool } from '@pokeredus/engine';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
+
+const dir = dirname(fileURLToPath(import.meta.url));
+const pool = loadPool(join(dir, '../../engine/data/gen9randombattle-pool.v1.json'));
 
 const REQUEST_JSON = JSON.stringify({
   side: {
@@ -83,10 +89,10 @@ describe('ShowdownClient (mocked ws)', () => {
     expect(events).toContain('request');
     const trnSent = ws.sent.find((m: string) => m.startsWith('|/trn'));
     expect(trnSent).toBeDefined();
-    expect(trnSent).toContain('pokelink'); // guest name prefix
+    expect(trnSent).toContain('pokeredus'); // guest name prefix
   });
 
-  it('the emitted request event yields the expected TurnState via a tracker', async () => {
+  it('the emitted request event yields the expected observation via a tracker', async () => {
     const client = new ShowdownClient({ url: 'wss://test', dryRun: true });
     const events: { type: string; json?: unknown }[] = [];
     client.onEvent((ev) => events.push(ev as { type: string; json?: unknown }));
@@ -103,9 +109,9 @@ describe('ShowdownClient (mocked ws)', () => {
     expect(req).toBeDefined();
     const tracker = new BattleTracker();
     for (const e of events) tracker.apply(e as never);
-    const state = tracker.toTurnState(EMPTY_PACK, { allowThin: true });
-    expect(state.myActive.hp).toBe(100);
-    expect(state.turn).toBe(0); // no |turn| line was sent
+    const obs = tracker.toObservation(pool, []);
+    expect(obs.ours[0]?.hp).toBe(100);
+    expect(obs.turn).toBe(0);
     expect(tracker.oppMons.get('p2a')?.speciesId).toBe('toxapex');
   });
 });

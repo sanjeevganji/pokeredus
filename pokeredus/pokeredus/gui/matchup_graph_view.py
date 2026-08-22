@@ -19,8 +19,8 @@ Two visual modes:
 Data source: ``TeamRadialData`` named tuples that carry per-pokemon
 radar values + coverage scores.
 
-The formula constants for team-radial calculations live in the Obsidian
-vault at ``Hermes Memory/team_radial_formulas.md`` and are loaded at
+The formula constants for team-radial calculations live in
+``pokeredus/data/config/team_radial_formulas.json`` and are loaded at
 runtime via ``load_team_radial_formulas()``.
 """
 from __future__ import annotations
@@ -1223,10 +1223,8 @@ _TEAM_RADIAL_FORMULAS: dict | None = None
 
 
 def load_team_radial_formulas() -> dict:
-    """Load team-radial formula constants from the Obsidian vault.
+    """Load team-radial formula constants from data/config.
 
-    Looks for ``Hermes Memory/team_radial_formulas.md``.  Returns a
-    dict of formula specs (same structure as attribute_formulas.md).
     Falls back to built-in defaults if the file cannot be read.
     """
     global _TEAM_RADIAL_FORMULAS
@@ -1238,29 +1236,20 @@ def load_team_radial_formulas() -> dict:
         "coverage_magnitude": 0.8,
         "score_aggregation": "sum",
         "min_contribution_pct": 5.0,
+        "angular_distribution": "coverage",
+        "animation_frames": 12,
+        "animation_interval_ms": 16,
     }
 
-    import pathlib
-    vault_path = pathlib.Path("/d/PokeRedus/Hermes Memory/team_radial_formulas.md")
+    from pokeredus.config import CONFIG_DIR
+    path = CONFIG_DIR / "team_radial_formulas.json"
     try:
-        text = vault_path.read_text(encoding="utf-8")
-        formulas: dict = {}
-        for line in text.splitlines():
-            line = line.strip()
-            if not line or line.startswith("#"):
-                continue
-            if ":" in line:
-                key, _, val = line.partition(":")
-                key = key.strip().strip('"').strip("'")
-                val = val.strip().strip('"').strip("'")
-                try:
-                    formulas[key] = float(val)
-                except ValueError:
-                    formulas[key] = val
-        if formulas:
-            _TEAM_RADIAL_FORMULAS = formulas
-            return formulas
-    except (FileNotFoundError, IOError, OSError):
+        import json
+        data = json.loads(path.read_text(encoding="utf-8"))
+        if isinstance(data, dict) and data:
+            _TEAM_RADIAL_FORMULAS = {**default, **data}
+            return _TEAM_RADIAL_FORMULAS
+    except (FileNotFoundError, OSError, ValueError):
         pass
 
     _TEAM_RADIAL_FORMULAS = dict(default)

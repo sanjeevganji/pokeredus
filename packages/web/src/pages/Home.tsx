@@ -15,7 +15,6 @@ export default function Home() {
           <li><Link to="/teams">Team Builder</Link> — load/save JSON teams</li>
           <li><Link to="/browser">Pokémon Browser</Link> — browse sets with live matchups</li>
           <li><Link to="/graph">Matchup Graph</Link> — 2D force graph of team matchups</li>
-          <li><Link to="/simulator">Simulator</Link> — damage ranges + turn recommendations</li>
         </ul>
       </div>
 

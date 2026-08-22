@@ -3,7 +3,7 @@ analytics — Matchup analytics engine for PokeRedus.
 
 Provides:
 1. Per-species matchup aggregation (collapse multiple sets to one representative)
-2. MCTS-style set ranking (composite score from TTK + speed + win rate)
+2. Set ranking (unweighted mean matchup score)
 3. Computed stat helpers (all stats at level 100 with EVs/IVs/nature)
 4. Matchup matrix computation
 
@@ -132,7 +132,7 @@ class SpeciesMatchup:
 
 @dataclass
 class SetRanking:
-    """MCTS-style ranking for a single set."""
+    """Unweighted ranking for a single set from mean matchup score."""
 
     set_id: str
     pokemon_id: str
@@ -141,7 +141,7 @@ class SetRanking:
     mean_ttk_against: float      # average turns to kill opponents
     mean_ttk_by: float           # average turns for opponents to kill us
     speed_advantage_rate: float  # fraction of matchups where we're faster
-    composite_score: float       # weighted combination
+    composite_score: float       # unweighted mean matchup score
     best_matchup: str            # set_id of easiest matchup
     worst_matchup: str           # set_id of hardest matchup
     total_matchups: int = 0
@@ -328,12 +328,7 @@ def rank_sets(
     calc: DamageCalculator | None = None,
     level: int = 100,
 ) -> list[SetRanking]:
-    """Rank all sets by composite matchup performance (MCTS-style).
-
-    Composite score combines:
-    - Win rate (40%): fraction of favorable matchups
-    - TTK efficiency (30%): lower mean TTK against = better
-    - Speed advantage rate (30%): higher = better
+    """Rank all sets by unweighted mean matchup score.
 
     Returns: list of SetRanking sorted by composite_score (best first)
     """
@@ -351,6 +346,7 @@ def rank_sets(
         ttks_against: list[int] = []
         ttks_by: list[int] = []
         speed_adv_count = 0
+        scores: list[float] = []
         best_score = -999.0
         worst_score = 999.0
         best_id = ""
@@ -365,6 +361,7 @@ def rank_sets(
                 continue
 
             total += 1
+            scores.append(mu.score)
             if mu.score > 0.2:
                 wins += 1
             elif mu.score < -0.2:
@@ -394,18 +391,7 @@ def rank_sets(
         speed_rate = speed_adv_count / total
         mean_ttk_against = sum(ttks_against) / len(ttks_against) if ttks_against else 10.0
         mean_ttk_by = sum(ttks_by) / len(ttks_by) if ttks_by else 10.0
-
-        # Composite: higher is better
-        # Normalize TTK: lower is better, so invert (use 1/TTK or 10-TTK)
-        ttk_score = max(0, 1.0 - (mean_ttk_against - 1.0) / 9.0)  # 1 turn → 1.0, 10+ turns → 0.0
-        ttk_survival = max(0, (mean_ttk_by - 1.0) / 9.0)  # 10 turns to die → 1.0, 1 turn → 0.0
-
-        composite = (
-            win_rate * 0.35 +
-            ttk_score * 0.25 +
-            ttk_survival * 0.15 +
-            speed_rate * 0.25
-        )
+        composite = sum(scores) / len(scores) if scores else 0.0
 
         best_set = kg.get_set(best_id)
         worst_set = kg.get_set(worst_id)

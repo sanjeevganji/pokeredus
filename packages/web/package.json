@@ -10,10 +10,8 @@
     "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
-    "@pokeredus/biases": "*",
     "@pokeredus/calc": "*",
     "@pokeredus/core": "*",
-    "@pokeredus/engine": "*",
     "@pokeredus/pack": "*",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",

@@ -158,7 +158,7 @@ for m in defense:
 
 print()
 rankings = rank_sets(kg, calc)
-print('Set Rankings (MCTS-style):')
+print('Set Rankings (mean matchup score):')
 for r in rankings:
     print(f'  {r.pokemon_id}/{r.set_name}: score={r.composite_score:.4f}, '
           f'win_rate={r.win_rate:.2f}, avg_ttk_against={r.mean_ttk_against:.1f}, '

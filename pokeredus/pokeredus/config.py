@@ -19,6 +19,7 @@ SETS_DIR = DATA_DIR / "sets"
 GRAPHS_DIR = DATA_DIR / "graphs"
 TEAMS_DIR = DATA_DIR / "teams"
 CACHE_DIR = DATA_DIR / "cache"
+CONFIG_DIR = DATA_DIR / "config"
 
 # ── Showdown data file names (inside RAW_DATA_DIR) ─────────────────
 POKEDEX_FILE = "pokedex.json"

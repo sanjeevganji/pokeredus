@@ -485,12 +485,7 @@ class KnowledgeGraph:
             )
             pokemon = self.get_pokemon(set_obj.pokemon_id)
             if pokemon is not None:
-                mcts = float(
-                    getattr(set_obj, "mcts_composite", 0.0) or 0.0
-                )
-                node = build_node(
-                    set_obj, pokemon, kg=self, mcts_composite=mcts,
-                )
+                node = build_node(set_obj, pokemon, kg=self)
                 save_node_cache(node, sets_dir)
         except Exception:
             pass

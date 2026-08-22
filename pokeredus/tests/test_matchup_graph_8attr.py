@@ -1,11 +1,8 @@
 """
-Tests for the 8-attribute x 18-type matchup-graph data layer (Task 3+).
+Tests for the 8-attribute x 18-type matchup-graph data layer.
 
-The 8-attribute model is additive to the existing 3D projection (kept
-for the AI's MCTS engine).  These tests cover the new data layer
-end-to-end: data classes, base attribute computations, compound
-attributes, volume formula, vase sort, role weights, build_node,
-on-disk cache, save-on-set-save hook, and team composer.
+The 8-attribute model is additive to the 3D projection used by the
+team-builder views. These tests cover the visualization data layer.
 """
 
 import os
@@ -234,8 +231,10 @@ def test_canonical_type_order_has_18_types():
 
 def test_attribute_names_has_8_entries():
     assert len(ATTRIBUTE_NAMES) == 8
-    assert ATTRIBUTE_NAMES == ["attack", "utility", "defense", "speed",
-                                "counter", "sponge", "threat", "punish"]
+    assert ATTRIBUTE_NAMES == [
+        "attack", "threat", "speed", "punish",
+        "utility", "sponge", "defense", "counter",
+    ]
 
 
 def test_node_shape_is_8x18():
@@ -320,13 +319,6 @@ def test_volume_of_sums_perpendicular_products():
     assert volume_of(full) == pytest.approx(26.0)
 
 
-def test_volume_of_with_bias_scales_linearly():
-    full = np.zeros((8, 18), dtype=np.float32)
-    full[ATTRIBUTE_INDEX["counter"], 0] = 2.0
-    full[ATTRIBUTE_INDEX["sponge"], 0] = 3.0
-    assert volume_of(full, bias=0.5) == pytest.approx(3.0)
-
-
 # ═════════════════════════════════════════════════════════════════════
 # Task 6: vase sort + role weight table
 # ═════════════════════════════════════════════════════════════════════
@@ -361,26 +353,13 @@ def test_weight_table_sweeper_boosts_offense():
 
 def test_build_node_for_venusaur_choice():
     s, p = _make_venusaur_set_with_role("sweeper")
-    node = build_node(s, p, kg=None, mcts_composite=0.7)
+    node = build_node(s, p, kg=None)
     assert node.set_id == s.id
     assert node.pokemon_id == "venusaur"
     assert node.role == "sweeper"
-    assert node.bias == pytest.approx(0.85)  # 0.5 + 0.5*0.7
     assert node.attributes.shape == (8, 18)
-    # Sweeper weights applied
     assert node.weights[ATTRIBUTE_INDEX["attack"]] > 1.0
-    # Vase order is a permutation of 0..17
     assert sorted(node.vase_order) == list(range(18))
-
-
-def test_build_node_bias_clipped_to_unit_range():
-    s, p = _make_venusaur_set_with_role()
-    # mcts_composite > 1 should still bias to <= 1
-    node = build_node(s, p, kg=None, mcts_composite=5.0)
-    assert node.bias <= 1.0 + 1e-6
-    # mcts_composite < 0 should still bias to >= 0.5
-    node2 = build_node(s, p, kg=None, mcts_composite=-1.0)
-    assert node2.bias >= 0.5 - 1e-6
 
 
 # ═════════════════════════════════════════════════════════════════════
@@ -404,8 +383,9 @@ def test_save_load_roundtrip(tmp_path):
     node2 = load_node_cache(s.pokemon_id, s.id, tmp_path)
     np.testing.assert_allclose(node2.attributes, node.attributes, atol=1e-5)
     assert node2.vase_order == node.vase_order
-    assert node2.bias == pytest.approx(node.bias)
     assert node2.role == node.role
+    meta = json.loads((tmp_path / "graphs" / s.pokemon_id / f"{s.id}.meta.json").read_text(encoding="utf-8"))
+    assert set(meta) == {"vase_order", "weights", "role"}
 
 
 def test_load_missing_returns_none(tmp_path):
@@ -432,11 +412,10 @@ def test_knowledge_graph_save_set_yaml_writes_node_cache(tmp_path):
 
 def test_compose_team_node_sums_attributes():
     s, p = _make_venusaur_set_with_role()
-    n1 = build_node(s, p, mcts_composite=0.5)
-    n2 = build_node(s, p, mcts_composite=0.9)
+    n1 = build_node(s, p)
+    n2 = build_node(s, p)
     team = compose_team_node([n1, n2])
     np.testing.assert_allclose(team.attributes, n1.attributes + n2.attributes)
-    assert team.bias == pytest.approx((n1.bias + n2.bias) / 2)
 
 
 def test_compose_team_node_empty():
@@ -448,17 +427,42 @@ def test_compose_team_node_empty():
 
 def test_team_volume_matches_weighted_sum():
     s, p = _make_venusaur_set_with_role()
-    n = build_node(s, p, mcts_composite=0.6)
+    n = build_node(s, p)
     team = compose_team_node([n, n, n])  # 3x same set, team_attrs = 3 * n.attributes
-    # volume is quadratic in attributes, so 3x attrs = 9x volume, times team.bias
-    expected = 9 * volume_of(n.attributes) * team.bias
+    expected = 9 * volume_of(n.attributes)
     assert team_volume(team) == pytest.approx(expected)
 
 
 def test_compose_team_node_respects_weights():
     s, p = _make_venusaur_set_with_role()
-    n1 = build_node(s, p, mcts_composite=0.5)
-    n2 = build_node(s, p, mcts_composite=0.5)
+    n1 = build_node(s, p)
+    n2 = build_node(s, p)
     # Weight 1.0 and 2.0 — n2 should contribute twice
     team = compose_team_node([n1, n2], weights=[1.0, 2.0])
     np.testing.assert_allclose(team.attributes, n1.attributes + 2.0 * n2.attributes)
+
+
+# ═════════════════════════════════════════════════════════════════════
+# Characterization: repo-local config + radar view
+# ═════════════════════════════════════════════════════════════════════
+
+def test_attribute_formulas_load_from_repo_config():
+    from pokeredus.config import CONFIG_DIR
+    from pokeredus.graph.dynamic_engine import FORMULA_PATH, load_formulas
+    assert FORMULA_PATH == CONFIG_DIR / "attribute_formulas.yaml"
+    formulas = load_formulas()
+    assert "attack" in formulas
+    assert "defense" in formulas
+
+
+def test_radar_config_loads_from_repo_json():
+    from pokeredus.config import CONFIG_DIR
+    from pokeredus.graph.radar_attributes import load_radar_config, compute_radar_8, ATTRIBUTE_NAMES
+    cfg = load_radar_config()
+    assert (CONFIG_DIR / "radar_config.json").exists()
+    assert cfg.stab_multiplier == 1.5
+    s, p = _make_venusaur_set_with_role()
+    radar = compute_radar_8(s, p, kg=None, config=cfg)
+    assert list(radar.keys()) == ATTRIBUTE_NAMES
+    for name, val in radar.items():
+        assert 0.0 <= val <= 100.0, f"{name}={val}"

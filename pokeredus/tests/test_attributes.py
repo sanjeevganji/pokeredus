@@ -4,7 +4,6 @@ Tests for the Phase 7 attribute system.
 Tests cover:
 - Attribute creation and lifecycle
 - AttributeRegistry stacking and conflict resolution
-- GameState turn processing
 - Damage calculation with state
 - Synergy detection
 """
@@ -22,7 +21,6 @@ from pokeredus.classes.attributes import (
     RecoveryAttribute,
 )
 from pokeredus.graph.attribute_registry import AttributeRegistry
-from pokeredus.graph.game_state import PokemonState, FieldState, GameState
 from pokeredus.graph.attribute_factory import AttributeFactory
 from pokeredus.graph.synergy_detector import SynergyDetector
 
@@ -318,138 +316,6 @@ class TestAttributeRegistry:
         assert restored.count == 2
         assert restored.has(name="swords_dance")
         assert restored.has(condition="burn")
-
-
-class TestGameState:
-    """Test GameState management."""
-
-    def test_pokemon_state_creation(self):
-        """Test creating a PokemonState."""
-        state = PokemonState(
-            pokemon_id="garchomp",
-            set_id="garchomp_swords_dance",
-            current_hp=300,
-            max_hp=300,
-        )
-        assert state.hp_percent == 100.0
-        assert not state.is_fainted
-
-    def test_take_damage(self):
-        """Test taking damage."""
-        state = PokemonState(
-            pokemon_id="garchomp",
-            set_id="garchomp_swords_dance",
-            current_hp=300,
-            max_hp=300,
-        )
-        damage = state.take_damage(100)
-        assert damage == 100
-        assert state.current_hp == 200
-        assert abs(state.hp_percent - 66.67) < 0.1
-
-    def test_fainting(self):
-        """Test fainting when HP reaches 0."""
-        state = PokemonState(
-            pokemon_id="garchomp",
-            set_id="garchomp_swords_dance",
-            current_hp=50,
-            max_hp=300,
-        )
-        state.take_damage(100)
-        assert state.is_fainted
-        assert state.current_hp == 0
-
-    def test_status_conditions(self):
-        """Test status condition checks."""
-        state = PokemonState(
-            pokemon_id="garchomp",
-            set_id="garchomp_swords_dance",
-            current_hp=300,
-            max_hp=300,
-        )
-        
-        burn = ConditionAttribute(
-            attribute_type="condition",
-            name="burn",
-            source="willowisp",
-            params={"condition": "burn", "damage_per_turn": 0.0625},
-        )
-        state.attributes.add(burn)
-        
-        assert state.is_burned()
-        assert state.has_status()
-
-    def test_field_state(self):
-        """Test FieldState management."""
-        field = FieldState()
-        
-        rain = FieldAttribute(
-            attribute_type="field",
-            name="rain",
-            source="raindance",
-            duration=5,
-            params={"field": "rain"},
-        )
-        field.global_attributes.add(rain)
-        
-        assert field.get_weather() == "rain"
-        assert field.get_terrain() is None
-
-    def test_game_state_creation(self):
-        """Test creating a GameState."""
-        state = GameState()
-        
-        # Add team A
-        for i in range(6):
-            p = PokemonState(
-                pokemon_id=f"pokemon_a_{i}",
-                set_id=f"set_a_{i}",
-                current_hp=300,
-                max_hp=300,
-            )
-            state.team_a.append(p)
-        
-        # Add team B
-        for i in range(6):
-            p = PokemonState(
-                pokemon_id=f"pokemon_b_{i}",
-                set_id=f"set_b_{i}",
-                current_hp=300,
-                max_hp=300,
-            )
-            state.team_b.append(p)
-        
-        assert len(state.team_a) == 6
-        assert len(state.team_b) == 6
-        assert state.turn == 0
-
-    def test_switching(self):
-        """Test Pokémon switching."""
-        state = GameState()
-        
-        p1 = PokemonState(pokemon_id="p1", set_id="s1", current_hp=300, max_hp=300)
-        p2 = PokemonState(pokemon_id="p2", set_id="s2", current_hp=300, max_hp=300)
-        state.team_a = [p1, p2]
-        state.active_a = 0
-        
-        assert state.get_active_pokemon("a").pokemon_id == "p1"
-        
-        # Switch to p2
-        success = state.switch_pokemon("a", 1)
-        assert success
-        assert state.get_active_pokemon("a").pokemon_id == "p2"
-
-    def test_battle_end_detection(self):
-        """Test battle end detection."""
-        state = GameState()
-        
-        # Team A alive, Team B fainted
-        state.team_a = [PokemonState(pokemon_id="p1", set_id="s1", current_hp=300, max_hp=300)]
-        state.team_b = [PokemonState(pokemon_id="p2", set_id="s2", current_hp=0, max_hp=300)]
-        
-        is_over, winner = state.is_battle_over()
-        assert is_over
-        assert winner == "a"
 
 
 class TestAttributeFactory:

@@ -1,0 +1,9 @@
+{
+  "coverage_exponent": 1.5,
+  "coverage_magnitude": 0.8,
+  "score_aggregation": "sum",
+  "min_contribution_pct": 5.0,
+  "angular_distribution": "coverage",
+  "animation_frames": 12,
+  "animation_interval_ms": 16
+}

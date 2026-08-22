@@ -74,7 +74,6 @@ export default defineConfig({
       '@pokeredus/core': path.resolve(__dirname, '../core/src/index.ts'),
       '@pokeredus/engine': path.resolve(__dirname, '../engine/src/index.ts'),
       '@pokeredus/calc': path.resolve(__dirname, '../calc/src/index.ts'),
-      '@pokeredus/biases': path.resolve(__dirname, '../biases/src/index.ts'),
       'node:fs': path.resolve(__dirname, 'src/stubs/fs.ts'),
       'node:crypto': path.resolve(__dirname, 'src/stubs/crypto.ts'),
       'node:path': path.resolve(__dirname, 'src/stubs/path.ts'),
