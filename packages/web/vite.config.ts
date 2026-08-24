@@ -67,7 +67,7 @@ function teamsApiPlugin(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), teamsApiPlugin(), gamesApiPlugin(root)],
+  plugins: [react(), teamsApiPlugin(), gamesApiPlugin(root), scenariosApiPlugin(root)],
   resolve: {
     alias: {
       '@pokeredus/pack/schema': path.resolve(__dirname, '../pack/src/schema.ts'),
