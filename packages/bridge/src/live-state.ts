@@ -247,6 +247,7 @@ export class LiveStateWriter {
       theirs: slotsFromObservation(obs, 'theirs'),
     };
     this.flush();
+    this.writeObservation(obs);
   }
 
   fromDecision(result: DecideResult): void {
