@@ -40,6 +40,10 @@ export interface LiveChoice {
   expectedImpact: number;
   expectedHealthDelta: number;
   expectedModifierDelta: number;
+  ourHealth: number;
+  theirHealth: number;
+  ourModifier: number;
+  theirModifier: number;
   hitsToKill: number | null;
   choiceScore: number;
   probability?: number;
@@ -50,6 +54,14 @@ export interface LiveReply {
   type: string;
   expectedImpact: number;
   hitsToKillUs: number | null;
+  choiceScore?: number;
+  probability?: number;
+  expectedHealthDelta?: number;
+  expectedModifierDelta?: number;
+  ourHealth?: number;
+  theirHealth?: number;
+  ourModifier?: number;
+  theirModifier?: number;
 }
 
 export interface LiveQuantum {
