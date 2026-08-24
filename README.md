@@ -189,9 +189,9 @@ npx tsx packages/cli/src/cli.ts live --battle <roomid> --policy quantum --dry-ru
 `--dry-run` logs the sampled choice and never sends it. The launcher default is dry-run; `--send` turns that off.
 
 The live CLI overwrites `live-state.json` (or `$POKELINK_STATE`) each event and
-decision. Open **Games** in the web UI for current `roundScore`, choice CTA/CTS,
-the sampled action, side HP, and a rolling protocol log. Use **Connect & detect**
-to list battles on your Showdown account, then **Attach** to run the engine.
+decision. Open **Games** in the web UI, then **Attach** (or **Open battle**) to
+reach `/games/live` for `roundScore`, ranked choice bars, 6v6 HP, and field
+badges. Use **Connect & detect** to list battles on your Showdown account.
 
 ## Decision log
 
