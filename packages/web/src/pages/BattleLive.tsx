@@ -20,6 +20,8 @@ export default function BattleLive() {
   const navigate = useNavigate();
   const [live, setLive] = useState<LiveState>({ status: 'idle' });
   const [busy, setBusy] = useState(false);
+  const [ourTera, setOurTera] = useState(false);
+  const [theirTera, setTheirTera] = useState(false);
 
   useEffect(() => {
     getLiveState().then(setLive).catch(() => { /* ignore */ });
