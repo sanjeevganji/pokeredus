@@ -301,14 +301,119 @@ function hpText(hp: number, maxHp: number): string {
   return maxHp > 0 ? `${hp}/${maxHp}` : String(hp);
 }
 
-function hudSlots(mons: BattleTracker['myMons']): LiveSlot[] {
-  return [...mons.values()].map((m) => ({
-    speciesId: m.speciesId,
-    hp: m.hp,
-    maxHp: m.maxHp || 100,
-    status: m.status,
-    fainted: m.fainted,
-    active: m.active,
-    revealed: true,
+function hudSlots(mons: BattleTracker['myMons'], weather = ''): LiveSlot[] {
+  return padSlots([...mons.values()].map((m) => {
+    const boosts = { ...m.boosts };
+    return {
+      speciesId: m.speciesId,
+      hp: m.hp,
+      maxHp: m.maxHp || 100,
+      status: m.status,
+      fainted: m.fainted,
+      active: m.active,
+      revealed: true,
+      boosts,
+      modifiers: modifiersFromSlot({
+        slot: 0,
+        speciesId: m.speciesId,
+        revealed: true,
+        hp: m.hp,
+        maxHp: m.maxHp || 100,
+        status: m.status,
+        boosts,
+        fainted: m.fainted,
+        active: m.active,
+        knownMoves: [],
+        hypotheses: [],
+        modifiers: [],
+      }, weather),
+    };
   }));
+}
+
+function blankSlot(): LiveSlot {
+  return {
+    speciesId: '',
+    hp: 0,
+    maxHp: 100,
+    status: '',
+    fainted: false,
+    active: false,
+    revealed: false,
+    boosts: emptyBoosts(),
+    modifiers: [],
+  };
+}
+
+export function padSlots(slots: LiveSlot[]): LiveSlot[] {
+  const out = slots.slice(0, LIVE_SLOT_COUNT);
+  while (out.length < LIVE_SLOT_COUNT) out.push(blankSlot());
+  return out;
+}
+
+function emptyHazards(): LiveHazards {
+  return { stealthrock: false, spikes: 0, toxicspikes: 0, stickyweb: false };
+}
+
+function emptySideField(): LiveSideField {
+  return { hazards: emptyHazards(), reflect: 0, lightscreen: 0 };
+}
+
+function emptyLiveField(): LiveField {
+  return { weather: '', terrain: '', trickroom: false, ours: emptySideField(), theirs: emptySideField() };
+}
+
+function sideField(
+  oursIsP1: boolean,
+  field: FieldSnapshot | BattleTracker['field'],
+  ours: boolean,
+): LiveSideField {
+  const p1 = ours === oursIsP1;
+  if ('hazards_p1' in field) {
+    return {
+      hazards: { ...(p1 ? field.hazards_p1 : field.hazards_p2) },
+      reflect: p1 ? field.reflect_p1 : field.reflect_p2,
+      lightscreen: p1 ? field.lightscreen_p1 : field.lightscreen_p2,
+    };
+  }
+  return {
+    hazards: { ...(p1 ? field.hazards_a : field.hazards_b) },
+    reflect: p1 ? field.reflect_a : field.reflect_b,
+    lightscreen: p1 ? field.lightscreen_a : field.lightscreen_b,
+  };
+}
+
+function liveFieldFromObs(obs: BattleObservation): LiveField {
+  const oursIsP1 = obs.ourSide !== 'p2';
+  return {
+    weather: obs.field.weather,
+    terrain: obs.field.terrain,
+    trickroom: obs.field.trickroom,
+    ours: sideField(oursIsP1, obs.field, true),
+    theirs: sideField(oursIsP1, obs.field, false),
+  };
+}
+
+function liveFieldFromTracker(tracker: BattleTracker): LiveField {
+  const oursIsP1 = tracker.ourSide !== 'p2';
+  return {
+    weather: tracker.field.weather,
+    terrain: tracker.field.terrain,
+    trickroom: tracker.field.trickroom,
+    ours: sideField(oursIsP1, tracker.field, true),
+    theirs: sideField(oursIsP1, tracker.field, false),
+  };
+}
+
+function quantumFromDiag(diag?: Record<string, unknown>): LiveQuantum | undefined {
+  if (!diag) return undefined;
+  const nQubits = diag.n_qubits;
+  const shots = diag.shots;
+  const exact = diag.exact;
+  return {
+    mode: String(diag.mode ?? 'unknown'),
+    nQubits: typeof nQubits === 'number' ? nQubits : undefined,
+    shots: shots == null ? undefined : Number(shots),
+    exact: typeof exact === 'boolean' ? exact : undefined,
+  };
 }
