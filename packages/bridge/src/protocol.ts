@@ -120,6 +120,14 @@ function splitIdentity(identity: string): { side: PlayerSide; slot: string } {
   return { side, slot };
 }
 
+function identityName(identity: string): string {
+  return (identity.split(':')[1] ?? identity).trim();
+}
+
+function monKey(identity: string, speciesId = ''): string {
+  return toId(identityName(identity)) || speciesId;
+}
+
 function sideFromPlayer(player: string): PlayerSide {
   return player.startsWith('p1') ? 'p1' : 'p2';
 }
