@@ -338,7 +338,7 @@ function blankSlot(): LiveSlot {
   };
 }
 
-export function padSlots(slots: LiveSlot[]): LiveSlot[] {
+function padSlots(slots: LiveSlot[]): LiveSlot[] {
   const out = slots.slice(0, LIVE_SLOT_COUNT);
   while (out.length < LIVE_SLOT_COUNT) out.push(blankSlot());
   return out;
