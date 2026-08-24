@@ -93,7 +93,7 @@ export async function decideAndAct(
       diagnostics: response.diagnostics,
     });
   }
-  return { evaluation, probabilities, sampledId, sent, diagnostics: response.diagnostics };
+  return { evaluation, probabilities, sampledId, sent, diagnostics: response.diagnostics, teraOurs, teraTheirs };
 }
 
 export type { CanonicalSet };
