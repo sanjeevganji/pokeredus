@@ -103,7 +103,9 @@ describe('LiveStateWriter', () => {
     expect(snap.eval.sampledAction).toBe('move:earthquake');
     expect(snap.eval.choices[0].choiceScore).toBe(1.1);
     expect(snap.eval.choices[0].hitsToKill).toBe(2);
+    expect(snap.eval.choices[0].ourHealth).toBe(0);
     expect(snap.eval.replies[0].id).toBe('move:recover');
+    expect(snap.eval.replies[0].choiceScore).toBe(0.3);
     expect(snap.eval.quantum.mode).toBe('quantum');
     expect(snap.eval.quantum.nQubits).toBe(1);
     expect(snap.turns).toHaveLength(1);
