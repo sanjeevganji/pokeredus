@@ -144,13 +144,14 @@ function SideFieldBadges({ side }: { side?: LiveField['ours'] }) {
 }
 
 function Bench({
-  title, slots, field, accent, area,
+  title, slots, field, accent, area, tera,
 }: {
   title: string;
   slots: LiveSlot[];
   field?: LiveField['ours'];
   accent: 'cyan' | 'pink';
   area: string;
+  tera?: boolean;
 }) {
   const six = [...slots];
   while (six.length < 6) {
