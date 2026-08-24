@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { enumerateFromRequest } from '../src/actions.js';
 
 describe('enumerateFromRequest', () => {
-  it('emits moves, tera variants, and switches from a Showdown request', () => {
+  it('emits moves and switches without tera variants', () => {
     const actions = enumerateFromRequest({
       active: [{
         moves: [
