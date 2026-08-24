@@ -1,6 +1,6 @@
 import { createRequire } from 'node:module';
-import type { BattleObservation, CanonicalSet, LegalAction, SlotSnapshot } from './observation.js';
-import { placeholderSet } from './observation.js';
+import type { BattleObservation, CanonicalSet, FieldSnapshot, LegalAction, SlotSnapshot } from './observation.js';
+import { emptyField, placeholderSet } from './observation.js';
 import { modifiersFromSlot } from './math.js';
 import { simChoice } from './actions.js';
 
