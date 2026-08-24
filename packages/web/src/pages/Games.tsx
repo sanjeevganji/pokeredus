@@ -63,6 +63,7 @@ export default function Games() {
   }, [snap.connected, snap.attached]);
 
   useEffect(() => {
+    getLiveState().then(setLive).catch(() => { /* ignore */ });
     const t = setInterval(() => {
       getLiveState().then(setLive).catch(() => { /* ignore */ });
     }, 250);
