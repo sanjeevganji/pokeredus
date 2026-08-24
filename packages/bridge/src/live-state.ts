@@ -186,10 +186,11 @@ export class LiveStateWriter {
       dryRun: opts.dryRun,
       policy: opts.policy,
       turn: 0,
-      field: { weather: '', terrain: '', trickroom: false },
-      ours: [],
-      theirs: [],
+      field: emptyLiveField(),
+      ours: padSlots([]),
+      theirs: padSlots([]),
       events: [],
+      turns: [],
     };
   }
 
