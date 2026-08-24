@@ -49,6 +49,17 @@ function theirActions(obs: BattleObservation, hyp: CanonicalSet | undefined): Le
   return out;
 }
 
+function hpFrac(slots: SlotSnapshot[], index: number): number {
+  const s = slots[index];
+  if (!s || s.fainted || s.maxHp <= 0) return 0;
+  return Math.max(0, Math.min(1, s.hp / s.maxHp));
+}
+
+function activeIndex(slots: SlotSnapshot[]): number {
+  const i = slots.findIndex((s) => s.active);
+  return i >= 0 ? i : 0;
+}
+
 function switchStayScores(obs: BattleObservation, action: LegalAction): { stay: number; after: number } {
   const stay = observationStateScore(obs.ours, obs.theirs);
   if (action.type !== 'switch' || action.slot === undefined) return { stay, after: stay };
