@@ -116,8 +116,13 @@ describe('official Showdown one-round sim', () => {
     };
     const evaluation = evaluateRound(obs, { chanceSeeds: 1 });
     expect(evaluation.choices.length).toBeGreaterThan(0);
+    expect(evaluation.replies.length).toBeGreaterThan(0);
     expect(evaluation.roundScore).toBeGreaterThanOrEqual(-6);
     expect(evaluation.roundScore).toBeLessThanOrEqual(6);
+    for (const c of evaluation.choices) {
+      expect(c.choiceScore).toBeCloseTo(c.success * c.expectedImpact);
+      expect(c.expectedHealthDelta + c.expectedModifierDelta).toBeCloseTo(c.expectedImpact);
+    }
 
     const policy = new QuantumPolicyProcess({ timeoutMs: 20_000 });
     try {
