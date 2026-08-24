@@ -25,6 +25,7 @@ export default function App() {
         <Route element={<AppShell />}>
           <Route path="/" element={<Home />} />
           <Route path="/games" element={<Games />} />
+          <Route path="/scenarios" element={<Scenarios />} />
           <Route path="/teams" element={<TeamBuilder />} />
           <Route path="/browser" element={<PokemonBrowser />} />
           <Route path="/graph" element={<MatchupGraph />} />
