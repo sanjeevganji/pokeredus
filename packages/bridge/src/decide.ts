@@ -6,6 +6,7 @@ import {
   appendDecisionLog,
   QuantumPolicyProcess,
   withOurTera,
+  loadWeights,
   type RoundEvaluation,
 } from '@pokeredus/engine';
 
@@ -21,7 +22,7 @@ export interface DecideOptions {
   shots?: number | null;
   logPath?: string;
   rng?: () => number;
-  evaluate?: (obs: BattleObservation) => RoundEvaluation;
+  evaluate?: (obs: BattleObservation) => RoundEvaluation | Promise<RoundEvaluation>;
 }
 
 export interface DecideResult {
@@ -34,38 +35,63 @@ export interface DecideResult {
   teraTheirs?: RoundEvaluation;
 }
 
+function probsFromEval(ev: RoundEvaluation): number[] | null {
+  const p = ev.choices.map((c) => c.probability ?? 0);
+  if (p.length !== ev.choices.length || p.some((x) => x == null)) return null;
+  const sum = p.reduce((a, b) => a + b, 0);
+  if (!(sum > 0)) return null;
+  return p.map((x) => x / sum);
+}
+
 export async function decideAndAct(
   client: DecideClient,
   obs: BattleObservation,
   opts: DecideOptions,
 ): Promise<DecideResult> {
-  const evaluate = opts.evaluate ?? evaluateRound;
-  const evaluation = evaluate(obs);
-  const teraOurs = opts.evaluate ? undefined : evaluateRound(withOurTera(obs));
-  const teraTheirs = opts.evaluate ? undefined : evaluateRound(obs, { theirTera: true });
+  const evaluate = opts.evaluate ?? ((o: BattleObservation) => evaluateRound(o, {
+    refine: opts.process,
+    policy: opts.policy,
+    seed: opts.seed,
+    shots: opts.shots,
+    weights: loadWeights(),
+    refineFallback: 'throw',
+  }));
+  const evaluation = await Promise.resolve(evaluate(obs));
+  const teraOurs = opts.evaluate ? undefined : await evaluateRound(withOurTera(obs), { weights: loadWeights() });
+  const teraTheirs = opts.evaluate ? undefined : await evaluateRound(obs, { theirTera: true, weights: loadWeights() });
   const ids = evaluation.choices.map((c) => c.action.id);
   if (!ids.length) {
     console.warn('[pokeredus] no legal actions this turn');
     return { evaluation, probabilities: [], sampledId: '', sent: false, teraOurs, teraTheirs };
   }
-  const scores = evaluation.choices.map((c) => c.scaledChoiceScore);
-  let response;
-  try {
-    response = await opts.process.decide({
-      actions: ids,
-      scores,
-      mode: opts.policy ?? 'quantum',
-      seed: opts.seed,
-      shots: opts.shots ?? null,
-    });
-  } catch (err) {
-    console.error('[pokeredus] quantum policy failed; not sending a choice:', err);
-    throw err;
+
+  let probabilities = probsFromEval(evaluation);
+  let diagnostics = evaluation.diagnostics;
+  if (!probabilities) {
+    const scores = evaluation.choices.map((c) => c.scaledChoiceScore);
+    let response;
+    try {
+      response = await opts.process.decide({
+        actions: ids,
+        scores,
+        mode: opts.policy ?? 'quantum',
+        seed: opts.seed,
+        shots: opts.shots ?? null,
+      });
+    } catch (err) {
+      console.error('[pokeredus] quantum policy failed; not sending a choice:', err);
+      throw err;
+    }
+    probabilities = response.probabilities;
+    diagnostics = response.diagnostics;
+    if (probabilities.length !== ids.length) {
+      throw new Error('quantum policy returned a distribution that does not match legal actions');
+    }
+    for (let i = 0; i < evaluation.choices.length; i++) {
+      evaluation.choices[i]!.probability = probabilities[i];
+    }
   }
-  const probabilities = response.probabilities;
-  if (probabilities.length !== ids.length) {
-    throw new Error('quantum policy returned a distribution that does not match legal actions');
-  }
+
   const sampledId = sampleAction(ids, probabilities, opts.rng);
   const choice = evaluation.choices.find((c) => c.action.id === sampledId);
   if (!choice) throw new Error(`sampled illegal action ${sampledId}`);
@@ -90,10 +116,10 @@ export async function decideAndAct(
       probabilities,
       sampledAction: sampledId,
       policy: opts.policy ?? 'quantum',
-      diagnostics: response.diagnostics,
+      diagnostics,
     });
   }
-  return { evaluation, probabilities, sampledId, sent, diagnostics: response.diagnostics, teraOurs, teraTheirs };
+  return { evaluation, probabilities, sampledId, sent, diagnostics, teraOurs, teraTheirs };
 }
 
 export type { CanonicalSet };
