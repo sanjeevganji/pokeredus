@@ -5,6 +5,7 @@ import {
   getLiveState,
   type LiveChoice,
   type LiveField,
+  type LiveQuantum,
   type LiveReply,
   type LiveSlot,
   type LiveState,
