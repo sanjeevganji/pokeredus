@@ -4,6 +4,7 @@ import type {
   ChoiceEvaluation,
   LegalAction,
   PairScore,
+  PolicyMode,
   ReplyEvaluation,
   RoundEvaluation,
   SetHypothesis,
