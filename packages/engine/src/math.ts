@@ -70,24 +70,45 @@ export function cts(afterSwitch: number, stay: number, forced: boolean, eps = EP
   return sigmoid((afterSwitch - stay) / denom);
 }
 
-export function impact(
+export interface ImpactParts {
+  health: number;
+  modifier: number;
+  total: number;
+}
+
+export function impactParts(
   before: MonValue[],
   after: MonValue[],
   expectedValueTurns = EXPECTED_VALUE_TURNS,
-): number {
+): ImpactParts {
   const n = Math.min(before.length, after.length);
-  let sum = 0;
+  let health = 0;
+  let modifier = 0;
   for (let i = 0; i < n; i++) {
     const b = before[i]!;
     const a = after[i]!;
     if (!b.revealed && !a.revealed) continue;
     const dh = a.h - b.h;
     const dM = a.M - b.M;
-    const signedHealth = b.side === 'ours' ? dh : -dh;
-    const signedMod = b.side === 'ours' ? dM : -dM;
-    sum += signedHealth + signedMod * expectedValueTurns;
+    health += b.side === 'ours' ? dh : -dh;
+    modifier += (b.side === 'ours' ? dM : -dM) * expectedValueTurns;
   }
-  return sum;
+  return { health, modifier, total: health + modifier };
+}
+
+export function impact(
+  before: MonValue[],
+  after: MonValue[],
+  expectedValueTurns = EXPECTED_VALUE_TURNS,
+): number {
+  return impactParts(before, after, expectedValueTurns).total;
+}
+
+/** Hits to KO from expected HP fraction lost. Null when no damage. */
+export function hitsToKill(hBefore: number, hAfter: number): number | null {
+  const damage = hBefore - hAfter;
+  if (!(damage > EPS) || !(hBefore > EPS)) return null;
+  return Math.ceil(hBefore / damage);
 }
 
 export function choiceScore(success: number, expectedImpact: number): number {

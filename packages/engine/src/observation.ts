@@ -113,13 +113,23 @@ export interface ChoiceEvaluation {
   cta?: number;
   cts?: number;
   expectedImpact: number;
+  expectedHealthDelta: number;
+  expectedModifierDelta: number;
+  hitsToKill: number | null;
   choiceScore: number;
   scaledChoiceScore: number;
   meanPostScore: number;
 }
 
+export interface ReplyEvaluation {
+  action: LegalAction;
+  expectedImpact: number;
+  hitsToKillUs: number | null;
+}
+
 export interface RoundEvaluation {
   choices: ChoiceEvaluation[];
+  replies: ReplyEvaluation[];
   roundScore: number;
   forcedOutcome: ForcedOutcome;
   mateProbability: number;
