@@ -135,6 +135,113 @@ export function choiceScore(success: number, expectedImpact: number): number {
   return success * expectedImpact;
 }
 
+export interface ScoreWeights {
+  health: number;
+  modifier: number;
+  secondary: number;
+  switchRisk: number;
+  sacrifice: number;
+}
+
+export const DEFAULT_WEIGHTS: ScoreWeights = {
+  health: 1, modifier: 1, secondary: 1, switchRisk: 1, sacrifice: 1,
+};
+
+export const WEIGHT_KEYS = ['health', 'modifier', 'secondary', 'switchRisk', 'sacrifice'] as const;
+export type WeightKey = (typeof WEIGHT_KEYS)[number];
+
+export interface ChoiceFeatures {
+  health: number;
+  modifier: number;
+  secondary: number;
+  switchRisk: number;
+  sacrifice: number;
+}
+
+export function emptyFeatures(): ChoiceFeatures {
+  return { health: 0, modifier: 0, secondary: 0, switchRisk: 0, sacrifice: 0 };
+}
+
+export function choiceFeatures(parts: ImpactParts, extras: { secondary: number; switchRisk: number; sacrifice: number }): ChoiceFeatures {
+  return {
+    health: parts.health,
+    modifier: parts.modifier,
+    secondary: extras.secondary,
+    switchRisk: extras.switchRisk,
+    sacrifice: extras.sacrifice,
+  };
+}
+
+export function weightedRaw(features: ChoiceFeatures, weights: ScoreWeights): number {
+  return weights.health * features.health
+    + weights.modifier * features.modifier
+    + weights.secondary * features.secondary
+    + weights.sacrifice * features.sacrifice
+    - weights.switchRisk * features.switchRisk;
+}
+
+export function scoredChoice(success: number, features: ChoiceFeatures, weights: ScoreWeights): number {
+  return success * weightedRaw(features, weights);
+}
+
+export function softmax(scores: number[]): number[] {
+  if (!scores.length) return [];
+  const m = Math.max(...scores);
+  const ex = scores.map((s) => Math.exp(s - m));
+  const z = ex.reduce((a, b) => a + b, 0);
+  if (!(z > 0)) return scores.map(() => 1 / scores.length);
+  return ex.map((e) => e / z);
+}
+
+function statusBite(status: string): number {
+  if (status === 'slp' || status === 'frz') return 0.35;
+  if (status === 'tox') return 0.3;
+  if (status === 'psn') return 0.15;
+  return 0;
+}
+
+function hazardsBite(h: FieldSnapshot['hazards_p1']): number {
+  return (h.stealthrock ? 0.12 : 0) + h.spikes * 0.06 + h.toxicspikes * 0.08 + (h.stickyweb ? 0.08 : 0);
+}
+
+function sideKey(ourSide: PlayerSide, ours: boolean): 'p1' | 'p2' {
+  if (ours) return ourSide;
+  return ourSide === 'p1' ? 'p2' : 'p1';
+}
+
+/** Residual value (hazards, screens, status not already in M). Positive is good for us. */
+export function secondaryDelta(
+  beforeOurs: SlotSnapshot[],
+  afterOurs: SlotSnapshot[],
+  beforeTheirs: SlotSnapshot[],
+  afterTheirs: SlotSnapshot[],
+  beforeField: FieldSnapshot,
+  afterField: FieldSnapshot,
+  ourSide: PlayerSide,
+): number {
+  let s = 0;
+  const nOurs = Math.min(beforeOurs.length, afterOurs.length);
+  for (let i = 0; i < nOurs; i++) {
+    s -= statusBite(afterOurs[i]!.status) - statusBite(beforeOurs[i]!.status);
+  }
+  const nTheirs = Math.min(beforeTheirs.length, afterTheirs.length);
+  for (let i = 0; i < nTheirs; i++) {
+    s += statusBite(afterTheirs[i]!.status) - statusBite(beforeTheirs[i]!.status);
+  }
+  const ourH = sideKey(ourSide, true);
+  const theirH = sideKey(ourSide, false);
+  const hz = (f: FieldSnapshot, k: 'p1' | 'p2') => (k === 'p1' ? f.hazards_p1 : f.hazards_p2);
+  s -= hazardsBite(hz(afterField, ourH)) - hazardsBite(hz(beforeField, ourH));
+  s += hazardsBite(hz(afterField, theirH)) - hazardsBite(hz(beforeField, theirH));
+  const ref = (f: FieldSnapshot, k: 'p1' | 'p2') => (k === 'p1' ? f.reflect_p1 : f.reflect_p2);
+  const ls = (f: FieldSnapshot, k: 'p1' | 'p2') => (k === 'p1' ? f.lightscreen_p1 : f.lightscreen_p2);
+  s += 0.08 * Math.sign((ref(afterField, ourH) || 0) - (ref(beforeField, ourH) || 0));
+  s -= 0.08 * Math.sign((ref(afterField, theirH) || 0) - (ref(beforeField, theirH) || 0));
+  s += 0.08 * Math.sign((ls(afterField, ourH) || 0) - (ls(beforeField, ourH) || 0));
+  s -= 0.08 * Math.sign((ls(afterField, theirH) || 0) - (ls(beforeField, theirH) || 0));
+  return s;
+}
+
 export function roundScore(postScores: number[]): number {
   if (!postScores.length) return 0;
   return postScores.reduce((a, b) => a + b, 0) / postScores.length;
