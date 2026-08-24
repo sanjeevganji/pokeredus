@@ -76,8 +76,9 @@ export default function BattleLive() {
         <>
           <ScoreStrip state={live} />
           <div className="theater-body">
-            <Bench title="Ours" slots={live.ours ?? []} field={live.field?.ours} accent="cyan" />
+            <Bench area="ours" title="Ours" slots={live.ours ?? []} field={live.field?.ours} accent="cyan" />
             <ChoiceList
+              area="ourc"
               title="Our choices"
               rows={rankOurs(live.eval?.choices ?? [])}
               sampled={live.eval?.sampledAction}
@@ -85,8 +86,9 @@ export default function BattleLive() {
               slots={live.ours}
               ours
             />
-            <Bench title="Theirs" slots={live.theirs ?? []} field={live.field?.theirs} accent="pink" />
+            <Bench area="theirs" title="Theirs" slots={live.theirs ?? []} field={live.field?.theirs} accent="pink" />
             <ChoiceList
+              area="theirc"
               title="Their replies"
               rows={rankTheirs(live.eval?.replies ?? [])}
               slots={live.theirs}
