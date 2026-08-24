@@ -373,9 +373,13 @@ function toLiveChoices(ev: DecideResult['evaluation'], probabilities?: number[])
     expectedImpact: c.expectedImpact,
     expectedHealthDelta: c.expectedHealthDelta ?? 0,
     expectedModifierDelta: c.expectedModifierDelta ?? 0,
+    ourHealth: c.ourHealth ?? 0,
+    theirHealth: c.theirHealth ?? 0,
+    ourModifier: c.ourModifier ?? 0,
+    theirModifier: c.theirModifier ?? 0,
     hitsToKill: c.hitsToKill ?? null,
     choiceScore: c.choiceScore,
-    probability: probabilities?.[i],
+    probability: probabilities?.[i] ?? c.probability,
   }));
 }
 
@@ -385,6 +389,14 @@ function toLiveReplies(replies: NonNullable<DecideResult['evaluation']['replies'
     type: r.action.type,
     expectedImpact: r.expectedImpact,
     hitsToKillUs: r.hitsToKillUs,
+    choiceScore: r.choiceScore,
+    probability: r.probability,
+    expectedHealthDelta: r.expectedHealthDelta,
+    expectedModifierDelta: r.expectedModifierDelta,
+    ourHealth: r.ourHealth,
+    theirHealth: r.theirHealth,
+    ourModifier: r.ourModifier,
+    theirModifier: r.theirModifier,
   }));
 }
 
