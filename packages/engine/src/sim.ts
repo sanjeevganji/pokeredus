@@ -140,6 +140,54 @@ export interface RoundSimResult {
   theyWin: boolean;
 }
 
+function condLayers(sc: AnySide['sideConditions'], name: string): number {
+  const v = sc?.[name];
+  if (!v) return 0;
+  if (typeof v === 'object') {
+    const o = v as { layers?: number; levels?: number };
+    if (typeof o.layers === 'number') return o.layers;
+    if (typeof o.levels === 'number') return o.levels;
+    return 1;
+  }
+  return 1;
+}
+
+function idOf(v: unknown): string {
+  if (!v) return '';
+  if (typeof v === 'string') return v;
+  if (typeof v === 'object' && v && 'id' in v) return String((v as { id?: string }).id ?? '');
+  return String(v);
+}
+
+function snapshotField(battle: AnyBattle, prev: FieldSnapshot): FieldSnapshot {
+  const p1 = battle.p1.sideConditions;
+  const p2 = battle.p2.sideConditions;
+  if (!p1 && !p2) return { ...prev };
+  const weather = idOf(battle.field?.weather) || prev.weather;
+  const terrain = idOf(battle.field?.terrain) || prev.terrain;
+  return {
+    weather,
+    terrain,
+    trickroom: prev.trickroom,
+    hazards_p1: {
+      stealthrock: condLayers(p1, 'stealthrock') > 0,
+      spikes: condLayers(p1, 'spikes'),
+      toxicspikes: condLayers(p1, 'toxicspikes'),
+      stickyweb: condLayers(p1, 'stickyweb') > 0,
+    },
+    hazards_p2: {
+      stealthrock: condLayers(p2, 'stealthrock') > 0,
+      spikes: condLayers(p2, 'spikes'),
+      toxicspikes: condLayers(p2, 'toxicspikes'),
+      stickyweb: condLayers(p2, 'stickyweb') > 0,
+    },
+    reflect_p1: condLayers(p1, 'reflect'),
+    reflect_p2: condLayers(p2, 'reflect'),
+    lightscreen_p1: condLayers(p1, 'lightscreen'),
+    lightscreen_p2: condLayers(p2, 'lightscreen'),
+  };
+}
+
 function snapshotSide(mons: AnyPokemon[], prev: SlotSnapshot[], weather: string): SlotSnapshot[] {
   return prev.map((slot, i) => {
     const p = mons[i];
