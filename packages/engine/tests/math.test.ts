@@ -59,6 +59,23 @@ describe('impact and choice/round', () => {
     expect(choiceScore(0.5, 2)).toBe(1);
   });
 
+  it('impactParts splits health and modifier and totals to impact', () => {
+    const before = [mon('ours', 0.5, 1, 0), mon('theirs', 1, 1, 0)];
+    const after = [mon('ours', 0.5, 1, 0.2), mon('theirs', 0.4, 1, 0)];
+    const parts = impactParts(before, after);
+    expect(parts.total).toBe(impact(before, after));
+    expect(parts.health).toBeCloseTo(0.6);
+    expect(parts.modifier).toBeGreaterThan(0);
+    expect(parts.health + parts.modifier).toBeCloseTo(parts.total);
+  });
+
+  it('hitsToKill is ceil of remaining over expected damage', () => {
+    expect(hitsToKill(1, 0.4)).toBe(2);
+    expect(hitsToKill(1, 0)).toBe(1);
+    expect(hitsToKill(0.5, 0.5)).toBeNull();
+    expect(hitsToKill(0.5, 0.8)).toBeNull();
+  });
+
   it('roundScore is the uniform mean', () => {
     expect(roundScore([1, 3, 5])).toBe(3);
     expect(roundScore([])).toBe(0);
