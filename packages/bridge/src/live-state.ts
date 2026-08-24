@@ -28,6 +28,8 @@ export interface LiveSlot {
   fainted: boolean;
   active: boolean;
   revealed: boolean;
+  boosts: Boosts;
+  modifiers: { name: string; multiplier: number; remainingTurns: number }[];
 }
 
 export interface LiveChoice {
@@ -36,8 +38,25 @@ export interface LiveChoice {
   cta?: number;
   cts?: number;
   expectedImpact: number;
+  expectedHealthDelta: number;
+  expectedModifierDelta: number;
+  hitsToKill: number | null;
   choiceScore: number;
   probability?: number;
+}
+
+export interface LiveReply {
+  id: string;
+  type: string;
+  expectedImpact: number;
+  hitsToKillUs: number | null;
+}
+
+export interface LiveQuantum {
+  mode: string;
+  nQubits?: number;
+  shots?: number;
+  exact?: boolean;
 }
 
 export interface LiveEval {
@@ -46,6 +65,35 @@ export interface LiveEval {
   mateProbability: number;
   sampledAction: string;
   choices: LiveChoice[];
+  replies: LiveReply[];
+  quantum?: LiveQuantum;
+}
+
+export interface LiveTurn {
+  turn: number;
+  roundScore: number;
+  sampledAction: string;
+}
+
+export interface LiveHazards {
+  stealthrock: boolean;
+  spikes: number;
+  toxicspikes: number;
+  stickyweb: boolean;
+}
+
+export interface LiveSideField {
+  hazards: LiveHazards;
+  reflect: number;
+  lightscreen: number;
+}
+
+export interface LiveField {
+  weather: string;
+  terrain: string;
+  trickroom: boolean;
+  ours: LiveSideField;
+  theirs: LiveSideField;
 }
 
 export interface LiveEvent {
@@ -61,10 +109,11 @@ export interface LiveState {
   policy: string;
   turn: number;
   winner?: string;
-  field: { weather: string; terrain: string; trickroom: boolean };
+  field: LiveField;
   ours: LiveSlot[];
   theirs: LiveSlot[];
   eval?: LiveEval;
+  turns: LiveTurn[];
   events: LiveEvent[];
   error?: string;
 }
