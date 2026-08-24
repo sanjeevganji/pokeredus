@@ -159,17 +159,18 @@ export function summarizeEvent(ev: BattleEvent): string | null {
 }
 
 export function slotsFromObservation(obs: BattleObservation, side: 'ours' | 'theirs'): LiveSlot[] {
-  return obs[side]
-    .filter((s) => s.revealed || s.active)
-    .map((s) => ({
-      speciesId: s.speciesId,
-      hp: s.hp,
-      maxHp: s.maxHp || 100,
-      status: s.status,
-      fainted: s.fainted,
-      active: s.active,
-      revealed: s.revealed,
-    }));
+  const weather = obs.field.weather;
+  return padSlots(obs[side].map((s) => ({
+    speciesId: s.speciesId,
+    hp: s.hp,
+    maxHp: s.maxHp || 100,
+    status: s.status,
+    fainted: s.fainted,
+    active: s.active,
+    revealed: s.revealed,
+    boosts: { ...s.boosts },
+    modifiers: s.modifiers.length ? s.modifiers.map((m) => ({ ...m })) : modifiersFromSlot(s, weather),
+  })));
 }
 
 export class LiveStateWriter {
