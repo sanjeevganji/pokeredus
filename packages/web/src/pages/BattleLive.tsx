@@ -152,7 +152,7 @@ function Bench({
     });
   }
   return (
-    <section className={`card bench bench-${accent}`}>
+    <section className={`card bench bench-${accent} theater-${area}`}>
       <h2 className="bench-title">{title}</h2>
       <SideFieldBadges side={field} />
       <ul className="bench-list">
