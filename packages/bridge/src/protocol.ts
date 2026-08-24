@@ -526,7 +526,7 @@ export class BattleTracker {
         species: m.speciesId,
         moves: m.lastMove ? [m.lastMove] : [],
       };
-      let hypotheses = [];
+      let hypotheses: SetHypothesis[] = [];
       try {
         hypotheses = initialBelief(pool, facts);
       } catch (err) {
