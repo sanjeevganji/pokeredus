@@ -295,10 +295,10 @@ function assemble(
   }
 
   const replyEvals: ReplyEvaluation[] = replies.map((reply, j) => {
-    const mixed = mixFeatures(legal.map((action, i) => {
+    const mixed = mixFeatures(legal.flatMap((action, i) => {
       const cell = cells.get(pairKey(action.id, reply.id));
-      return { w: pOur[i] ?? 0, cell: cell! };
-    }).filter((x) => x.cell));
+      return cell ? [{ w: pOur[i] ?? 0, cell }] : [];
+    }));
     const flipped = flipFeatures(mixed.features);
     const raw = scoredChoice(1, flipped, weights);
     return {
