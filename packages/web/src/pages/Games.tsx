@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   attachGame,
   cancelSearch,
@@ -10,7 +11,6 @@ import {
   searchGames,
   type DetectedGame,
   type GamesSnapshot,
-  type LiveSlot,
   type LiveState,
 } from '../lib/games';
 
