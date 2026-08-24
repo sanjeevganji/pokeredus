@@ -198,17 +198,6 @@ function flipFeatures(f: ChoiceFeatures): ChoiceFeatures {
   };
 }
 
-function weightedMean<T>(items: Array<{ w: number; v: T }>, add: (acc: T, v: T, w: number) => void, zero: () => T): T {
-  const acc = zero();
-  let w = 0;
-  for (const it of items) {
-    if (!(it.w > 0)) continue;
-    add(acc, it.v, it.w);
-    w += it.w;
-  }
-  return acc;
-}
-
 function mixFeatures(cells: Array<{ w: number; cell: PairCell }>): { features: ChoiceFeatures; parts: ImpactParts; success: number; post: number; htk: { tb: number; ta: number; ob: number; oa: number } } {
   const z = {
     features: { health: 0, modifier: 0, secondary: 0, switchRisk: 0, sacrifice: 0 } as ChoiceFeatures,
