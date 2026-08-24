@@ -19,6 +19,17 @@ import {
 import { enumerateFromRequest } from '@pokeredus/engine';
 import { initialBelief, type RandomSetPool } from '@pokeredus/engine';
 import type { PackIndex } from '@pokeredus/pack';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+// #region agent log
+function agentLog(hypothesisId: string, location: string, message: string, data: unknown) {
+  const payload = { sessionId: '029c39', runId: 'pre', hypothesisId, location, message, data, timestamp: Date.now() };
+  try { fs.appendFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../debug-029c39.log'), JSON.stringify(payload) + '\n'); } catch { /* ignore */ }
+  fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '029c39' }, body: JSON.stringify(payload) }).catch(() => {});
+}
+// #endregion
 
 // ──────────────────────────────────────────────────────────────────────
 // Request JSON shapes (loose — only the fields we read)
