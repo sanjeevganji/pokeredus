@@ -77,8 +77,21 @@ function switchStayScores(obs: BattleObservation, action: LegalAction): { stay: 
   return { stay, after: observationStateScore(ours, obs.theirs) };
 }
 
-export function evaluateRound(obs: BattleObservation, opts?: { chanceSeeds?: number }): RoundEvaluation {
-  const legal = obs.legalActions.length ? obs.legalActions : enumerateFromRequest(obs.request as ShowdownRequest);
+export function withOurTera(obs: BattleObservation): BattleObservation {
+  const moves = obs.legalActions.filter((a) => a.type === 'move' && !a.tera);
+  const rest = obs.legalActions.filter((a) => a.type !== 'move');
+  const teraMoves = moves.map((a) => ({
+    ...a,
+    tera: true,
+    id: actionId({ type: 'move', moveId: a.moveId, tera: true }),
+  }));
+  return { ...obs, legalActions: [...teraMoves, ...rest] };
+}
+
+export function evaluateRound(obs: BattleObservation, opts?: { chanceSeeds?: number; theirTera?: boolean }): RoundEvaluation {
+  const legal = (obs.legalActions.length ? obs.legalActions : enumerateFromRequest(obs.request as ShowdownRequest))
+    .filter((a) => a.tera ? Boolean(opts?.theirTera) : !opts?.theirTera || a.type !== 'move' ? true : true)
+    .filter((a) => opts?.theirTera || !a.tera);
   const chanceN = opts?.chanceSeeds ?? CHANCE_SEEDS;
   const choices: ChoiceEvaluation[] = [];
   const postScores: number[] = [];
