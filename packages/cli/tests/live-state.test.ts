@@ -77,11 +77,13 @@ describe('LiveStateWriter', () => {
         choices: [{
           action: { id: 'move:earthquake', type: 'move', moveId: 'earthquake' },
           success: 1, cta: 0.9, expectedImpact: 1.2, expectedHealthDelta: 1.0, expectedModifierDelta: 0.2,
+          ourHealth: 0, theirHealth: -1, ourModifier: 0.2, theirModifier: 0,
           hitsToKill: 2, choiceScore: 1.1, scaledChoiceScore: 0.7, meanPostScore: 0.2,
+          features: { health: 1, modifier: 0.2, secondary: 0, switchRisk: 0, sacrifice: 0 },
         }],
         replies: [{
           action: { id: 'move:recover', type: 'move', moveId: 'recover' },
-          expectedImpact: -0.3, hitsToKillUs: null,
+          expectedImpact: -0.3, hitsToKillUs: null, choiceScore: 0.3,
         }],
         roundScore: 0.42,
         forcedOutcome: 'none',
