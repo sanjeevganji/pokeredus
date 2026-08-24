@@ -349,6 +349,16 @@ export class BattleTracker {
   teraUsed = false;
   lastRequest: RequestJson | null = null;
 
+  private monsFor(side: PlayerSide): Map<string, TrackedMon> {
+    return side === this.ourSide ? this.myMons : this.oppMons;
+  }
+
+  private findMon(side: PlayerSide, identity: string, speciesId = ''): TrackedMon | undefined {
+    const map = this.monsFor(side);
+    const key = monKey(identity, speciesId);
+    return map.get(key) ?? [...map.values()].find((m) => m.active);
+  }
+
   /** Parse and apply one raw protocol line. Returns the parsed event (for callers that branch on it). */
   applyLine(line: string): BattleEvent | null {
     const ev = parseLine(line);
