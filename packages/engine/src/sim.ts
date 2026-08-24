@@ -132,6 +132,7 @@ export function cloneBattle(battle: AnyBattle): AnyBattle {
 export interface RoundSimResult {
   afterOurs: SlotSnapshot[];
   afterTheirs: SlotSnapshot[];
+  afterField: FieldSnapshot;
   pHit: number;
   pExecute: number;
   aliveAtExecution: number;
