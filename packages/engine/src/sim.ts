@@ -254,6 +254,7 @@ export function simulateRound(
   const theirsPoke = obs.ourSide === 'p1' ? battle.p2.pokemon : battle.p1.pokemon;
   const afterOurs = snapshotSide(oursPoke, obs.ours, obs.field.weather);
   const afterTheirs = snapshotSide(theirsPoke, obs.theirs, obs.field.weather);
+  const afterField = snapshotField(battle, obs.field);
   const oursAfterActive = afterOurs.find((s) => s.active) ?? afterOurs[0];
   const aliveAtExecution = hpBefore > 0 && oursBefore && !oursBefore.fainted ? 1 : 0;
   const weWin = afterTheirs.every((s) => s.fainted || s.hp <= 0);
@@ -261,6 +262,7 @@ export function simulateRound(
   return {
     afterOurs,
     afterTheirs,
+    afterField,
     pHit: 1,
     pExecute: 1,
     aliveAtExecution: oursAfterActive && hpBefore > 0 ? aliveAtExecution : 0,
