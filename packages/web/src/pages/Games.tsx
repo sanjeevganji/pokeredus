@@ -138,6 +138,9 @@ export default function Games() {
           <button type="button" onClick={() => run('disconnect', () => disconnectGames())} disabled={!snap.connected && !snap.attached}>
             Disconnect
           </button>
+          {liveOn && (
+            <Link to="/games/live" className="btn-primary">Open battle</Link>
+          )}
         </div>
         <p className="muted" style={{ marginBottom: 0 }}>
           {statusLine(snap, busy)}
