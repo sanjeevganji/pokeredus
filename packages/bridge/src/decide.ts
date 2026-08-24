@@ -46,7 +46,7 @@ export async function decideAndAct(
   const ids = evaluation.choices.map((c) => c.action.id);
   if (!ids.length) {
     console.warn('[pokeredus] no legal actions this turn');
-    return { evaluation, probabilities: [], sampledId: '', sent: false };
+    return { evaluation, probabilities: [], sampledId: '', sent: false, teraOurs, teraTheirs };
   }
   const scores = evaluation.choices.map((c) => c.scaledChoiceScore);
   let response;
