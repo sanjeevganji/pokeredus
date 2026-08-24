@@ -114,13 +114,14 @@ describe('official Showdown one-round sim', () => {
       legalActions: legal,
       teraUsed: false,
     };
-    const evaluation = evaluateRound(obs, { chanceSeeds: 1 });
+    const evaluation = await evaluateRound(obs, { chanceSeeds: 1 });
     expect(evaluation.choices.length).toBeGreaterThan(0);
     expect(evaluation.replies.length).toBeGreaterThan(0);
     expect(evaluation.roundScore).toBeGreaterThanOrEqual(-6);
     expect(evaluation.roundScore).toBeLessThanOrEqual(6);
     for (const c of evaluation.choices) {
-      expect(c.choiceScore).toBeCloseTo(c.success * c.expectedImpact);
+      const raw = c.features.health + c.features.modifier + c.features.secondary + c.features.sacrifice - c.features.switchRisk;
+      expect(c.choiceScore).toBeCloseTo(c.success * raw);
       expect(c.expectedHealthDelta + c.expectedModifierDelta).toBeCloseTo(c.expectedImpact);
     }
 
