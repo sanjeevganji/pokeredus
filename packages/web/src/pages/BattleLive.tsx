@@ -328,6 +328,10 @@ function rankTheirs(replies: LiveReply[]): RankedRow[] {
       score: r.expectedImpact,
       hits: r.hitsToKillUs,
     }));
+  // #region agent log
+  fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'029c39'},body:JSON.stringify({sessionId:'029c39',runId:'pre',hypothesisId:'E',location:'BattleLive.tsx:rankTheirs',message:'their ranked replies',data:{count:ranked.length,ids:ranked.map((r)=>r.id),tera:ranked.filter((r)=>r.id.endsWith(':tera')).length,top3:ranked.slice(0,3).map((r)=>r.id)},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  return ranked;
 }
 
 function ChoiceList({
