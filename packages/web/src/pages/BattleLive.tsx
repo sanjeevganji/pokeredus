@@ -326,7 +326,7 @@ function rankTheirs(replies: LiveReply[]): RankedRow[] {
 }
 
 function ChoiceList({
-  title, rows, sampled, quantum, slots, ours,
+  title, rows, sampled, quantum, slots, ours, area,
 }: {
   title: string;
   rows: RankedRow[];
@@ -334,6 +334,7 @@ function ChoiceList({
   quantum?: LiveQuantum;
   slots?: LiveSlot[];
   ours?: boolean;
+  area?: string;
 }) {
   const maxAbs = Math.max(...rows.map((r) => Math.abs(r.score)), 0.01);
   return (
