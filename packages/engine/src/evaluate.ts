@@ -78,8 +78,9 @@ function switchStayScores(obs: BattleObservation, action: LegalAction): { stay: 
 }
 
 export function withOurTera(obs: BattleObservation): BattleObservation {
-  const moves = obs.legalActions.filter((a) => a.type === 'move' && !a.tera);
-  const rest = obs.legalActions.filter((a) => a.type !== 'move');
+  const base = obs.legalActions.length ? obs.legalActions : enumerateFromRequest(obs.request as ShowdownRequest);
+  const moves = base.filter((a) => a.type === 'move' && !a.tera);
+  const rest = base.filter((a) => a.type !== 'move');
   const teraMoves = moves.map((a) => ({
     ...a,
     tera: true,
