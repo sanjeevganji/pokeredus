@@ -580,9 +580,6 @@ export class BattleTracker {
         hypotheses = initialBelief(pool, facts);
       } catch (err) {
         console.error(`[pokeredus] ${err instanceof Error ? err.message : err}`);
-        // #region agent log
-        fetch('http://127.0.0.1:7417/ingest/44062777-1cbd-4eb4-93e8-ab744e7750f5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1551b4'},body:JSON.stringify({sessionId:'1551b4',runId:'live',hypothesisId:'C',location:'protocol.ts:toObservation',message:'missing pool species kept visible',data:{species:m.speciesId,err:err instanceof Error ? err.message : String(err)},timestamp:Date.now()})}).catch(()=>{});
-        // #endregion
       }
       theirs.push({
         slot: i,
