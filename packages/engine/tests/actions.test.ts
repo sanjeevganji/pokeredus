@@ -22,7 +22,7 @@ describe('enumerateFromRequest', () => {
     const moves = actions.filter((a) => a.type === 'move');
     const switches = actions.filter((a) => a.type === 'switch');
     expect(moves.some((m) => m.moveId === 'earthquake' && !m.tera)).toBe(true);
-    expect(moves.some((m) => m.moveId === 'earthquake' && m.tera)).toBe(true);
+    expect(moves.some((m) => m.tera)).toBe(false);
     expect(moves.some((m) => m.moveId === 'outrage')).toBe(false);
     expect(switches).toHaveLength(1);
     expect(switches[0]?.slot).toBe(2);
