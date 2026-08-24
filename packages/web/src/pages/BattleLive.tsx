@@ -338,7 +338,7 @@ function ChoiceList({
 }) {
   const maxAbs = Math.max(...rows.map((r) => Math.abs(r.score)), 0.01);
   return (
-    <section className="card choice-list">
+    <section className={`card choice-list${area ? ` theater-${area}` : ''}`}>
       <h2 className="bench-title">{title}</h2>
       {rows.length === 0 && <p className="muted">{ours ? 'No eval yet this battle.' : 'No hypothesized replies yet.'}</p>}
       <ol className="choice-ol">
