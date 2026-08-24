@@ -487,36 +487,45 @@ export class BattleTracker {
 
   private applyRequest(json: RequestJson): void {
     const sideId = (json.side?.id === 'p2' ? 'p2' : 'p1') as PlayerSide;
-    this.ourSide = sideId;
+    if (sideId !== this.ourSide) {
+      if (this.myMons.size || this.oppMons.size) {
+        const swap = this.myMons;
+        this.myMons = this.oppMons;
+        this.oppMons = swap;
+      }
+      this.ourSide = sideId;
+    }
     const pokemon = json.side?.pokemon ?? [];
+    const next = new Map<string, TrackedMon>();
     for (const p of pokemon) {
-      const { slot } = splitIdentity(p.ident);
+      const speciesId = speciesIdFromDetails(p.details);
+      const key = monKey(p.ident, speciesId);
       const { hp, status } = parseCondition(p.condition);
-      const existing = this.myMons.get(slot);
+      const existing = this.myMons.get(key) ?? [...this.myMons.values()].find((m) => m.speciesId === speciesId);
       const pp: Record<string, number> = {};
       for (const m of p.moves ?? []) pp[m.id] = m.pp;
       const mon: TrackedMon = {
-        slot, side: sideId, identity: p.ident,
-        speciesId: speciesIdFromDetails(p.details), details: p.details,
+        slot: splitIdentity(p.ident).slot, side: sideId, identity: p.ident,
+        speciesId, details: p.details,
         hp, maxHp: existing?.maxHp ?? 0, status,
         boosts: existing?.boosts ?? emptyBoosts(),
         pp, lastMove: existing?.lastMove, choiceLock: existing?.choiceLock,
         tauntTurns: existing?.tauntTurns ?? 0, fainted: hp <= 0, active: !!p.active,
       };
       if (p.terastallized) this.teraUsed = true;
-      this.myMons.set(slot, mon);
+      next.set(key, mon);
     }
+    this.myMons = next;
     // #region agent log
-    agentLog('A', 'protocol.ts:applyRequest', 'request team keys', { ourSide: this.ourSide, pokeCount: pokemon.length, idents: pokemon.map((p) => p.ident), slots: pokemon.map((p) => splitIdentity(p.ident).slot), species: pokemon.map((p) => speciesIdFromDetails(p.details)), actives: pokemon.map((p) => p.active), mapKeys: [...this.myMons.keys()], mapSpecies: [...this.myMons.values()].map((m) => m.speciesId), mapSize: this.myMons.size });
+    agentLog('A', 'protocol.ts:applyRequest', 'request team keys', { ourSide: this.ourSide, pokeCount: pokemon.length, idents: pokemon.map((p) => p.ident), keys: [...this.myMons.keys()], species: pokemon.map((p) => speciesIdFromDetails(p.details)), actives: pokemon.map((p) => p.active), mapSpecies: [...this.myMons.values()].map((m) => m.speciesId), mapSize: this.myMons.size, firstActive: [...this.myMons.values()].find((m) => m.active)?.speciesId });
     // #endregion
-    // Choice-item lock detection: if all-but-one active move is disabled.
     const firstActive = json.active?.[0];
     const firstPoke = pokemon[0];
     if (firstActive && firstPoke) {
-      const activeMon = this.myMons.get(splitIdentity(firstPoke.ident).slot);
+      const activeMon = this.myMons.get(monKey(firstPoke.ident, speciesIdFromDetails(firstPoke.details)));
       const moves = firstActive.moves ?? [];
       const enabled = moves.filter((m) => !m.disabled);
-      if (moves.length >= 2 && enabled.length === 1) activeMon!.choiceLock = enabled[0]!.id;
+      if (moves.length >= 2 && enabled.length === 1 && activeMon) activeMon.choiceLock = enabled[0]!.id;
     }
   }
 
