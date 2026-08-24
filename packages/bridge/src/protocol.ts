@@ -551,6 +551,10 @@ export class BattleTracker {
       });
     }
 
+    const weather = this.field.weather;
+    for (const s of ours) s.modifiers = modifiersFromSlot(s, weather);
+    for (const s of theirs) s.modifiers = modifiersFromSlot(s, weather);
+
     const legalActions = enumerateFromRequest(this.lastRequest ?? undefined);
     return {
       turn: this.turn,
