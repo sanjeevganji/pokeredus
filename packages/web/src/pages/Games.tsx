@@ -26,6 +26,7 @@ const empty: GamesSnapshot = {
 };
 
 export default function Games() {
+  const navigate = useNavigate();
   const [snap, setSnap] = useState<GamesSnapshot>(empty);
   const [live, setLive] = useState<LiveState>({ status: 'idle' });
   const [user, setUser] = useState('');
