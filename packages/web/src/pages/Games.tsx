@@ -154,7 +154,7 @@ export default function Games() {
           empty={snap.connected ? 'No games on this account. Search, or start one on Pokémon Showdown and detect again.' : 'Connect to detect your games.'}
           games={snap.mine}
           attached={snap.attached?.room}
-          onAttach={(id) => run('attach', () => attachGame(id, { dryRun }))}
+          onAttach={goLive}
           onDetach={() => run('detach', () => detachGame())}
         />
         <GameList
@@ -162,7 +162,7 @@ export default function Games() {
           empty={snap.connected ? 'No public battles listed.' : 'Connect to list public rooms.'}
           games={snap.listed}
           attached={snap.attached?.room}
-          onAttach={(id) => run('attach', () => attachGame(id, { dryRun }))}
+          onAttach={goLive}
           onDetach={() => run('detach', () => detachGame())}
         />
       </div>
