@@ -328,7 +328,7 @@ function ChoiceList({
   title: string;
   rows: RankedRow[];
   sampled?: string;
-  quantum?: LiveState['eval'] extends infer E ? E extends { quantum?: infer Q } ? Q : never : never;
+  quantum?: LiveQuantum;
   slots?: LiveSlot[];
   ours?: boolean;
 }) {
