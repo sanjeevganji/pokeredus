@@ -22,6 +22,7 @@ export default function BattleLive() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => {
+    getLiveState().then(setLive).catch(() => { /* ignore */ });
     const t = setInterval(() => {
       getLiveState().then(setLive).catch(() => { /* ignore */ });
     }, 250);

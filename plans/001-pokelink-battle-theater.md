@@ -1,6 +1,6 @@
 # 001 — PokeLink full-page battle theater
 
-**Status:** TODO  
+**Status:** DONE  
 **Commit:** `1ac76f2`  
 **Effort:** M  
 **Risk:** Low–medium (live `choiceScore` will start counting pre-sim modifiers; HUD-only otherwise)

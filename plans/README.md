@@ -12,7 +12,7 @@ Written against commit `1ac76f2`.
 
 | Plan | Finding | Status |
 | --- | --- | --- |
-| 001-pokelink-battle-theater | PokeLink HUD stays on Games; open a full-page theater with scores/bars only | TODO |
+| 001-pokelink-battle-theater | PokeLink HUD stays on Games; open a full-page theater with scores/bars only | DONE |
 
 ## Considered and rejected
 
