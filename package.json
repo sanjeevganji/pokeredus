@@ -4,6 +4,12 @@
   "workspaces": ["packages/*"],
   "engines": { "node": ">=20" },
   "scripts": {
+    "menu": "python tools/pr.py",
+    "setup": "python tools/pr.py setup",
+    "web": "python tools/pr.py web",
+    "live": "python tools/pr.py live",
+    "pokelink": "python tools/pr.py pokelink",
+    "train": "python tools/pr.py train",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
     "build": "npm run build --workspaces --if-present"

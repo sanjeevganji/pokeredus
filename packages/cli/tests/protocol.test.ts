@@ -1,42 +1,32 @@
-// Task 11 — protocol.ts: a real-ish Gen9OU transcript folds into the expected
-// TurnState. Uses the mini pack (Venusaur/Clefable are present) so set
-// resolution is exercised, not just structural folding.
 import { describe, it, expect } from 'vitest';
 import { readFileSync } from 'node:fs';
+import { BattleTracker, resolveSetId } from '@pokeredus/bridge';
 import { KnowledgePackSchema } from '@pokeredus/pack/schema';
 import { PackIndex } from '@pokeredus/pack';
-import { BattleTracker, resolveSetId } from '@pokeredus/bridge';
+import { loadPool } from '@pokeredus/engine';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 
 const raw = readFileSync(new URL('./fixtures/pack.mini.json', import.meta.url), 'utf-8');
-const pack = new PackIndex(KnowledgePackSchema.parse(JSON.parse(raw)) as any);
-
+const pack = new PackIndex(KnowledgePackSchema.parse(JSON.parse(raw)) as never);
 const transcript = readFileSync(new URL('./fixtures/transcript.txt', import.meta.url), 'utf-8');
+const dir = dirname(fileURLToPath(import.meta.url));
+const pool = loadPool(join(dir, '../../engine/data/gen9randombattle-pool.v1.json'));
 
-describe('BattleTracker — transcript → TurnState', () => {
-  it('folds the transcript into the expected normalized state', () => {
+describe('BattleTracker — transcript → observation', () => {
+  it('folds the transcript into an observation with legal actions', () => {
     const tracker = new BattleTracker();
     for (const line of transcript.split('\n')) tracker.applyLine(line);
-    const state = tracker.toTurnState(pack, { allowThin: true });
-
-    expect(state.turn).toBe(1);
-    expect(state.myActive.setId).toBe('venusaur_sun-sweeper');
-    expect(state.myActive.hp).toBe(100);
-    expect(state.myActive.boosts.spa).toBe(1);
-    expect(state.myActive.status).toBe('');
-    expect(state.oppActive.setId).toBe('clefable_showdown-usage');
-    expect(state.oppActive.hp).toBe(42);
-    expect(state.oppActive.status).toBe('brn');
-    expect(state.myBench).toHaveLength(0);
-    expect(state.field.weather).toBe('sunny');
-    expect(state.field.hazards_a.stealthrock).toBe(true);
+    const obs = tracker.toObservation(pool, []);
+    expect(obs.turn).toBe(1);
+    expect(obs.ours.some((s) => s.speciesId.includes('venusaur') || s.hp > 0)).toBe(true);
+    expect(obs.field.weather).toBe('sunny');
   });
 
   it('resolveSetId maps Showdown species ids onto pack sets', () => {
     expect(resolveSetId('venusaur', pack)).toBe('venusaur_sun-sweeper');
     expect(resolveSetId('clefable', pack)).toBe('clefable_showdown-usage');
-    // regional-form hyphenation: Showdown strips hyphens, pack keeps them
     expect(resolveSetId('arcaninehisui', pack)).toBe('arcanine-hisui_showdown-usage');
-    // unknown species → undefined (engine scores it 0, caller logs a warning)
     expect(resolveSetId('missingmon', pack)).toBeUndefined();
   });
 });

@@ -1,6 +1,6 @@
 // Task 12 — client.ts: mocked `ws`, no real network. A `|challstr|` triggers a
 // guest `|/trn`, and a `|request|` is parsed into a BattleEvent that, fed
-// through a BattleTracker, yields the expected TurnState.
+// through a BattleTracker, yields the expected BattleObservation.
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('ws', () => {
@@ -31,6 +31,27 @@ import { WebSocket } from 'ws';
 import { ShowdownClient, BattleTracker } from '@pokeredus/bridge';
 import { KnowledgePackSchema } from '@pokeredus/pack/schema';
 import { PackIndex } from '@pokeredus/pack';
+import type { RandomSetPool } from '@pokeredus/engine';
+
+const pool: RandomSetPool = {
+  format: 'gen9randombattle',
+  version: 1,
+  samples: 1,
+  seed: 1,
+  species: {
+    toxapex: [{
+      set: {
+        species: 'Toxapex',
+        level: 78,
+        item: 'blacksludge',
+        ability: 'regenerator',
+        moves: ['recover', 'scald', 'haze', 'toxicspikes'],
+        nature: 'Bold',
+      },
+      count: 1,
+    }],
+  },
+};
 
 const REQUEST_JSON = JSON.stringify({
   side: {
@@ -83,10 +104,36 @@ describe('ShowdownClient (mocked ws)', () => {
     expect(events).toContain('request');
     const trnSent = ws.sent.find((m: string) => m.startsWith('|/trn'));
     expect(trnSent).toBeDefined();
-    expect(trnSent).toContain('pokelink'); // guest name prefix
+    expect(trnSent).toContain('pokeredus'); // guest name prefix
+    expect(ws.sent.some((m: string) => m.includes('/join'))).toBe(false);
   });
 
-  it('the emitted request event yields the expected TurnState via a tracker', async () => {
+  it('joins a battle room after auth when battleRoom is set', async () => {
+    const client = new ShowdownClient({ url: 'wss://test', battleRoom: 'battle-gen9randombattle-1', dryRun: true });
+    const connected = client.connect();
+    const ws = (WebSocket as any).instances[0];
+    ws.trigger('open');
+    await connected;
+    ws.trigger('message', '|challstr|1|abc123');
+    expect(ws.sent.some((m: string) => m === '|/join battle-gen9randombattle-1')).toBe(true);
+  });
+
+  it('emits lobby updatesearch without treating it as a battle event', async () => {
+    const client = new ShowdownClient({ url: 'wss://test', dryRun: true });
+    const lobby: string[] = [];
+    const battle: string[] = [];
+    client.onLobby((ev) => lobby.push(ev.type));
+    client.onEvent((ev) => battle.push(ev.type));
+    const connected = client.connect();
+    const ws = (WebSocket as any).instances[0];
+    ws.trigger('open');
+    await connected;
+    ws.trigger('message', '|updatesearch|{"searching":[],"games":{"battle-gen9randombattle-1":"[Gen 9] Random Battle"}}');
+    expect(lobby).toEqual(['updatesearch']);
+    expect(battle).toEqual([]);
+  });
+
+  it('the emitted request event yields the expected observation via a tracker', async () => {
     const client = new ShowdownClient({ url: 'wss://test', dryRun: true });
     const events: { type: string; json?: unknown }[] = [];
     client.onEvent((ev) => events.push(ev as { type: string; json?: unknown }));
@@ -103,9 +150,9 @@ describe('ShowdownClient (mocked ws)', () => {
     expect(req).toBeDefined();
     const tracker = new BattleTracker();
     for (const e of events) tracker.apply(e as never);
-    const state = tracker.toTurnState(EMPTY_PACK, { allowThin: true });
-    expect(state.myActive.hp).toBe(100);
-    expect(state.turn).toBe(0); // no |turn| line was sent
+    const obs = tracker.toObservation(pool, []);
+    expect(obs.ours[0]?.hp).toBe(100);
+    expect(obs.turn).toBe(0);
     expect(tracker.oppMons.get('p2a')?.speciesId).toBe('toxapex');
   });
 });

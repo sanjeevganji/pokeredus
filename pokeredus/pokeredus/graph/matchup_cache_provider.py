@@ -1,15 +1,13 @@
 """
-CachedMatchupProvider — adapts MatchupCache for use by the probabilistic engine.
+CachedMatchupProvider — adapts MatchupCache for team-builder / KG lookups.
 
-Instead of computing damage/type-effectiveness/TTK on the fly via
-BattleSimulator._evaluate_move(), the engine can now consult the
-precomputed MatchupCache for any (pokemon_a, pokemon_b) pair.
+Instead of recomputing damage/type-effectiveness/TTK on the fly, callers
+can consult the precomputed MatchupCache for any (pokemon_a, pokemon_b)
+pair.
 
-When a matchup is cached the engine skips the expensive damage formula
-and directly reads: turns_to_kill, best_move, damage_per_hit, type
-effectiveness, and move category.  This transforms simulation from an
-O(N²) damage-calc loop into O(1) cache lookups, enabling real-time
-MCTS over large rosters.
+When a matchup is cached, lookups skip the damage formula and read
+turns_to_kill, best_move, damage_per_hit, type effectiveness, and move
+category.
 
 Usage:
     from pokeredus.graph.matchup_cache_provider import CachedMatchupProvider
@@ -72,9 +70,9 @@ class MatchupSnapshot:
 
 
 class CachedMatchupProvider:
-    """Thin adapter: MatchupCache → probabilistic engine / MCTS.
+    """Thin adapter: MatchupCache → snapshot lookup.
 
-    The engine calls ``lookup(attacker_id, defender_id)`` to get a
+    Callers use ``lookup(attacker_id, defender_id)`` to get a
     snapshot with all the damage/TTK fields precomputed.  The provider
     handles cache misses transparently by returning None (caller can
     fall back to live calculation).

@@ -1,28 +1,83 @@
-import type { TurnState, Action } from './state.js';
-import type { PackIndex } from '@pokeredus/pack';
+import { actionId, type LegalAction } from './observation.js';
 
-export function enumerateActions(state: TurnState, pack: PackIndex): Action[] {
-  const actions: Action[] = [];
-  const active = state.myActive;
-  const set = pack.getSet(active.setId);
-  if (set && !active.fainted) {
-    const choiceLocked = active.choiceLock !== undefined && active.choiceLock !== '';
-    for (const moveId of set.moves) {
-      const move = pack.getMove(moveId);
-      if (choiceLocked && moveId !== active.choiceLock) continue;
-      const pp = active.pp[moveId] ?? 1;
-      if (pp <= 0) continue;
-      if (active.tauntTurns > 0 && move && move.category === 'Status') continue;
-      actions.push({ type: 'move', moveId, tera: false });
-      if (!state.teraUsed) {
-        actions.push({ type: 'move', moveId, tera: true });
+export interface RequestMove {
+  move: string;
+  id: string;
+  pp: number;
+  maxpp: number;
+  disabled: boolean;
+}
+
+export interface RequestPokemon {
+  ident: string;
+  details: string;
+  condition: string;
+  active: boolean;
+  moves: Array<RequestMove | string>;
+}
+
+export interface RequestActive {
+  moves: RequestMove[];
+  canTerastallize?: boolean | string;
+  trapped?: boolean;
+}
+
+export interface ShowdownRequest {
+  wait?: boolean;
+  forceSwitch?: boolean[];
+  active?: RequestActive[];
+  side: { id?: string; pokemon: RequestPokemon[] };
+}
+
+function fainted(condition: string): boolean {
+  const c = (condition || '').toLowerCase();
+  return c.includes('fnt') || c.startsWith('0 ');
+}
+
+export function enumerateFromRequest(req: ShowdownRequest | undefined | null): LegalAction[] {
+  if (!req || req.wait) return [];
+  const pokemon = req.side?.pokemon ?? [];
+  const force = req.forceSwitch?.[0] === true;
+  const trapped = req.active?.[0]?.trapped === true;
+  const actions: LegalAction[] = [];
+
+  if (!force && req.active?.[0]) {
+    const canTera = Boolean(req.active[0].canTerastallize);
+    for (const mv of req.active[0].moves ?? []) {
+      if (!mv?.id || mv.disabled || mv.pp <= 0) continue;
+      actions.push({ id: actionId({ type: 'move', moveId: mv.id }), type: 'move', moveId: mv.id, tera: false });
+      if (canTera) {
+        actions.push({
+          id: actionId({ type: 'move', moveId: mv.id, tera: true }),
+          type: 'move',
+          moveId: mv.id,
+          tera: true,
+        });
       }
     }
   }
-  for (let i = 0; i < state.myBench.length; i++) {
-    const mon = state.myBench[i]!;
-    if (mon.fainted) continue;
-    actions.push({ type: 'switch', slot: i });
+
+  if (!trapped) {
+    for (let i = 0; i < pokemon.length; i++) {
+      const p = pokemon[i]!;
+      if (p.active || fainted(p.condition)) continue;
+      actions.push({
+        id: actionId({ type: 'switch', slot: i + 1 }),
+        type: 'switch',
+        slot: i + 1,
+        forced: force,
+      });
+    }
   }
   return actions;
+}
+
+export function formatChoice(a: LegalAction): string {
+  if (a.type === 'switch') return `|/choose switch ${a.slot ?? 1}`;
+  return `|/choose move ${a.moveId ?? ''}${a.tera ? ' terastallize' : ''}`;
+}
+
+export function simChoice(a: LegalAction): string {
+  if (a.type === 'switch') return `switch ${a.slot ?? 1}`;
+  return `move ${a.moveId ?? ''}${a.tera ? ' terastallize' : ''}`;
 }

@@ -2,23 +2,20 @@
 //
 // Pokémon Showdown speaks a line-delimited protocol over websocket. Each line
 // is `|`-prefixed and carries one event. This module:
-//   1. `parseLine(line)` → a structured `BattleEvent` (zod-free, trust-boundary
-//      parsing with safe defaults — `noUncheckedIndexedAccess` keeps us honest).
-//   2. `BattleTracker` — a stateful accumulator that folds a stream of
-//      `BattleEvent`s into the normalized `TurnState` the runtime engine
-//      consumes. The bridge keeps one tracker per battle and calls
-//      `toTurnState(pack)` whenever a `|request|` arrives.
-//   3. `resolveSetId(speciesId, pack)` — maps a Showdown species id (e.g.
-//      `garchomp`, `arcaninehisui`) onto the best-matching Knowledge-Pack set id.
+//   1. `parseLine(line)` → a structured `BattleEvent`.
+//   2. `BattleTracker` folds events into an immutable `BattleObservation`.
 //
 // Protocol reference: https://github.com/smogon/pokemon-showdown/blob/master/PROTOCOL.md
-// Last verified against PS protocol: 2026-07-08.
 //
-// ponytail: ceiling — this tracks singles (one active slot per side). Doubles
-// would expose pXa/pXb/pXc active slots; extend `toTurnState` when needed.
+// ponytail: singles only (one active slot per side).
 
-import type { TurnState, ActiveMon, FieldFlags, Side } from '@pokeredus/engine';
-import { makeMon, emptyField } from '@pokeredus/engine';
+import {
+  placeholderSlot,
+  type BattleObservation,
+  type SlotSnapshot,
+} from '@pokeredus/engine';
+import { enumerateFromRequest } from '@pokeredus/engine';
+import { initialBelief, type RandomSetPool } from '@pokeredus/engine';
 import type { PackIndex } from '@pokeredus/pack';
 
 // ──────────────────────────────────────────────────────────────────────
@@ -53,6 +50,8 @@ export interface RequestJson {
   side: { id: string; name: string; pokemon: RequestPokemon[] };
   active?: RequestActive[];
   rqid?: number;
+  wait?: boolean;
+  forceSwitch?: boolean[];
 }
 
 // ──────────────────────────────────────────────────────────────────────
@@ -274,13 +273,32 @@ export function resolveSetId(speciesId: string, pack: PackIndex): string | undef
 }
 
 // ──────────────────────────────────────────────────────────────────────
-// BattleTracker — fold events into a TurnState
+// BattleTracker — fold events into a BattleObservation
 // ──────────────────────────────────────────────────────────────────────
 interface BoostState {
   atk: number; def: number; spa: number; spd: number; spe: number; accuracy: number; evasion: number;
 }
 function emptyBoosts(): BoostState {
   return { atk: 0, def: 0, spa: 0, spd: 0, spe: 0, accuracy: 0, evasion: 0 };
+}
+
+interface TrackerField {
+  weather: string;
+  terrain: string;
+  hazards_a: { stealthrock: boolean; spikes: number; toxicspikes: number; stickyweb: boolean };
+  hazards_b: { stealthrock: boolean; spikes: number; toxicspikes: number; stickyweb: boolean };
+  reflect_a: number; reflect_b: number;
+  lightscreen_a: number; lightscreen_b: number;
+  trickroom: boolean;
+}
+function trackerEmptyField(): TrackerField {
+  return {
+    weather: '', terrain: '',
+    hazards_a: { stealthrock: false, spikes: 0, toxicspikes: 0, stickyweb: false },
+    hazards_b: { stealthrock: false, spikes: 0, toxicspikes: 0, stickyweb: false },
+    reflect_a: 0, reflect_b: 0, lightscreen_a: 0, lightscreen_b: 0,
+    trickroom: false,
+  };
 }
 
 interface TrackedMon {
@@ -306,8 +324,9 @@ export class BattleTracker {
   turn = 0;
   myMons: Map<string, TrackedMon> = new Map();
   oppMons: Map<string, TrackedMon> = new Map();
-  field: FieldFlags = emptyField();
+  field: TrackerField = trackerEmptyField();
   teraUsed = false;
+  lastRequest: RequestJson | null = null;
 
   /** Parse and apply one raw protocol line. Returns the parsed event (for callers that branch on it). */
   applyLine(line: string): BattleEvent | null {
@@ -323,6 +342,7 @@ export class BattleTracker {
         break;
 
       case 'request':
+        this.lastRequest = ev.json;
         this.applyRequest(ev.json);
         break;
 
@@ -420,7 +440,7 @@ export class BattleTracker {
         break;
       }
 
-      // init / win / raw / other: nothing to fold into TurnState.
+      // init / win / raw / other: nothing to fold into the observation.
       default:
         break;
     }
@@ -458,46 +478,104 @@ export class BattleTracker {
     }
   }
 
-  /** Build the normalized TurnState the engine consumes. */
-  toTurnState(pack: PackIndex, opts?: { allowThin?: boolean }): TurnState {
-    const myActiveKey = this.ourSide + 'a';
-    const oppActiveKey = (this.ourSide === 'p1' ? 'p2' : 'p1') + 'a';
-
-    const toActiveMon = (m?: TrackedMon): ActiveMon => {
-      if (!m) return makeMon('', 1);
-      return {
-        setId: resolveSetId(m.speciesId, pack) ?? '',
+  /** Build the immutable observation the engine consumes. */
+  toObservation(pool: RandomSetPool, ourSets: import('@pokeredus/engine').CanonicalSet[]): BattleObservation {
+    const ours: SlotSnapshot[] = [];
+    const myList = [...this.myMons.values()];
+    for (let i = 0; i < 6; i++) {
+      const m = myList[i];
+      const set = ourSets[i];
+      if (!m) {
+        const slot = placeholderSlot(i);
+        if (set) {
+          slot.speciesId = set.species;
+          slot.set = set;
+          slot.revealed = true;
+        }
+        ours.push(slot);
+        continue;
+      }
+      ours.push({
+        slot: i,
+        speciesId: m.speciesId,
+        revealed: true,
         hp: m.hp,
-        maxHp: m.maxHp,
+        maxHp: m.maxHp || 100,
         status: m.status,
         boosts: { ...m.boosts },
-        pp: { ...m.pp },
-        lastMove: m.lastMove,
-        choiceLock: m.choiceLock,
-        tauntTurns: m.tauntTurns,
         fainted: m.fainted,
-      };
-    };
-
-    const myBench: ActiveMon[] = [];
-    for (const [slot, m] of this.myMons) {
-      if (slot !== myActiveKey) myBench.push(toActiveMon(m));
+        active: m.active || m.slot.endsWith('a'),
+        knownMoves: Object.keys(m.pp),
+        set,
+        hypotheses: [],
+        modifiers: [],
+      });
     }
 
+    const theirs: SlotSnapshot[] = [];
+    const oppList = [...this.oppMons.values()];
+    for (let i = 0; i < 6; i++) {
+      const m = oppList[i];
+      if (!m) {
+        theirs.push(placeholderSlot(i));
+        continue;
+      }
+      const facts = {
+        species: m.speciesId,
+        moves: m.lastMove ? [m.lastMove] : [],
+      };
+      let hypotheses = [];
+      try {
+        hypotheses = initialBelief(pool, facts);
+      } catch (err) {
+        console.error(`[pokeredus] ${err instanceof Error ? err.message : err}`);
+        // #region agent log
+        fetch('http://127.0.0.1:7417/ingest/44062777-1cbd-4eb4-93e8-ab744e7750f5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1551b4'},body:JSON.stringify({sessionId:'1551b4',runId:'live',hypothesisId:'C',location:'protocol.ts:toObservation',message:'missing pool species kept visible',data:{species:m.speciesId,err:err instanceof Error ? err.message : String(err)},timestamp:Date.now()})}).catch(()=>{});
+        // #endregion
+      }
+      theirs.push({
+        slot: i,
+        speciesId: m.speciesId,
+        revealed: true,
+        hp: m.hp,
+        maxHp: m.maxHp || 100,
+        status: m.status,
+        boosts: { ...m.boosts },
+        fainted: m.fainted,
+        active: m.active || m.slot.endsWith('a'),
+        knownMoves: m.lastMove ? [m.lastMove] : [],
+        hypotheses,
+        set: hypotheses[0]?.set,
+        modifiers: [],
+      });
+    }
+
+    const legalActions = enumerateFromRequest(this.lastRequest ?? undefined);
     return {
-      side: (this.ourSide === 'p1' ? 'a' : 'b') as Side,
       turn: this.turn,
-      myActive: toActiveMon(this.myMons.get(myActiveKey)),
-      myBench,
-      oppActive: toActiveMon(this.oppMons.get(oppActiveKey)),
-      field: { ...this.field },
+      format: 'gen9randombattle',
+      ourSide: this.ourSide,
+      ours,
+      theirs,
+      field: {
+        weather: this.field.weather,
+        terrain: this.field.terrain,
+        trickroom: this.field.trickroom,
+        hazards_p1: { ...this.field.hazards_a },
+        hazards_p2: { ...this.field.hazards_b },
+        reflect_p1: this.field.reflect_a,
+        reflect_p2: this.field.reflect_b,
+        lightscreen_p1: this.field.lightscreen_a,
+        lightscreen_p2: this.field.lightscreen_b,
+      },
+      request: this.lastRequest ?? undefined,
+      legalActions,
       teraUsed: this.teraUsed,
-      allowThin: opts?.allowThin ?? false,
     };
   }
 }
 
-function normalizeWeather(w: string): FieldFlags['weather'] {
+function normalizeWeather(w: string): string {
   if (w === 'rain' || w === 'raindance' || w === 'harshrain') return 'rain';
   if (w === 'sunny' || w === 'sunnyday' || w === 'harshsunlight') return 'sunny';
   if (w === 'sandstorm') return 'sandstorm';
@@ -505,7 +583,7 @@ function normalizeWeather(w: string): FieldFlags['weather'] {
   return '';
 }
 
-function normalizeTerrain(t: string): FieldFlags['terrain'] {
+function normalizeTerrain(t: string): string {
   if (t === 'electricterrain') return 'electric';
   if (t === 'grassyterrain') return 'grassy';
   if (t === 'mistyterrain') return 'misty';
@@ -513,27 +591,12 @@ function normalizeTerrain(t: string): FieldFlags['terrain'] {
   return '';
 }
 
-// ──────────────────────────────────────────────────────────────────────
-// battleStateFromEvents — one-shot reducer (used by tests / offline replay)
-// ──────────────────────────────────────────────────────────────────────
-/**
- * Fold a batch of events into a TurnState, optionally seeding turn/field/side
- * from a prior snapshot. The bridge normally keeps a long-lived `BattleTracker`
- * instead; this is the single-batch convenience the plan names.
- */
 export function battleStateFromEvents(
   events: BattleEvent[],
-  prior: TurnState | null,
-  pack: PackIndex,
-  opts?: { allowThin?: boolean },
-): TurnState {
+  pool: RandomSetPool,
+  ourSets: import('@pokeredus/engine').CanonicalSet[] = [],
+): BattleObservation {
   const t = new BattleTracker();
-  if (prior) {
-    t.turn = prior.turn;
-    t.field = { ...prior.field };
-    t.teraUsed = prior.teraUsed;
-    t.ourSide = prior.side === 'a' ? 'p1' : 'p2';
-  }
   for (const ev of events) t.apply(ev);
-  return t.toTurnState(pack, opts);
+  return t.toObservation(pool, ourSets);
 }

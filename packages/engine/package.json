@@ -10,11 +10,13 @@
   },
   "dependencies": {
     "@pokeredus/calc": "*",
+    "@pokeredus/core": "*",
     "@pokeredus/pack": "*",
-    "@pokeredus/biases": "*"
+    "pokemon-showdown": "0.11.10"
   },
   "devDependencies": {
     "typescript": "^5.4.0",
-    "vitest": "^1.6.0"
+    "vitest": "^1.6.0",
+    "@types/node": "^20.11.0"
   }
 }

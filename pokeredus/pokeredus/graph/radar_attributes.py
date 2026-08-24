@@ -14,10 +14,8 @@ The 8 attributes in compass-rose order:
  270°  defense — base tanking across all attack types
  315°  counter — compound: attack × defense (dish + take)
 
-Formula constants are loaded from Obsidian markdown (source of truth)
-via ``load_radar_config()``. If the sync pipeline hasn't run yet,
-built-in defaults are used. Call ``sync_obsidian_configs.py --apply``
-after editing the Obsidian doc to propagate changes here.
+Formula constants are loaded from ``pokeredus/data/config/radar_config.json``.
+Built-in RadarConfig defaults apply for any missing key.
 
 Public API:
   compute_radar_8(set_obj, pokemon, kg) -> dict[str, float]
@@ -27,9 +25,7 @@ from __future__ import annotations
 
 import json
 import math
-import re
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
@@ -129,8 +125,7 @@ class RadarConfig:
     """All tunable parameters for the 8-attribute radar.
 
     Defaults are chosen so typical OU sets produce a spread across 0-100.
-    Obsidian markdown is the source of truth — ``load_radar_config()``
-    reads from there and overwrites these defaults.
+    ``load_radar_config()`` overlays ``data/config/radar_config.json``.
     """
 
     # ── Attack formula ──────────────────────────────────────────────
@@ -186,7 +181,7 @@ _config: RadarConfig | None = None
 
 
 def get_radar_config() -> RadarConfig:
-    """Return the current radar config, lazy-loading from Obsidian."""
+    """Return the current radar config, lazy-loading from data/config."""
     global _config
     if _config is None:
         _config = load_radar_config()
@@ -194,63 +189,27 @@ def get_radar_config() -> RadarConfig:
 
 
 def reload_radar_config() -> RadarConfig:
-    """Force-reload the config from Obsidian (call after sync)."""
+    """Force-reload the radar config from disk."""
     global _config
     _config = load_radar_config()
     return _config
 
 
-def _obsidian_vault_path() -> Path | None:
-    """Find the Obsidian vault from env or known location."""
-    import os
-    env = os.environ.get("OBSIDIAN_VAULT_PATH", "")
-    if env:
-        p = Path(env)
-        if p.exists():
-            return p
-    # Fallback to known location
-    p = Path("D:/PokeRedus/Hermes Memory")
-    if p.exists():
-        return p
-    return None
-
-
 def load_radar_config() -> RadarConfig:
-    """Load radar formula constants from Obsidian markdown.
-
-    The Obsidian doc ``8_ATTRIBUTE_RADAR.md`` contains a parameter
-    table with ``name | value`` rows. This parser extracts those
-    values and constructs a ``RadarConfig``. Any parameter not found
-    in the doc keeps its default.
-    """
+    """Load radar formula constants from data/config/radar_config.json."""
+    from pokeredus.config import CONFIG_DIR
     cfg = RadarConfig()
-    vault = _obsidian_vault_path()
-    if vault is None:
+    path = CONFIG_DIR / "radar_config.json"
+    if not path.exists():
         return cfg
-
-    md_path = vault / "Project Knowledge" / "Formulas & Weights" / "8_ATTRIBUTE_RADAR.md"
-    if not md_path.exists():
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
         return cfg
-
-    text = md_path.read_text(encoding="utf-8")
-
-    # Parse parameter table rows: `| param_name | 1.5 |`
-    # The regex captures: | name | value |
-    for m in re.finditer(
-        r"\|\s*([a-z_]+)\s*\|\s*([\d.]+(?:e[+-]?\d+)?)\s*\|",
-        text, re.IGNORECASE,
-    ):
-        name, val_str = m.group(1), m.group(2)
+    if not isinstance(data, dict):
+        return cfg
+    for name, val in data.items():
         if hasattr(cfg, name):
-            val: float | bool | str
-            field_type = type(getattr(cfg, name))
-            if field_type is bool:
-                val = val_str.lower() in ("true", "1", "yes")
-            else:
-                try:
-                    val = float(val_str)
-                except ValueError:
-                    continue
             setattr(cfg, name, val)
     return cfg
 

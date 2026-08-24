@@ -1,180 +1,239 @@
 # PokeRedus
 
-Gen 9 OU intelligence system powered by **`@smogon/calc`** for damage physics, with PokeRedus-specific knowledge graph, MCTS, and Showdown bridge.
+Random Battle decision engine plus a knowledge-graph team builder.
 
-| Project | Location | Role |
-|---|---|---|
-| **PokeRedus (TS)** | repo root + `packages/*` | Active monorepo |
-| **PokeLink (CLI)** | `packages/cli` (`bin`: `pokelink`) | Battle bridge + pack tooling |
-| **PokeLink (standalone)** | `pokelink/` | Original TS prototype (superseded) |
-| **PokeRedus (Python)** | `pokeredus/` | Legacy GUI + data (frozen; reference only) |
+The live policy is a one-round official Showdown simulation plus PennyLane
+QAOA, not a search tree or weighted heuristic. Each turn the bot
+builds an immutable observation, updates opponent set beliefs from an empirical
+Showdown Random Battle pool, simulates **one official Showdown round**, scores
+legal actions with explicit CTA/CTS mathematics, then samples from a PennyLane
+QAOA probability distribution. A classical softmax exists only as a benchmark
+CLI mode. If the quantum process fails, no battle action is sent.
 
-**Requirements:** Node ≥ 20 · Python ≥ 3.11 (legacy only)
+## Layout
 
----
+| Path | Role |
+| --- | --- |
+| `packages/engine` | Observation, set beliefs, official Showdown one-round sim, CTA/CTS math |
+| `packages/bridge` | Showdown protocol tracker, async decide-and-act, dry-run |
+| `packages/cli` | `export-pack`, `generate-pool`, `score`, `live` |
+| `packages/core` | Knowledge graph, pairwise matchups, attribute views |
+| `packages/calc` | Damage calculator used by the KG |
+| `packages/web` | Team builder, matchup graph, and Games (detect / attach Showdown battles) |
+| `packages/pack` | Knowledge-pack schema/load |
+| `quantum-policy` | Persistent PennyLane QAOA JSON-lines subprocess |
+| `pokeredus/` | Python knowledge-graph pipeline (matchup graph, tests) |
+| `tools/pr.py` | Arrow-key launcher and one-liner commands |
 
-## Monorepo layout
+Graph-only role/coverage weights in the team builder are visualization, not
+battle policy. Pokémon physical `weight` (mass) is a species field, not a
+policy weight.
 
-```
-packages/
-  calc/     @pokeredus/calc   — sole @smogon/calc adapter
-  pack/     @pokeredus/pack   — Knowledge Pack schema + PackIndex
-  biases/   @pokeredus/biases — tunable scorer weights
-  engine/   @pokeredus/engine — leaf + scoreTurn (MCTS-style)
-  bridge/   @pokeredus/bridge — Showdown websocket client
-  cli/      @pokeredus/cli    — render-pack | export-pack | score | live
-  core/     @pokeredus/core   — KG, matchup, battle sim, MCTS, unified
-  web/      @pokeredus/web    — React GUI (replaces tkinter)
-pokelink/   — standalone TS prototype (superseded by packages/*)
-pokeredus/  — legacy Python reference + on-disk data
-```
+**PokeLink** is the Showdown battle CLI (`packages/cli`) plus the Games page
+in the web UI. **PokeRedus** is the web team-builder and knowledge-graph
+pipeline. Open the web UI and use **Games** to detect battles on your Showdown
+account and attach the live engine so the HUD can show eval scores and protocol
+updates.
 
-## Architecture
+## Terminal launcher
 
-- **Damage:** all paths use `@pokeredus/calc` → npm `@smogon/calc` (Gen 9).
-- **Intelligence:** Knowledge Pack edges + `biases.json` consumed by `scoreTurn`.
-- **Python `pokeredus/`:** data source and reference only — new features land in `packages/*`. See `pokeredus/LEGACY.md`.
-
----
-
-## One-time setup
-
-### TypeScript monorepo (active)
-
-```bash
-npm install
-```
-
-### Standalone PokeLink
+Arrow-key menu for setup, PokeRedus, PokeLink tools, training, quantum,
+maintain, and settings:
 
 ```bash
-cd pokelink && npm install
+python tools/pr.py
 ```
 
-### Python PokeRedus (legacy)
+Keys: `↑` `↓` move · Enter run · Esc / Backspace back · `q` quit.
+
+Saved options (policy, dry-run, Showdown account, decision log, QAOA seed/shots)
+live in `tools/launch-settings.json` (gitignored). Env overrides:
+`POKELINK_USER`, `POKELINK_PASS`, `POKELINK_URL`, `POKEREDUS_POLICY`,
+`POKELINK_STATE` (HUD snapshot path, default `live-state.json` at repo root).
+
+### Simple commands
+
+Battle id is a Showdown room (`gen9randombattle-…` or `battle-gen9randombattle-…`).
+Default live mode is dry-run; pass `--send` to actually choose moves.
+`pokelink` / `live` / `quantum` / `softmax` start the web UI alongside the
+battle so the Games page can follow eval scores and live updates. You can also
+skip the battle id and detect/attach from **Games** after `python tools/pr.py web`.
 
 ```bash
-cd pokeredus && pip install -e ".[dev]"
+python tools/pr.py setup
+python tools/pr.py web
+python tools/pr.py pokelink <battle-id>
+python tools/pr.py live <battle-id>
+python tools/pr.py quantum <battle-id>
+python tools/pr.py softmax <battle-id>
+python tools/pr.py train
+python tools/pr.py settings
+python tools/pr.py settings policy=quantum dry_run=true
 ```
 
----
-
-## Maintain / verify
-
-### Monorepo (from repo root)
+npm equivalents (from repo root):
 
 ```bash
-npm test
-npm run typecheck
-npm run build
-npm test -w @pokeredus/<pkg>
-npm run typecheck -w @pokeredus/<pkg>
+npm run menu
+npm run setup
+npm run web
+npm run pokelink -- <battle-id>
+npm run live -- <battle-id> --send
+npm run train
 ```
 
-Packages with scripts: `calc`, `pack`, `biases`, `engine`, `bridge`, `core`, `cli` (`dev`/`test`/`typecheck`), `web` (`dev`/`build`/`preview`/`typecheck`).
+| Command | Purpose |
+| --- | --- |
+| `setup` | `npm install` + `pip install -e pokeredus[dev]` + `pip install -e quantum-policy` |
+| `web` | Vite web UI (team builder + Games) |
+| `pokelink` / `live` | Web UI + Showdown live (quantum or settings policy) |
+| `quantum` / `softmax` | Live forcing QAOA or the softmax benchmark |
+| `train` | Generate Random Battle pool + export pack + rebuild matchup graph |
+| `pool` / `pack` / `graph` | Standalone model/data updates |
+| `score` | Replay a transcript into the decision log |
+| `quantum-test` | `python -m unittest discover -s quantum-policy/tests` |
+| `test` | npm test + typecheck + build + pytest + quantum tests |
+| `settings` | Print or set launcher options (`key=value`) |
 
-### Standalone PokeLink
+`setup` also accepts `node`, `python`, or `quantum` to install one stack.
+
+## Random Battle assumptions
+
+- Our six sets are known.
+- Each revealed opponent starts at the most frequent compatible set in the
+  empirical `gen9randombattle` pool, then hypotheses are filtered and
+  renormalized as moves, item, ability, level, and Tera are revealed.
+- An empty candidate set fails visibly; the bot does not invent a set.
+- Unrevealed opponent slots are neutral full-health placeholders so early
+  scores are not falsely favorable.
+
+Generate the pool from the official generator:
 
 ```bash
-cd pokelink && npm test
-cd pokelink && npm run build
+python tools/pr.py pool
 ```
 
-### Python
+## Formulas
+
+For each Pokémon, `h = hp/maxHp`, `L` is the alive flag, and `M` is the mean of
+`log(effect multiplier) × expected remaining turns` over active modifiers.
+
+```
+value      = L × clamp(h + 0.5×tanh(M), 0, 1)
+stateScore = Σ value(ours) − Σ value(theirs)     ∈ [-6, +6]
+CTA(move)  = P(executes) × P(hit | executed) × alive-at-execution   ∈ [0, 1]
+CTS(switch)= sigmoid((stateScore(after switch) − stateScore(stay)) / max(|stay|, ε))
+             forced switches have CTS = 1
+impact     = Σ_revealed (Δhealth + Δmodifier × expectedValueTurns)  (our perspective)
+choiceScore(c) = success(c) × E[impact]
+roundScore = uniform mean of simulated post-round stateScore over our legal choices
+```
+
+`forcedOutcome` is `win | loss | none`. For the next round only, forced-win
+probability is `max_our_choice min_opponent_reply P(opponent terminal)`; forced
+loss is defined symmetrically. Signed `log1p` is used only when scaling scores
+for the policy / learning log; raw values stay in the output.
+
+The official `pokemon-showdown` simulator is the rules engine for speed,
+priority, Trick Room, switches, accuracy, healing, status, boosts, field
+effects, and chance branches. Battles are cloned with `Battle.toJSON` /
+`Battle.fromJSON` for counterfactual branches.
+
+## Quantum policy
 
 ```bash
-cd pokeredus && pytest
-cd pokeredus && pytest --cov=pokeredus
+python tools/pr.py setup quantum
+python tools/pr.py quantum-test
 ```
 
----
-
-## Run applications
-
-### Web GUI
+Or by hand:
 
 ```bash
-npm run dev -w @pokeredus/web
-npm run build -w @pokeredus/web
-npm run preview -w @pokeredus/web
+pip install -e quantum-policy
+python -m unittest discover -s quantum-policy/tests
 ```
 
-### PokeLink CLI (active — `@pokeredus/cli`)
+Node talks to `python -m pokeredus_quantum` over JSON lines:
+
+```json
+{"actions":["move:earthquake","switch:2"],"scores":[0.4,-0.1],"mode":"quantum"}
+```
+
+```json
+{"probabilities":[0.72,0.28],"diagnostics":{"mode":"quantum","n_qubits":1}}
+```
+
+`--policy softmax` is an explicit benchmark. Quantum is the live default.
+
+## CLI
+
+PokeLink one-liners (battle id required for live):
 
 ```bash
-npm run dev -w @pokeredus/cli -- render-pack --pack <pack.json>
-npm run dev -w @pokeredus/cli -- export-pack
-npm run dev -w @pokeredus/cli -- export-training
-npm run dev -w @pokeredus/cli -- score --replay <transcript.txt> --pack <pack.json>
-npm run dev -w @pokeredus/cli -- live --battle <roomid> --pack <pack.json>
+python tools/pr.py pokelink <battle-id>
+python tools/pr.py pokelink <battle-id> --send
+python tools/pr.py score
+python tools/pr.py pack --mini
 ```
 
-| Subcommand | Purpose |
-|---|---|
-| `render-pack` | Print pack stats (#species, #sets, #edges, size, version) |
-| `export-pack` | Recompute Knowledge Pack edges from a template |
-| `export-training` | Write JSONL training corpus from pack set pairs |
-| `score` | Offline: replay a transcript and print a decision per turn |
-| `live` | Connect to play.pokemonshowdown.com and play a battle |
-
-**Flags**
-
-| Flag | Purpose |
-|---|---|
-| `--pack <f>` | Knowledge Pack JSON (default: `knowledge-pack-v1.json`) |
-| `--template <f>` | Source pack for `export-pack` |
-| `--out <f>` | Output path (`export-pack`, `export-training`) |
-| `--mini` | Export first 5 species only (`export-pack`) |
-| `--max-species <n>` | Cap species count (`export-pack` debug) |
-| `--max-pairs <n>` | Cap training pair count (`export-training`) |
-| `--biases <f>` | Biases JSON for scorer (`score`, `live`) |
-| `--replay <f>` | Transcript file (`score`) |
-| `--battle <id>` | Battle room id (`live`; bare id or `battle-…`) |
-| `--user` / `--pass` | Named Showdown account (`live`; omit for guest) |
-| `--url <ws>` | Custom Showdown websocket URL (`live`) |
-| `--dry-run` | Log chosen move; never send it (`score`, `live`) |
-
-### Standalone PokeLink (`pokelink/`)
-
-Supports `render-pack`, `score`, and `live` only (no export commands). Same flags as above where applicable. Live setup notes: `pokelink/docs/LIVE_SETUP.md`.
+Underlying `packages/cli` (same flags as before):
 
 ```bash
-cd pokelink && npm run dev -- render-pack --pack <pack.json>
-cd pokelink && npm run dev -- score --replay <transcript.txt> --pack <pack.json>
-cd pokelink && npm run dev -- live --battle <roomid> --pack <pack.json>
+npx tsx packages/cli/src/cli.ts render-pack --pack pokeredus/data/knowledge-pack/knowledge-pack-mini.json
+npx tsx packages/cli/src/cli.ts export-pack --mini
+npx tsx packages/cli/src/cli.ts generate-pool --samples 200 --seed 1 --out packages/engine/data/gen9randombattle-pool.v1.json
+npx tsx packages/cli/src/cli.ts score --replay packages/cli/tests/fixtures/transcript.txt --pool packages/engine/data/gen9randombattle-pool.v1.json --policy softmax --dry-run
+npx tsx packages/cli/src/cli.ts live --battle <roomid> --policy quantum --dry-run --decision-log decisions.jsonl --live-state live-state.json
 ```
 
-### Python GUI & scripts (`pokeredus/`)
+`--dry-run` logs the sampled choice and never sends it. The launcher default is dry-run; `--send` turns that off.
+
+The live CLI overwrites `live-state.json` (or `$POKELINK_STATE`) each event and
+decision. Open **Games** in the web UI for current `roundScore`, choice CTA/CTS,
+the sampled action, side HP, and a rolling protocol log. Use **Connect & detect**
+to list battles on your Showdown account, then **Attach** to run the engine.
+
+## Decision log
+
+Append-only JSONL. Each line has observation features, set-belief
+probabilities, raw and scaled scores, policy probabilities, the sampled
+action, and optional `nextRoundOutcome`. This is the learning boundary;
+this change does not train weights.
+
+## Knowledge graph / team builder
 
 ```bash
-cd pokeredus && python scripts/launch.py
-cd pokeredus && python -m pokeredus.gui.unified_app
-cd pokeredus && python -m pokeredus.gui.app
-cd pokeredus && python scripts/build_graph.py
-cd pokeredus && python scripts/export_knowledge_pack.py
-cd pokeredus && python scripts/export_training_data.py
-cd pokeredus && python scripts/fetch_moves.py
-cd pokeredus && python scripts/fetch_base_stats.py
-cd pokeredus && python scripts/download_sprites.py
-cd pokeredus && python scripts/download_item_sprites.py
-cd pokeredus && python scripts/sync_obsidian_configs.py
+python tools/pr.py web
+python tools/pr.py graph
 ```
 
-| Script / flag | Purpose |
-|---|---|
-| `launch.py` | Build graph if stale, run tests, open Unified GUI |
-| `--no-build` | Skip auto-build of the matchup graph |
-| `--no-tests` | Skip integration tests before GUI |
-| `--tests-only` | Build + tests, no GUI |
-| `--legacy` | Old title-screen shell |
-| `build_graph.py` | Import data + compute matchups → `data/graphs/ou_matchup_graph.json` |
-| `export_knowledge_pack.py` | Emit portable Knowledge Pack JSON for PokeLink |
-| `--mini` / `--max-species` / `--out` | Mini pack, species cap, or custom output path |
-| `export_training_data.py` | Export training JSONL corpus |
-| `--output` / `--teams` / `--max-per-team` / `--demo` | Output path, team count, scene cap, tiny demo run |
-| `fetch_moves.py` | Download Showdown moves → `data/raw/moves.json` |
-| `fetch_base_stats.py` | Fetch species base stats → `data/raw/base_stats.json` |
-| `download_sprites.py` | Download species sprites (needs graph) |
-| `download_item_sprites.py` | Download item sprites (needs graph) |
-| `sync_obsidian_configs.py` | Dry-run sync of Obsidian params into code |
-| `--apply` | Write Obsidian sync changes |
+The web UI has Pokémon Browser, Team Builder, Matchup Graph, and Games
+(detect / attach Showdown battles). Games talks to Showdown from the Vite
+dev server; it does not put a websocket in the browser.
+
+Or by hand: `npm --workspace @pokeredus/web run dev`.
+
+Attribute formula inputs live in `pokeredus/data/config/` (`attribute_formulas.yaml`,
+`team_radial_formulas.json`, `radar_config.json`).
+
+## Limitations
+
+- Singles Random Battles only.
+- One-round lookahead; no deeper search.
+- Chance branches are a small seeded sample, not a full damage-roll enumeration.
+- Finite-shot QAOA is optional; exact `default.qubit` is the correctness default.
+
+## Verification
+
+```bash
+python tools/pr.py test
+python tools/pr.py --self-check
+```
+
+Or by hand:
+
+```bash
+npm test && npm run typecheck && npm run build
+python -m unittest discover -s quantum-policy/tests
+cd pokeredus && pytest tests/test_matchup_graph_8attr.py tests/test_matchup_graph_view.py tests/test_attribute_engine.py tests/test_phase5.py tests/test_game_state.py
+```

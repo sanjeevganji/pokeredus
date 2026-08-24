@@ -2,14 +2,14 @@
 matchup_graph — 3D matchup graph for PokeRedus.
 
 Maps every competitive set (and composites of sets, i.e. teams) into a
-three-axis space:
+three-axis space used by the team-builder attribute graph:
 
   Axis 1: Type affinity vector (18 discrete cells, one per Pokémon type)
   Axis 2: Offense ↔ Defense spectrum (continuous in [-1, +1])
   Axis 3: Speed / Control / Utility simplex (3-vector summing to 1)
 
-This module is the data layer that powers AI decisions about type
-matchups, speed tiers, and offensive/defensive balance.
+This module is the data layer for KG/attribute visualization. Battle
+policy lives in @pokeredus/engine.
 
 Design:
   - Pure-Python dataclasses (no NetworkX for projections).
@@ -104,59 +104,6 @@ class GraphProjection:
     target_id: str
     node: MatchupGraphNode
     computed_at: str = ""
-
-
-@dataclass
-class MoveRanking:
-    """A single move ranked for use against a specific defender.
-
-    score: combined heuristic (damage + type effectiveness + utility).
-    reasoning: human-readable explanation of why this score was assigned.
-    type_effectiveness: multiplier for the move's type vs defender.
-    is_stab: True if the move is STAB for the attacker.
-    estimated_damage_pct: best-case damage roll as % of defender's HP (0-100).
-    """
-
-    move_id: str
-    move_name: str
-    score: float
-    reasoning: str
-    type_effectiveness: float = 1.0
-    is_stab: bool = False
-    estimated_damage_pct: float = 0.0
-
-
-@dataclass
-class SwitchRanking:
-    """A candidate switch-in ranked against a specific opponent.
-
-    score: combined heuristic (type resist + speed + 3D distance).
-    reasons: list of human-readable explanations.
-    """
-
-    set_id: str
-    pokemon_id: str
-    set_name: str
-    score: float
-    reasons: list[str] = field(default_factory=list)
-    type_matchup: float = 1.0  # 0..4, product of incoming effectiveness
-    speed_advantage: str = "tie"  # "us", "them", "tie"
-
-
-@dataclass
-class TurnPlan:
-    """A composed turn plan returned by analyze_game_state.
-
-    recommended_switch: SwitchRanking | None (None means stay in)
-    recommended_move: MoveRanking | None
-    confidence: float in [0, 1]
-    reasoning_chain: list[str] of human-readable explanations
-    """
-
-    recommended_switch: SwitchRanking | None
-    recommended_move: MoveRanking | None
-    confidence: float = 0.5
-    reasoning_chain: list[str] = field(default_factory=list)
 
 
 @dataclass
@@ -528,390 +475,13 @@ def project_to_3d(target, kg: "KnowledgeGraph") -> MatchupGraphNode:
 
 
 # ═════════════════════════════════════════════════════════════════════
-# AI Query 1: pick_best_move
-# ═════════════════════════════════════════════════════════════════════
-
-def pick_best_move(
-    attacker: SetClass | str,
-    defender: SetClass | str,
-    kg: "KnowledgeGraph",
-) -> list[MoveRanking]:
-    """Rank every move in the attacker's set for use against the defender.
-
-    Returns a list of MoveRanking sorted by score descending.
-
-    Scoring per move (additive):
-      base_score   = 1.0
-      type_mult    = TYPE_CHART[move.type][def_types]  (e.g. 2.0, 0.5, 0)
-      stab_bonus   = 0.5 if STAB else 0
-      utility_bonus = 0.3 if status else 0
-                    + 0.2 if priority > 0
-                    + 0.1 if status and set has a recovery move (status spam value)
-      immunity_penalty = -1.0 if immune (0 type mult)
-      damage_boost = (avg_damage_pct / 100) from existing MatchupRelation if available
-
-    Each move's reasoning string documents which bonuses applied.
-    """
-    a = _resolve_one(attacker, kg)
-    d = _resolve_one(defender, kg)
-    if a is None or d is None:
-        return []
-
-    a_pokemon = kg.get_pokemon(a.pokemon_id)
-    d_pokemon = kg.get_pokemon(d.pokemon_id)
-    if a_pokemon is None or d_pokemon is None:
-        return []
-
-    def_types = d_pokemon.types
-
-    # Look up existing matchup for damage data (optional, may be None)
-    existing = kg.get_matchup_between(a.id, d.id)
-
-    # Count recovery moves in the attacker's set for status-spam bonus
-    a_has_recovery = any(mid.lower() in PIVOT_OR_RECOVERY for mid in a.moves)
-
-    rankings: list[MoveRanking] = []
-    for move_id in a.moves:
-        move = kg.get_move(move_id)
-        move_name = move.name if move else move_id
-        move_type = move.type if move else "Normal"
-        is_status = (move is None) or move.is_status
-        bp = move.base_power if move else 0
-        prio = move.priority if move else 0
-        is_stab = move_type in a_pokemon.types
-
-        # Type effectiveness vs defender's types
-        type_mult = get_effectiveness(move_type, def_types)
-
-        # Base score
-        score = 1.0
-        reasons: list[str] = []
-
-        # Damage-derived score (per % of defender HP dealt)
-        damage_pct = 0.0
-        if existing is not None and move_id == existing.best_move_a_id:
-            # Only the "best move" entry has direct damage data; we still
-            # use it as a hint, with type_mult as the dominant signal.
-            damage_pct = max(0.0, existing.damage_pct_a_to_b_hi)
-            if damage_pct > 0:
-                score += damage_pct / 100.0
-                reasons.append(f"~{damage_pct:.0f}% damage roll")
-
-        # Type effectiveness
-        if type_mult == 0.0:
-            score = -1.0
-            reasons.append("immune — never use")
-        elif type_mult >= 2.0:
-            score += 0.6
-            reasons.append(f"super-effective (x{type_mult})")
-        elif type_mult > 1.0:
-            score += 0.3
-            reasons.append(f"effective (x{type_mult})")
-        elif type_mult < 1.0 and type_mult > 0.0:
-            score -= 0.3
-            reasons.append(f"resisted (x{type_mult})")
-        # type_mult == 1.0: neutral, no change
-
-        # STAB
-        if is_stab and not is_status:
-            score += 0.5
-            reasons.append("STAB")
-
-        # High base power (nuke)
-        if bp >= 100 and not is_status:
-            score += 0.2
-            reasons.append("nuke-tier power")
-
-        # Status utility
-        if is_status:
-            score += 0.3
-            reasons.append("status utility")
-            if a_has_recovery:
-                score += 0.1
-                reasons.append("set has recovery → status spam")
-
-        # Priority
-        if prio > 0:
-            score += 0.2
-            reasons.append("priority")
-
-        rankings.append(MoveRanking(
-            move_id=move_id,
-            move_name=move_name,
-            score=round(score, 4),
-            reasoning="; ".join(reasons) if reasons else "neutral",
-            type_effectiveness=type_mult,
-            is_stab=is_stab,
-            estimated_damage_pct=damage_pct,
-        ))
-
-    # Sort descending by score
-    rankings.sort(key=lambda r: r.score, reverse=True)
-    return rankings
-
-
-# ═════════════════════════════════════════════════════════════════════
-# AI Query 2: find_optimal_switch
-# ═════════════════════════════════════════════════════════════════════
-
-def find_optimal_switch(
-    opponent: SetClass | str,
-    candidates: Iterable[SetClass | str],
-    kg: "KnowledgeGraph",
-) -> list[SwitchRanking]:
-    """Rank candidate switch-ins against a single opponent.
-
-    Scoring per candidate (additive):
-      type_resist_score  = 1.0 / product(incoming_type_effectiveness)
-                            (4x weakness = 0.25, immune = inf → capped)
-                            multiplied by 0.4 weight
-      speed_advantage     = +0.4 if candidate faster, -0.4 if slower
-      matchup_score_bonus = clamp(existing_matchup_score, -1, 1) * 0.4
-                            (uses precomputed MatchupRelation if available)
-      3d_distance_bonus  = -0.3 * euclidean_distance(opponent_node, candidate_node)
-                            in axis-2 + axis-3 space (closer = better)
-
-    Each ranking's ``reasons`` list documents which factors applied.
-    """
-    opp = _resolve_one(opponent, kg)
-    if opp is None:
-        return []
-    opp_pokemon = kg.get_pokemon(opp.pokemon_id)
-    if opp_pokemon is None:
-        return []
-
-    opp_proj = project_to_3d(opp, kg)
-
-    # Precompute opponent's offensive type vector (its STAB move types)
-    opp_attack_types: list[str] = []
-    for mid in opp.moves:
-        mv = kg.get_move(mid)
-        if mv and not mv.is_status and mv.base_power > 0:
-            opp_attack_types.append(mv.type)
-    # Also include the opponent's own types for STAB
-    opp_attack_types.extend(opp_pokemon.types)
-    # Dedupe
-    opp_attack_types = list(dict.fromkeys(opp_attack_types))
-
-    rankings: list[SwitchRanking] = []
-    for cand in candidates:
-        c = _resolve_one(cand, kg)
-        if c is None:
-            continue
-        c_pokemon = kg.get_pokemon(c.pokemon_id)
-        if c_pokemon is None:
-            continue
-
-        reasons: list[str] = []
-        score = 0.0
-
-        # 1. Type resist: product of effectiveness of opponent's attack types
-        #    vs the candidate's defensive types
-        type_matchup_product = 1.0
-        for atk_type in opp_attack_types:
-            mult = get_effectiveness(atk_type, c_pokemon.types)
-            type_matchup_product *= mult
-        # Cap to avoid /0 (immunity gives 0 → treat as best)
-        if type_matchup_product == 0.0:
-            type_resist_score = 2.0  # huge bonus for being immune
-            reasons.append("immune to opponent's STAB")
-        else:
-            # Lower is better for the candidate (less damage taken)
-            # Map (0.25, 0.5, 1.0, 2.0, 4.0) to (2.0, 1.0, 0.5, 0.0, -1.0)
-            if type_matchup_product <= 0.25:
-                type_resist_score = 2.0
-                reasons.append("barely scratched by opponent's STAB (4x resist)")
-            elif type_matchup_product <= 0.5:
-                type_resist_score = 1.0
-                reasons.append("resists opponent's STAB")
-            elif type_matchup_product <= 1.0:
-                type_resist_score = 0.5
-                reasons.append("neutral to opponent's STAB")
-            elif type_matchup_product <= 2.0:
-                type_resist_score = 0.0
-                reasons.append("takes neutral-to-super-effective damage")
-            else:
-                type_resist_score = -1.0
-                reasons.append("4x weak to opponent's STAB")
-        score += 0.4 * type_resist_score
-
-        # 2. Speed advantage
-        opp_spe = opp.effective_stat("spe", opp_pokemon.base_stats, level=100)
-        c_spe = c.effective_stat("spe", c_pokemon.base_stats, level=100)
-        if c_spe > opp_spe:
-            speed_advantage = "us"
-            score += 0.4
-            reasons.append("faster than opponent")
-        elif c_spe < opp_spe:
-            speed_advantage = "them"
-            score -= 0.4
-            reasons.append("slower than opponent")
-        else:
-            speed_advantage = "tie"
-            reasons.append("speed tie")
-
-        # 3. MatchupRelation score (if precomputed)
-        existing = kg.get_matchup_between(c.id, opp.id)
-        if existing is not None and existing.confidence > 0:
-            m_bonus = max(-1.0, min(1.0, existing.score)) * 0.4
-            score += m_bonus
-            if m_bonus > 0.1:
-                reasons.append(f"favorable precomputed matchup ({existing.score:+.2f})")
-            elif m_bonus < -0.1:
-                reasons.append(f"unfavorable precomputed matchup ({existing.score:+.2f})")
-
-        # 4. 3D distance in (offdef, scu) space — closer to opponent = similar
-        #    role/archetype, but we actually want COMPLEMENTARY. For now,
-        #    we use it as a tiebreaker (slight penalty for being too close).
-        c_proj = project_to_3d(c, kg)
-        dist = math.sqrt(
-            (c_proj.axis_offdef - opp_proj.axis_offdef) ** 2
-            + sum((a - b) ** 2 for a, b in
-                  zip(c_proj.axis_speed_control_utility,
-                      opp_proj.axis_speed_control_utility))
-        )
-        # Distance in [0, ~2.5]; convert to small bonus/penalty
-        score -= 0.1 * dist
-
-        rankings.append(SwitchRanking(
-            set_id=c.id,
-            pokemon_id=c.pokemon_id,
-            set_name=c.set_name,
-            score=round(score, 4),
-            reasons=reasons,
-            type_matchup=type_matchup_product,
-            speed_advantage=speed_advantage,
-        ))
-
-    rankings.sort(key=lambda r: r.score, reverse=True)
-    return rankings
-
-
-# ═════════════════════════════════════════════════════════════════════
-# AI Query 3: analyze_game_state (composes pick_best_move + find_optimal_switch)
-# ═════════════════════════════════════════════════════════════════════
-
-# Threshold for recommending a switch: if best switch scores at least
-# SWITCH_ADVANTAGE_THRESHOLD higher than the active's matchup score,
-# the AI will switch. Otherwise it stays in.
-SWITCH_ADVANTAGE_THRESHOLD: float = 0.3
-
-
-def analyze_game_state(
-    my_active: SetClass | str,
-    opp_active: SetClass | str,
-    my_bench: Iterable[SetClass | str],
-    kg: "KnowledgeGraph",
-) -> TurnPlan:
-    """Decide a single turn's plan: switch or stay, and which move to use.
-
-    Decision process:
-      1. Compute the active's matchup score vs the opponent.
-      2. Compute each bench member's matchup score vs the opponent
-         using find_optimal_switch.
-      3. If the best bench score > active score + threshold, recommend
-         a switch; else recommend staying in.
-      4. Always pick a recommended move (either for the active if staying,
-         or the switch-in's best move if switching).
-      5. Build a reasoning chain documenting each step.
-
-    Returns a TurnPlan with both recommendations and the confidence chain.
-    """
-    me = _resolve_one(my_active, kg)
-    opp = _resolve_one(opp_active, kg)
-    if me is None or opp is None:
-        return TurnPlan(
-            recommended_switch=None,
-            recommended_move=None,
-            confidence=0.0,
-            reasoning_chain=["could not resolve active or opponent"],
-        )
-
-    chain: list[str] = []
-    chain.append(
-        f"analyzing game state: {me.set_name} (active) vs {opp.set_name} (opp)"
-    )
-
-    # 1. Project both actives
-    me_proj = project_to_3d(me, kg)
-    opp_proj = project_to_3d(opp, kg)
-    chain.append(
-        f"  - active projected: offdef={me_proj.axis_offdef:+.2f}, "
-        f"scu={tuple(round(v, 2) for v in me_proj.axis_speed_control_utility)}"
-    )
-    chain.append(
-        f"  - opponent projected: offdef={opp_proj.axis_offdef:+.2f}, "
-        f"scu={tuple(round(v, 2) for v in opp_proj.axis_speed_control_utility)}"
-    )
-
-    # 2. Active's matchup score
-    active_matchup = kg.get_matchup_between(me.id, opp.id)
-    active_score = active_matchup.score if active_matchup is not None else 0.0
-    chain.append(
-        f"  - active matchup score vs opp: {active_score:+.2f}"
-    )
-
-    # 3. Best bench matchup
-    bench_list = list(my_bench)
-    bench_switches = find_optimal_switch(opp, bench_list, kg)
-    if bench_switches:
-        best_switch = bench_switches[0]
-        chain.append(
-            f"  - best bench switch: {best_switch.set_name} "
-            f"(score={best_switch.score:+.2f})"
-        )
-        for reason in best_switch.reasons:
-            chain.append(f"      * {reason}")
-    else:
-        best_switch = None
-        chain.append("  - no bench available (or empty)")
-
-    # 4. Decide: switch or stay
-    should_switch = (
-        best_switch is not None
-        and best_switch.score > active_score + SWITCH_ADVANTAGE_THRESHOLD
-    )
-
-    if should_switch and best_switch is not None:
-        chain.append(
-            f"  -> decision: SWITCH to {best_switch.set_name} "
-            f"(advantage {best_switch.score - active_score:+.2f} > threshold)"
-        )
-        # The switch-in is the recommended "active" for the move pick
-        switch_set = _resolve_one(best_switch.set_id, kg)
-        move_rankings = pick_best_move(switch_set, opp, kg) if switch_set else []
-        rec_move = move_rankings[0] if move_rankings else None
-        confidence = 0.5 + 0.2 * min(1.0, abs(best_switch.score - active_score))
-        return TurnPlan(
-            recommended_switch=best_switch,
-            recommended_move=rec_move,
-            confidence=min(1.0, confidence),
-            reasoning_chain=chain,
-        )
-    else:
-        chain.append(
-            f"  -> decision: STAY with {me.set_name} "
-            f"(active score {active_score:+.2f} acceptable; "
-            f"best bench {best_switch.score if best_switch else 0:+.2f})"
-        )
-        move_rankings = pick_best_move(me, opp, kg)
-        rec_move = move_rankings[0] if move_rankings else None
-        confidence = 0.5 + 0.2 * max(0.0, active_score)
-        return TurnPlan(
-            recommended_switch=None,
-            recommended_move=rec_move,
-            confidence=min(1.0, confidence),
-            reasoning_chain=chain,
-        )
-
-
 # ═════════════════════════════════════════════════════════════════════
 # 8-attribute x 18-type polygonal-solid data layer (Tasks 3-10)
 # ═════════════════════════════════════════════════════════════════════
 #
-# This section is the new visualisation data model that powers the 2D
-# radial polygon and 3D cylinder renderers (Tasks 11-15).  It is purely
-# additive — the 3D projection and AI queries above are unchanged.
+# This section is the visualisation data model that powers the 2D
+# radial attribute views. It is purely geometric — role/coverage
+# weights here are visualization-only and are not battle policy.
 #
 # Axis model (per type i):
 #     Same-axis (additive): attack+utility on Y; defense+speed on Z.
@@ -921,7 +491,7 @@ def analyze_game_state(
 #         threat  = attack + speed
 #         punish  = utility + speed
 #     Volume of the polygonal solid =
-#         Σ_i ( counter_i·sponge_i + threat_i·punish_i )  × bias.
+#         Σ_i ( counter_i·sponge_i + threat_i·punish_i ).
 
 import numpy as _np
 
@@ -1054,31 +624,26 @@ def _eff_spe(set_obj, p) -> float:
 class _SetMatchupNode:
     """Per-set 8-attribute x 18-type matchup-graph node.
 
-    Independent dataclass from the legacy MatchupGraphNode (which
-    carries the type-vector / offdef / SCU axes for the AI's MCTS
-    engine).  The two coexist; build_node() returns one of these.
+    Independent dataclass from the legacy MatchupGraphNode (type-vector /
+    offdef / SCU axes). ``build_node()`` returns one of these.
     """
     set_id: str = ""
     pokemon_id: str = ""
 
     def __init__(self, set_id: str = "", pokemon_id: str = "",
-                 attributes=None, vase_order=None, bias: float = 1.0,
-                 weights=None, role: str = "", mcts_composite: float = 0.0):
+                 attributes=None, vase_order=None,
+                 weights=None, role: str = ""):
         self.set_id = set_id
         self.pokemon_id = pokemon_id
         self.attributes = (attributes if attributes is not None
                            else _np.zeros((8, 18), dtype=_np.float32))
         self.vase_order = list(vase_order) if vase_order is not None else []
-        self.bias = float(bias)
         self.weights = (weights if weights is not None
                         else _np.ones(8, dtype=_np.float32))
         self.role = role
-        self.mcts_composite = float(mcts_composite)
 
 
 # Public alias for the 8-attribute x 18-type polygonal-solid model.
-# The legacy dataclass stays as ``MatchupGraphNode`` for the existing
-# 3D-projection and AI-query tests / API.
 SetMatchupNode = _SetMatchupNode
 
 
@@ -1158,15 +723,15 @@ def compute_compound_attributes(base: _np.ndarray) -> _np.ndarray:
     return full
 
 
-def volume_of(attributes: _np.ndarray, bias: float = 1.0) -> float:
+def volume_of(attributes: _np.ndarray) -> float:
     """Total volume of the 3D polygonal solid.
 
-    V = Σ_i  ( counter_i·sponge_i + threat_i·punish_i )  × bias
+    V = Σ_i  ( counter_i·sponge_i + threat_i·punish_i )
     """
     C = ATTRIBUTE_INDEX["counter"]; G = ATTRIBUTE_INDEX["sponge"]
     T = ATTRIBUTE_INDEX["threat"]; P = ATTRIBUTE_INDEX["punish"]
     per_type = attributes[C] * attributes[G] + attributes[T] * attributes[P]
-    return float(per_type.sum() * bias)
+    return float(per_type.sum())
 
 
 # ── Task 6: vase sort + role weight table ──────────────────────────
@@ -1206,8 +771,8 @@ WEIGHT_TABLE: dict[str, dict[str, float]] = {
 # ── Task 7: end-to-end build_node ──────────────────────────────────
 
 
-def build_node(set_obj, p, kg=None, mcts_composite: float = 0.0):
-    """End-to-end: compute 4 base → 4 compound → vase-sort → bias/weights."""
+def build_node(set_obj, p, kg=None):
+    """End-to-end: compute 4 base → 4 compound → vase-sort → role weights."""
     base = compute_base_attributes(set_obj, p, kg)
     full = compute_compound_attributes(base)
     role = (getattr(set_obj, "role", "") or "default").lower()
@@ -1215,16 +780,13 @@ def build_node(set_obj, p, kg=None, mcts_composite: float = 0.0):
                           for a in ATTRIBUTE_NAMES], dtype=_np.float32)
     full = full * weights[:, None]  # broadcast weights across 18 types
     order = vase_sort(full)
-    bias = 0.5 + 0.5 * float(_np.clip(mcts_composite, 0.0, 1.0))
     return _SetMatchupNode(
         set_id=set_obj.id,
         pokemon_id=set_obj.pokemon_id,
         attributes=full,
         vase_order=order,
-        bias=bias,
         weights=weights,
         role=role,
-        mcts_composite=float(mcts_composite),
     )
 
 
@@ -1250,10 +812,8 @@ def save_node_cache(node, sets_dir) -> tuple[pathlib.Path, pathlib.Path]:
     with open(meta_path, "w", encoding="utf-8") as f:
         json.dump({
             "vase_order": list(node.vase_order),
-            "bias": float(node.bias),
             "weights": node.weights.tolist(),
             "role": node.role,
-            "mcts_composite": float(node.mcts_composite),
         }, f, indent=2)
     return data_path, meta_path
 
@@ -1271,10 +831,8 @@ def load_node_cache(pokemon_id: str, set_id: str, sets_dir):
         pokemon_id=d["pokemon_id"],
         attributes=_np.array(d["attributes"], dtype=_np.float32),
         vase_order=list(m["vase_order"]),
-        bias=float(m["bias"]),
         weights=_np.array(m["weights"], dtype=_np.float32),
         role=str(m.get("role", "")),
-        mcts_composite=float(m.get("mcts_composite", 0.0)),
     )
 
 
@@ -1289,7 +847,6 @@ def compose_team_node(nodes, weights=None):
         weights = [1.0] * len(nodes)
     ws = _np.array(weights, dtype=_np.float32)
     attrs = sum(w * n.attributes for w, n in zip(ws, nodes))
-    bias = float(_np.mean([n.bias for n in nodes]))
     C = ATTRIBUTE_INDEX["counter"]; G = ATTRIBUTE_INDEX["sponge"]
     T = ATTRIBUTE_INDEX["threat"]; P = ATTRIBUTE_INDEX["punish"]
     per_type = attrs[C] * attrs[G] + attrs[T] * attrs[P]
@@ -1299,13 +856,11 @@ def compose_team_node(nodes, weights=None):
         pokemon_id="team",
         attributes=attrs,
         vase_order=vase,
-        bias=bias,
         weights=_np.ones(8, dtype=_np.float32),
         role="team",
-        mcts_composite=float(_np.mean([n.mcts_composite for n in nodes])),
     )
 
 
 def team_volume(team) -> float:
-    return volume_of(team.attributes, bias=team.bias)
+    return volume_of(team.attributes)
 

@@ -1,29 +1,24 @@
 """
 Dynamic Attribute Engine.
-Calculates 8 sector scores (0-100) using configurable formulae from Obsidian.
+Calculates 8 sector scores (0-100) using configurable formulae.
+Visualization only — not used by battle policy.
 """
 from __future__ import annotations
 import yaml
-import numpy as np
-import pathlib
-from dataclasses import dataclass
 from typing import Any
 
-# Path to the formulas file in Obsidian
-FORMULA_PATH = pathlib.Path(r"D:\PokeRedus\Hermes Memory\attribute_formulas.md")
+from pokeredus.config import CONFIG_DIR
+
+FORMULA_PATH = CONFIG_DIR / "attribute_formulas.yaml"
 
 def load_formulas() -> dict:
-    """Load formulas from the Obsidian MD file (YAML frontmatter or simplified YAML)."""
+    """Load sector formulas from pokeredus/data/config/attribute_formulas.yaml."""
     if not FORMULA_PATH.exists():
         return {}
-    
     try:
         with open(FORMULA_PATH, "r", encoding="utf-8") as f:
-            content = f.read()
-            # Remove header/title lines
-            lines = content.split("\n")
-            yaml_content = "\n".join([l for l in lines if not l.startswith("#")])
-            return yaml.safe_load(yaml_content)
+            data = yaml.safe_load(f)
+            return data if isinstance(data, dict) else {}
     except Exception as e:
         print(f"Error loading formulas: {e}")
         return {}

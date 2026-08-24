@@ -8,7 +8,7 @@ import type { BattleEvent } from './protocol.js';
 export const SHOWDOWN_ACTION_URL = 'https://play.pokemonshowdown.com/action.php';
 
 /** A randomly-suffixed guest name (no account needed). */
-export function guestName(prefix = 'pokelink'): string {
+export function guestName(prefix = 'pokeredus'): string {
   return `${prefix}${Math.floor(Math.random() * 1_000_000)}`;
 }
 

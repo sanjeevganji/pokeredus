@@ -12,10 +12,10 @@ export default function Home() {
       <div className="panel" style={{ marginTop: 24, maxWidth: 640 }}>
         <h3 style={{ color: 'var(--neon-pink)', marginTop: 0 }}>Navigation</h3>
         <ul style={{ lineHeight: 2 }}>
+          <li><Link to="/games">Games</Link> — detect Showdown battles and attach PokeLink</li>
           <li><Link to="/teams">Team Builder</Link> — load/save JSON teams</li>
           <li><Link to="/browser">Pokémon Browser</Link> — browse sets with live matchups</li>
           <li><Link to="/graph">Matchup Graph</Link> — 2D force graph of team matchups</li>
-          <li><Link to="/simulator">Simulator</Link> — damage ranges + turn recommendations</li>
         </ul>
       </div>
 

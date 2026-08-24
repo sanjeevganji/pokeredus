@@ -165,14 +165,14 @@ def compute_attributes(base_per_type: np.ndarray,
     return out
 
 
-def volume_of_tuned(attributes_8x18: np.ndarray, bias: float = 1.0) -> float:
+def volume_of_tuned(attributes_8x18: np.ndarray) -> float:
     """Volume of the 3D polygonal solid given an *already-scaled* 8x18
     attribute matrix.  Same shape as the existing ``volume_of``."""
     C = _attr_idx("counter"); G = _attr_idx("sponge")
     T = _attr_idx("threat");  P = _attr_idx("punish")
     per_type = (attributes_8x18[C] * attributes_8x18[G]
                 + attributes_8x18[T] * attributes_8x18[P])
-    return float(per_type.sum() * bias)
+    return float(per_type.sum())
 
 
 def tune_existing_node(node, tuning: AttributeTuning | None = None) -> np.ndarray:

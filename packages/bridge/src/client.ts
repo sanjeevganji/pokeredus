@@ -4,14 +4,14 @@
 //   * connect to the PS websocket endpoint,
 //   * transparently handle the `|challstr|` → `|/trn` auth handshake,
 //   * auto-join a battle room when `battleRoom` is provided,
-//   * parse every inbound line with `parseLine` and fan out `BattleEvent`s to
-//     registered handlers.
+//   * parse battle lines with `parseLine` and lobby lines with `parseLobbyLine`.
 //
 // It deliberately does NOT hold game state or make decisions — that belongs to
 // `BattleTracker` + `decide.ts`. The client is pure connectivity + parsing.
 import { WebSocket } from 'ws';
 import { parseLine, type BattleEvent } from './protocol.js';
 import { getAssertion, guestName } from './auth.js';
+import { parseLobbyLine, type LobbyEvent } from './lobby.js';
 
 export interface ShowdownClientOptions {
   url?: string;
@@ -23,6 +23,7 @@ export interface ShowdownClientOptions {
 }
 
 type EventHandler = (ev: BattleEvent) => void;
+type LobbyHandler = (ev: LobbyEvent) => void;
 
 export class ShowdownClient {
   readonly url: string;
@@ -33,9 +34,10 @@ export class ShowdownClient {
 
   private ws?: WebSocket;
   private handlers: EventHandler[] = [];
+  private lobbyHandlers: LobbyHandler[] = [];
 
   constructor(opts: ShowdownClientOptions = {}) {
-    this.url = opts.url ?? 'wss://sim3.pokemonshowdown.com:443/';
+    this.url = opts.url ?? 'wss://sim3.psim.us/showdown/websocket';
     this.user = opts.user;
     this.pass = opts.pass;
     this.battleRoom = opts.battleRoom;
@@ -47,21 +49,29 @@ export class ShowdownClient {
     this.handlers.push(h);
   }
 
+  /** Register a handler for lobby / search lines (`updatesearch`, `roomlist`, …). */
+  onLobby(h: LobbyHandler): () => void {
+    this.lobbyHandlers.push(h);
+    return () => {
+      this.lobbyHandlers = this.lobbyHandlers.filter((x) => x !== h);
+    };
+  }
+
   /** Open the socket. Resolves once the connection is established. */
   connect(): Promise<void> {
     return new Promise((resolve, reject) => {
       const ws = new WebSocket(this.url);
       this.ws = ws;
       ws.on('open', () => {
-        console.log(`[pokelink] connected to ${this.url}`);
+        console.log(`[pokeredus] connected to ${this.url}`);
         resolve();
       });
       ws.on('message', (data: Buffer | ArrayBuffer | string) => {
         const text = typeof data === 'string' ? data : data.toString();
         this.onMessage(text);
       });
-      ws.on('error', (err) => console.error('[pokelink] ws error:', err));
-      ws.on('close', () => console.log('[pokelink] ws closed'));
+      ws.on('error', (err) => console.error('[pokeredus] ws error:', err));
+      ws.on('close', () => console.log('[pokeredus] ws closed'));
       ws.on('unexpected-response', (_req, res) => reject(new Error(`ws unexpected response ${res.statusCode}`)));
     });
   }
@@ -69,7 +79,7 @@ export class ShowdownClient {
   /** Send a raw protocol message. */
   send(msg: string): void {
     if (!this.ws) {
-      console.warn('[pokelink] send before connect:', msg);
+      console.warn('[pokeredus] send before connect:', msg);
       return;
     }
     this.ws.send(msg);
@@ -84,8 +94,14 @@ export class ShowdownClient {
     for (const raw of data.split('\n')) {
       const line = raw.trim();
       if (!line) continue;
+      if (line.startsWith('>')) continue;
       if (line.startsWith('|challstr|')) {
         void this.handleChallstr(line);
+        continue;
+      }
+      const lobby = parseLobbyLine(line);
+      if (lobby) {
+        for (const h of this.lobbyHandlers) h(lobby);
         continue;
       }
       const ev = parseLine(line);
@@ -101,7 +117,7 @@ export class ShowdownClient {
         const assertion = await getAssertion(this.user, this.pass, challstr);
         this.send(`|/trn ${this.user},0,${assertion}`);
       } catch (e) {
-        console.error('[pokelink] auth failed, falling back to guest:', e);
+        console.error('[pokeredus] auth failed, falling back to guest:', e);
         this.send(`|/trn ${guestName()},0,`);
       }
     } else {

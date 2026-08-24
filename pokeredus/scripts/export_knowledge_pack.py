@@ -1,13 +1,13 @@
 """
 export_knowledge_pack.py — emit the portable PokeRedus "Knowledge Pack" JSON
-consumed by the external pokelink (TypeScript) runtime engine.
+consumed by the TypeScript packages (knowledge graph / matchup edges).
 
 The pack is a single immutable artifact:
     version, generated_at, types (18x18 chart), species, moves,
     abilities, items, sets (every set), edges (primary-set matchups).
 
-Edges are the "downloadable intelligence seed": they are what the TS MCTS
-scorer uses as its prior. They are computed here once (it is fast — the TTK
+Edges are the portable matchup seed for the TypeScript KG. They are computed
+here once (it is fast — the TTK
 scorer runs in ~0.1ms/pair, so the full 118-species primary set matrix of
 ~13.8k ordered pairs finishes in ~1s) and shipped as data. We deliberately do
 NOT load the 86MB cached matchup graph for this: recomputation is cheaper than
