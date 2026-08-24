@@ -175,7 +175,7 @@ export function evaluateRound(obs: BattleObservation, opts?: { chanceSeeds?: num
 
   const replyList: ReplyEvaluation[] = [...replyAcc.values()].map((acc) => ({
     action: acc.action,
-    expectedImpact: acc.weight > 0 ? acc.impactSum / acc.weight * acc.weight : 0,
+    expectedImpact: acc.weight > 0 ? acc.impactSum / acc.weight : 0,
     hitsToKillUs: acc.weight > 0 ? hitsToKill(acc.ourHBefore / acc.weight, acc.ourHAfter / acc.weight) : null,
   }));
 
