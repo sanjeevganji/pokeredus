@@ -76,7 +76,12 @@ describe('LiveStateWriter', () => {
       evaluation: {
         choices: [{
           action: { id: 'move:earthquake', type: 'move', moveId: 'earthquake' },
-          success: 1, cta: 0.9, expectedImpact: 1.2, choiceScore: 1.1, scaledChoiceScore: 0.7, meanPostScore: 0.2,
+          success: 1, cta: 0.9, expectedImpact: 1.2, expectedHealthDelta: 1.0, expectedModifierDelta: 0.2,
+          hitsToKill: 2, choiceScore: 1.1, scaledChoiceScore: 0.7, meanPostScore: 0.2,
+        }],
+        replies: [{
+          action: { id: 'move:recover', type: 'move', moveId: 'recover' },
+          expectedImpact: -0.3, hitsToKillUs: null,
         }],
         roundScore: 0.42,
         forcedOutcome: 'none',
@@ -85,14 +90,24 @@ describe('LiveStateWriter', () => {
       probabilities: [1],
       sampledId: 'move:earthquake',
       sent: false,
+      diagnostics: { mode: 'quantum', n_qubits: 1, exact: true },
     });
     const snap = JSON.parse(fs.readFileSync(file, 'utf8'));
     expect(snap.room).toBe('battle-gen9randombattle-1');
     expect(snap.turn).toBe(3);
     expect(snap.field.weather).toBe('rain');
+    expect(snap.field.ours.hazards.stealthrock).toBe(false);
     expect(snap.eval.roundScore).toBe(0.42);
     expect(snap.eval.sampledAction).toBe('move:earthquake');
-    expect(snap.eval.choices[0].cta).toBe(0.9);
+    expect(snap.eval.choices[0].choiceScore).toBe(1.1);
+    expect(snap.eval.choices[0].hitsToKill).toBe(2);
+    expect(snap.eval.replies[0].id).toBe('move:recover');
+    expect(snap.eval.quantum.mode).toBe('quantum');
+    expect(snap.eval.quantum.nQubits).toBe(1);
+    expect(snap.turns).toHaveLength(1);
+    expect(snap.turns[0].roundScore).toBe(0.42);
+    expect(snap.ours).toHaveLength(6);
+    expect(snap.theirs).toHaveLength(6);
     expect(snap.ours[0].speciesId).toBe('garchomp');
     expect(snap.theirs[0].hp).toBe(80);
     expect(snap.events.some((e: { text: string }) => e.text.includes('Garchomp in'))).toBe(true);
@@ -101,13 +116,15 @@ describe('LiveStateWriter', () => {
 });
 
 describe('slotsFromObservation', () => {
-  it('drops unrevealed placeholders', () => {
+  it('keeps six slots including unrevealed', () => {
     const o = obs();
     o.theirs.push({
       slot: 1, speciesId: 'smeargle', revealed: false, hp: 100, maxHp: 100, status: '',
       boosts: emptyBoosts(), fainted: false, active: false, knownMoves: [],
       hypotheses: [], modifiers: [],
     });
-    expect(slotsFromObservation(o, 'theirs')).toHaveLength(1);
+    const slots = slotsFromObservation(o, 'theirs');
+    expect(slots).toHaveLength(6);
+    expect(slots[1]!.revealed).toBe(false);
   });
 });
