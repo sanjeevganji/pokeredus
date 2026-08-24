@@ -1,4 +1,4 @@
-import type { ForcedOutcome, Modifier, MonValue, SlotSnapshot } from './observation.js';
+import type { FieldSnapshot, ForcedOutcome, Modifier, MonValue, PlayerSide, SlotSnapshot } from './observation.js';
 
 export const EPS = 1e-9;
 export const EXPECTED_VALUE_TURNS = 3;
