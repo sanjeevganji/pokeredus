@@ -153,6 +153,6 @@ describe('ShowdownClient (mocked ws)', () => {
     const obs = tracker.toObservation(pool, []);
     expect(obs.ours[0]?.hp).toBe(100);
     expect(obs.turn).toBe(0);
-    expect(tracker.oppMons.get('p2a')?.speciesId).toBe('toxapex');
+    expect(obs.theirs.find((s) => s.active)?.speciesId).toBe('toxapex');
   });
 });
