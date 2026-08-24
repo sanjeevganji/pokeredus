@@ -11,6 +11,7 @@ import Scenarios from './pages/Scenarios';
 const NAV = [
   { to: '/', label: 'Home' },
   { to: '/games', label: 'Games' },
+  { to: '/scenarios', label: 'Scenarios' },
   { to: '/teams', label: 'Team Builder' },
   { to: '/browser', label: 'Pokémon Browser' },
   { to: '/graph', label: 'Matchup Graph' },

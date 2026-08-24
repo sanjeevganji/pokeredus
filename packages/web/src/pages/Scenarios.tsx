@@ -53,7 +53,6 @@ export default function Scenarios() {
     setWinrate(null);
     setPlayNote('');
     try {
-      const { getScenario } = await import('../lib/scenarios');
       const s = await getScenario(id);
       setCurrent(s);
       const out = await evalScenario(id);
