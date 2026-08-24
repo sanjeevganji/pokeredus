@@ -338,10 +338,34 @@ function blankSlot(): LiveSlot {
   };
 }
 
-function padSlots(slots: LiveSlot[]): LiveSlot[] {
+export function padSlots(slots: LiveSlot[]): LiveSlot[] {
   const out = slots.slice(0, LIVE_SLOT_COUNT);
   while (out.length < LIVE_SLOT_COUNT) out.push(blankSlot());
   return out;
+}
+
+function toLiveChoices(ev: DecideResult['evaluation'], probabilities?: number[]): LiveChoice[] {
+  return ev.choices.map((c, i) => ({
+    id: c.action.id,
+    type: c.action.type,
+    cta: c.cta,
+    cts: c.cts,
+    expectedImpact: c.expectedImpact,
+    expectedHealthDelta: c.expectedHealthDelta ?? 0,
+    expectedModifierDelta: c.expectedModifierDelta ?? 0,
+    hitsToKill: c.hitsToKill ?? null,
+    choiceScore: c.choiceScore,
+    probability: probabilities?.[i],
+  }));
+}
+
+function toLiveReplies(replies: NonNullable<DecideResult['evaluation']['replies']>): LiveReply[] {
+  return replies.map((r) => ({
+    id: r.action.id,
+    type: r.action.type,
+    expectedImpact: r.expectedImpact,
+    hitsToKillUs: r.hitsToKillUs,
+  }));
 }
 
 function emptyHazards(): LiveHazards {
