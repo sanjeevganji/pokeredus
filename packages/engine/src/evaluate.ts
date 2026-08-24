@@ -34,7 +34,6 @@ import {
 } from './math.js';
 import { simulateRound } from './sim.js';
 import { enumerateFromRequest, type ShowdownRequest } from './actions.js';
-import type { PolicyMode } from './observation.js';
 import type { QuantumPolicyProcess } from './policy.js';
 
 const CHANCE_SEEDS = 4;
