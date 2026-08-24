@@ -277,13 +277,14 @@ export class LiveStateWriter {
         quantum: quantumFromDiag(result.diagnostics),
       },
     };
-    // #region agent log
-    try { fs.appendFileSync(path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../../debug-029c39.log'), JSON.stringify({sessionId:'029c39',runId:'post-fix',hypothesisId:'E',location:'live-state.ts:fromDecision',message:'eval listings',data:{choiceIds:result.evaluation.choices.map((c)=>c.action.id),replyIds:(result.evaluation.replies??[]).map((r)=>r.action.id),teraChoiceIds:(result.teraOurs?.choices??[]).map((c)=>c.action.id),teraReplyIds:(result.teraTheirs?.replies??[]).map((r)=>r.action.id),oursHud:this.state.ours.map((s)=>({species:s.speciesId,active:s.active,revealed:s.revealed}))},timestamp:Date.now()})+'\n'); } catch { /* ignore */ }
-    fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'029c39'},body:JSON.stringify({sessionId:'029c39',runId:'post-fix',hypothesisId:'E',location:'live-state.ts:fromDecision',message:'eval listings',data:{choiceIds:result.evaluation.choices.map((c)=>c.action.id),teraN:result.teraOurs?.choices.length??0},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
-    this.pushEvent(
-      `eval roundScore=${result.evaluation.roundScore.toFixed(3)} sampled ${result.sampledId}`,
-    );
+    this.flush();
+  }
+
+  writeObservation(obs: BattleObservation): void {
+    const fp = defaultLiveObservationPath(this.path);
+    const dir = path.dirname(fp);
+    if (dir && dir !== '.') fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(fp, JSON.stringify(obs) + '\n', 'utf8');
   }
 
   flush(): void {
