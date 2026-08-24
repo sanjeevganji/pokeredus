@@ -563,6 +563,9 @@ export class BattleTracker {
     for (const s of theirs) s.modifiers = modifiersFromSlot(s, weather);
 
     const legalActions = enumerateFromRequest(this.lastRequest ?? undefined);
+    // #region agent log
+    fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'029c39'},body:JSON.stringify({sessionId:'029c39',runId:'pre',hypothesisId:'C',location:'protocol.ts:toObservation',message:'obs slots',data:{ourSide:this.ourSide,ours:ours.map((s)=>({species:s.speciesId,active:s.active,slot:s.slot,revealed:s.revealed})),theirs:theirs.map((s)=>({species:s.speciesId,active:s.active,slot:s.slot,revealed:s.revealed})),legal:legalActions.map((a)=>a.id),teraLegal:legalActions.filter((a)=>a.tera).length},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
     return {
       turn: this.turn,
       format: 'gen9randombattle',
