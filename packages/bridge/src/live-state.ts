@@ -216,13 +216,9 @@ export class LiveStateWriter {
       ...this.state,
       ts: nowIso(),
       turn: tracker.turn,
-      field: {
-        weather: tracker.field.weather,
-        terrain: tracker.field.terrain,
-        trickroom: tracker.field.trickroom,
-      },
-      ours: hudSlots(tracker.myMons),
-      theirs: hudSlots(tracker.oppMons),
+      field: liveFieldFromTracker(tracker),
+      ours: hudSlots(tracker.myMons, tracker.field.weather),
+      theirs: hudSlots(tracker.oppMons, tracker.field.weather),
     };
     this.flush();
   }
@@ -232,11 +228,7 @@ export class LiveStateWriter {
       ...this.state,
       ts: nowIso(),
       turn: obs.turn,
-      field: {
-        weather: obs.field.weather,
-        terrain: obs.field.terrain,
-        trickroom: obs.field.trickroom,
-      },
+      field: liveFieldFromObs(obs),
       ours: slotsFromObservation(obs, 'ours'),
       theirs: slotsFromObservation(obs, 'theirs'),
     };
@@ -245,10 +237,19 @@ export class LiveStateWriter {
 
   fromDecision(result: DecideResult): void {
     const probabilities = result.probabilities;
+    const turns: LiveTurn[] = [
+      ...(this.state.turns ?? []),
+      {
+        turn: this.state.turn,
+        roundScore: result.evaluation.roundScore,
+        sampledAction: result.sampledId,
+      },
+    ].slice(-MAX_LIVE_TURNS);
     this.state = {
       ...this.state,
       ts: nowIso(),
       status: 'waiting',
+      turns,
       eval: {
         roundScore: result.evaluation.roundScore,
         forcedOutcome: result.evaluation.forcedOutcome,
@@ -260,9 +261,19 @@ export class LiveStateWriter {
           cta: c.cta,
           cts: c.cts,
           expectedImpact: c.expectedImpact,
+          expectedHealthDelta: c.expectedHealthDelta ?? 0,
+          expectedModifierDelta: c.expectedModifierDelta ?? 0,
+          hitsToKill: c.hitsToKill ?? null,
           choiceScore: c.choiceScore,
           probability: probabilities[i],
         })),
+        replies: (result.evaluation.replies ?? []).map((r) => ({
+          id: r.action.id,
+          type: r.action.type,
+          expectedImpact: r.expectedImpact,
+          hitsToKillUs: r.hitsToKillUs,
+        })),
+        quantum: quantumFromDiag(result.diagnostics),
       },
     };
     this.pushEvent(
