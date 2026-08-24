@@ -5,6 +5,7 @@ import { Bench, actionLabel, hkoLabel } from '../components/theater';
 import type { LiveField, LiveSlot } from '../lib/games';
 import {
   evalScenario,
+  getScenario,
   getWeights,
   importScenario,
   listScenarios,
