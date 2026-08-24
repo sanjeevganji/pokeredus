@@ -105,6 +105,32 @@ describe('ShowdownClient (mocked ws)', () => {
     const trnSent = ws.sent.find((m: string) => m.startsWith('|/trn'));
     expect(trnSent).toBeDefined();
     expect(trnSent).toContain('pokeredus'); // guest name prefix
+    expect(ws.sent.some((m: string) => m.includes('/join'))).toBe(false);
+  });
+
+  it('joins a battle room after auth when battleRoom is set', async () => {
+    const client = new ShowdownClient({ url: 'wss://test', battleRoom: 'battle-gen9randombattle-1', dryRun: true });
+    const connected = client.connect();
+    const ws = (WebSocket as any).instances[0];
+    ws.trigger('open');
+    await connected;
+    ws.trigger('message', '|challstr|1|abc123');
+    expect(ws.sent.some((m: string) => m === '|/join battle-gen9randombattle-1')).toBe(true);
+  });
+
+  it('emits lobby updatesearch without treating it as a battle event', async () => {
+    const client = new ShowdownClient({ url: 'wss://test', dryRun: true });
+    const lobby: string[] = [];
+    const battle: string[] = [];
+    client.onLobby((ev) => lobby.push(ev.type));
+    client.onEvent((ev) => battle.push(ev.type));
+    const connected = client.connect();
+    const ws = (WebSocket as any).instances[0];
+    ws.trigger('open');
+    await connected;
+    ws.trigger('message', '|updatesearch|{"searching":[],"games":{"battle-gen9randombattle-1":"[Gen 9] Random Battle"}}');
+    expect(lobby).toEqual(['updatesearch']);
+    expect(battle).toEqual([]);
   });
 
   it('the emitted request event yields the expected observation via a tracker', async () => {

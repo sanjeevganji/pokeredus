@@ -3,3 +3,4 @@ export * from './client.js';
 export * from './decide.js';
 export * from './protocol.js';
 export * from './live-state.js';
+export * from './lobby.js';

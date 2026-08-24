@@ -133,6 +133,81 @@ button:hover { background: var(--bg-hover); }
   gap: 16px;
 }
 
+.game-form {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.game-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--fg-secondary);
+  font-size: 0.85rem;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.game-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.game-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--fg-dim);
+}
+
+.hud-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 12px;
+}
+
+.hp-track {
+  height: 8px;
+  background: var(--bg-input);
+  border-radius: 2px;
+  margin-top: 4px;
+}
+
+.hp-fill { height: 8px; border-radius: 2px; }
+
+.event-log {
+  margin: 12px 0 0;
+  max-height: 180px;
+  overflow: auto;
+  background: var(--bg-input);
+  padding: 8px;
+  font-size: 0.85rem;
+  white-space: pre-wrap;
+}
+
+.status-pill {
+  display: inline-block;
+  padding: 2px 8px;
+  border-radius: 10px;
+  background: var(--bg-input);
+}
+
+.status-connected, .status-waiting { color: var(--neon-cyan); }
+.status-deciding { color: var(--neon-pink); }
+.status-ended { color: var(--neon-orange); }
+.status-error { color: var(--neon-red); }
+.status-connecting { color: var(--neon-yellow); }
+
 @media (max-width: 800px) {
-  .grid-2 { grid-template-columns: 1fr; }
+  .grid-2, .hud-grid, .game-form { grid-template-columns: 1fr; }
 }

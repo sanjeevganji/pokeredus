@@ -4,14 +4,14 @@
 //   * connect to the PS websocket endpoint,
 //   * transparently handle the `|challstr|` → `|/trn` auth handshake,
 //   * auto-join a battle room when `battleRoom` is provided,
-//   * parse every inbound line with `parseLine` and fan out `BattleEvent`s to
-//     registered handlers.
+//   * parse battle lines with `parseLine` and lobby lines with `parseLobbyLine`.
 //
 // It deliberately does NOT hold game state or make decisions — that belongs to
 // `BattleTracker` + `decide.ts`. The client is pure connectivity + parsing.
 import { WebSocket } from 'ws';
 import { parseLine, type BattleEvent } from './protocol.js';
 import { getAssertion, guestName } from './auth.js';
+import { parseLobbyLine, type LobbyEvent } from './lobby.js';
 
 export interface ShowdownClientOptions {
   url?: string;
@@ -23,6 +23,7 @@ export interface ShowdownClientOptions {
 }
 
 type EventHandler = (ev: BattleEvent) => void;
+type LobbyHandler = (ev: LobbyEvent) => void;
 
 export class ShowdownClient {
   readonly url: string;
@@ -33,6 +34,7 @@ export class ShowdownClient {
 
   private ws?: WebSocket;
   private handlers: EventHandler[] = [];
+  private lobbyHandlers: LobbyHandler[] = [];
 
   constructor(opts: ShowdownClientOptions = {}) {
     this.url = opts.url ?? 'wss://sim3.psim.us/showdown/websocket';
@@ -45,6 +47,14 @@ export class ShowdownClient {
   /** Register a handler fired for every parsed BattleEvent. */
   onEvent(h: EventHandler): void {
     this.handlers.push(h);
+  }
+
+  /** Register a handler for lobby / search lines (`updatesearch`, `roomlist`, …). */
+  onLobby(h: LobbyHandler): () => void {
+    this.lobbyHandlers.push(h);
+    return () => {
+      this.lobbyHandlers = this.lobbyHandlers.filter((x) => x !== h);
+    };
   }
 
   /** Open the socket. Resolves once the connection is established. */
@@ -84,8 +94,14 @@ export class ShowdownClient {
     for (const raw of data.split('\n')) {
       const line = raw.trim();
       if (!line) continue;
+      if (line.startsWith('>')) continue;
       if (line.startsWith('|challstr|')) {
         void this.handleChallstr(line);
+        continue;
+      }
+      const lobby = parseLobbyLine(line);
+      if (lobby) {
+        for (const h of this.lobbyHandlers) h(lobby);
         continue;
       }
       const ev = parseLine(line);
@@ -108,8 +124,5 @@ export class ShowdownClient {
       this.send(`|/trn ${guestName()},0,`);
     }
     if (this.battleRoom) this.send(`|/join ${this.battleRoom}`);
-    // #region agent log
-    fetch('http://127.0.0.1:7417/ingest/44062777-1cbd-4eb4-93e8-ab744e7750f5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1551b4'},body:JSON.stringify({sessionId:'1551b4',runId:'live',hypothesisId:'E',location:'client.ts:handleChallstr',message:'auth+join',data:{hasUser:!!this.user,battleRoom:this.battleRoom,named:!!(this.user&&this.pass)},timestamp:Date.now()})}).catch(()=>{});
-    // #endregion
   }
 }

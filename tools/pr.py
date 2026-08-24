@@ -2,7 +2,7 @@
 """PokeRedus / PokeLink terminal launcher.
 
 No-args opens an arrow-key menu. Named subcommands are one-liners for
-setup, GUIs, live battles (battle id), training, quantum, and settings.
+setup, the web UI, live battles (battle id), training, quantum, and settings.
 """
 from __future__ import annotations
 
@@ -20,7 +20,6 @@ CLI_TS = ROOT / "packages" / "cli" / "src" / "cli.ts"
 PACK_MINI = ROOT / "pokeredus" / "data" / "knowledge-pack" / "knowledge-pack-mini.json"
 POOL_OUT = ROOT / "packages" / "engine" / "data" / "gen9randombattle-pool.v1.json"
 REPLAY = ROOT / "packages" / "cli" / "tests" / "fixtures" / "transcript.txt"
-PY_GUI = ROOT / "pokeredus" / "scripts" / "launch.py"
 LIVE_STATE = ROOT / "live-state.json"
 
 DEFAULTS: dict[str, Any] = {
@@ -38,14 +37,12 @@ USAGE = """\
 PokeRedus / PokeLink launcher
 
   python tools/pr.py                         arrow-key menu
-  python tools/pr.py setup                   Node + Python GUI + quantum-policy
-  python tools/pr.py gui [--no-build]        PokeRedus team-builder GUI
-  python tools/pr.py web                     PokeRedus web UI
-  python tools/pr.py pokelink <battle-id>    GUI + PokeLink live (integrated)
+  python tools/pr.py setup                   Node + Python KG + quantum-policy
+  python tools/pr.py web                     PokeRedus web UI (detect games there)
+  python tools/pr.py pokelink <battle-id>    web UI + PokeLink live
   python tools/pr.py live <battle-id>        same as pokelink
-  python tools/pr.py combined [battle-id]    GUI + web; with id, also PokeLink live
-  python tools/pr.py quantum <battle-id>     integrated live with QAOA policy
-  python tools/pr.py softmax <battle-id>     integrated live with softmax benchmark
+  python tools/pr.py quantum <battle-id>     live with QAOA policy
+  python tools/pr.py softmax <battle-id>     live with softmax benchmark
   python tools/pr.py score [transcript]      replay a Showdown transcript
   python tools/pr.py pool                    generate Random Battle set pool
   python tools/pr.py pack [--mini]           export knowledge pack
@@ -57,6 +54,7 @@ PokeRedus / PokeLink launcher
   python tools/pr.py list                    print menu catalog
 
 Battle id is a Showdown room (gen9randombattle-... or battle-gen9randombattle-...).
+Or detect and attach from the web UI Games page (python tools/pr.py web).
 Add --send to actually send moves (default is dry-run). Extra CLI flags pass through.
 """
 
@@ -245,13 +243,6 @@ def action_setup_all() -> list[tuple[list[str], Path]]:
     return action_setup_node() + action_setup_python() + action_setup_quantum()
 
 
-def action_gui(no_build: bool = False) -> list[tuple[list[str], Path]]:
-    argv = [sys.executable, str(PY_GUI)]
-    if no_build:
-        argv.append("--no-build")
-    return [(argv, ROOT / "pokeredus")]
-
-
 def action_web() -> list[tuple[list[str], Path]]:
     return [(npm("run", "dev", "-w", "@pokeredus/web"), ROOT)]
 
@@ -357,13 +348,11 @@ def run_jobs(jobs: list[tuple[list[str], Path]], *, pause: bool = False) -> int:
 MENUS: dict[str, list[dict[str, Any]]] = {
     "main": [
         {"label": "Setup", "kind": "submenu", "to": "setup",
-         "help": "Install Node workspaces, Python GUI, and quantum-policy"},
+         "help": "Install Node workspaces, Python KG, and quantum-policy"},
         {"label": "PokeRedus", "kind": "submenu", "to": "pokeredus",
-         "help": "Team-builder GUI, web UI, graph and pack exporters"},
+         "help": "Web UI, graph and pack exporters"},
         {"label": "PokeLink", "kind": "submenu", "to": "pokelink",
-         "help": "Replay score and pack tools; live battles launch from Combined"},
-        {"label": "Combined launch", "kind": "submenu", "to": "combined",
-         "help": "GUI + web; PokeLink live always starts the GUI game-state screen"},
+         "help": "Replay score and pack tools; live battles attach from the web UI"},
         {"label": "Train / update models", "kind": "submenu", "to": "train",
          "help": "Pool, knowledge pack, matchup graph, Showdown data"},
         {"label": "Quantum", "kind": "submenu", "to": "quantum",
@@ -376,13 +365,12 @@ MENUS: dict[str, list[dict[str, Any]]] = {
     ],
     "setup": [
         {"label": "Install Node workspaces", "kind": "run", "jobs": "setup_node"},
-        {"label": "Install Python GUI (pokeredus[dev])", "kind": "run", "jobs": "setup_python"},
+        {"label": "Install Python KG (pokeredus[dev])", "kind": "run", "jobs": "setup_python"},
         {"label": "Install quantum-policy (PennyLane)", "kind": "run", "jobs": "setup_quantum"},
         {"label": "Install everything", "kind": "run", "jobs": "setup_all"},
         {"label": "Back", "kind": "back"},
     ],
     "pokeredus": [
-        {"label": "Launch team-builder GUI", "kind": "run", "jobs": "gui"},
         {"label": "Launch web UI", "kind": "run", "jobs": "web"},
         {"label": "Build matchup graph", "kind": "run", "jobs": "graph"},
         {"label": "Export knowledge pack (Python)", "kind": "run", "jobs": "pack_py"},
@@ -398,12 +386,6 @@ MENUS: dict[str, list[dict[str, Any]]] = {
         {"label": "Generate Random Battle pool", "kind": "run", "jobs": "pool"},
         {"label": "Export knowledge pack (TS)", "kind": "run", "jobs": "pack_ts"},
         {"label": "CLI tests", "kind": "run", "jobs": "cli_test"},
-        {"label": "Back", "kind": "back"},
-    ],
-    "combined": [
-        {"label": "GUI + web UI", "kind": "combined", "live": False},
-        {"label": "GUI + PokeLink live", "kind": "combined", "live": True, "web": False},
-        {"label": "GUI + web + PokeLink live", "kind": "combined", "live": True},
         {"label": "Back", "kind": "back"},
     ],
     "train": [
@@ -440,7 +422,6 @@ JOBS = {
     "setup_python": action_setup_python,
     "setup_quantum": action_setup_quantum,
     "setup_all": action_setup_all,
-    "gui": action_gui,
     "web": action_web,
     "graph": action_graph,
     "pack_py": action_pack_py,
@@ -601,7 +582,6 @@ def pick_menu(name: str) -> dict[str, Any] | None:
         "setup": "Setup",
         "pokeredus": "PokeRedus",
         "pokelink": "PokeLink",
-        "combined": "Combined launch",
         "train": "Train / update models",
         "quantum": "Quantum",
         "maintain": "Maintain",
@@ -683,15 +663,13 @@ def do_integrated(
     policy: str | None = None,
     dry_run: bool | None = None,
     extra: list[str] | None = None,
-    web: bool = False,
     pause: bool = True,
 ) -> int:
-    """Start the PokeRedus GUI plus PokeLink live. This is the only live launch."""
+    """Start the web UI plus PokeLink live."""
     env = child_env(relax_tls=True)
-    if web:
-        spawn_detached(action_web()[0][0], env=env)
-    spawn_detached(action_gui()[0][0], cwd=ROOT / "pokeredus", env=env)
+    spawn_detached(action_web()[0][0], env=env)
     print(f"PokeLink HUD snapshot: {LIVE_STATE}")
+    print("Detect and manage games from the web UI Games page.")
     return run_cmd(live_argv(battle, policy=policy, dry_run=dry_run, extra=extra), pause=pause, env=env)
 
 
@@ -700,25 +678,6 @@ def do_live(*, policy: str | None = None, dry_run: bool | None = None, pause: bo
     if not battle:
         return 0
     return do_integrated(battle, policy=policy, dry_run=dry_run, pause=pause)
-
-
-def do_combined(item: dict[str, Any], *, pause: bool = True) -> int:
-    want_web = item.get("web", True)
-    want_live = item.get("live", False)
-    if want_live:
-        battle = ask_battle()
-        if not battle:
-            return 0
-        return do_integrated(battle, web=want_web, pause=pause)
-    if want_web:
-        spawn_detached(action_web()[0][0])
-    spawn_detached(action_gui()[0][0], cwd=ROOT / "pokeredus")
-    if pause:
-        try:
-            input("\nDetached processes are running. Press Enter to return to the menu...")
-        except EOFError:
-            pass
-    return 0
 
 
 def tui() -> int:
@@ -752,11 +711,6 @@ def tui() -> int:
             if kind == "live":
                 show_cursor(True)
                 do_live(policy=item.get("policy"), dry_run=item.get("dry_run"), pause=True)
-                show_cursor(False)
-                continue
-            if kind == "combined":
-                show_cursor(True)
-                do_combined(item, pause=True)
                 show_cursor(False)
                 continue
         return 0
@@ -816,9 +770,10 @@ def self_check() -> int:
     for jobs in JOBS:
         JOBS[jobs]()  # builders must not raise
     assert "pokelink" in MENUS and "quantum" in MENUS and "setup" in MENUS
+    assert "combined" not in MENUS
+    assert all(it.get("jobs") != "gui" for items in MENUS.values() for it in items)
+    assert any(it.get("jobs") == "web" for it in MENUS["pokeredus"])
     assert all(it.get("kind") != "live" for it in MENUS["pokelink"])
-    assert any(it.get("live") for it in MENUS["combined"])
-    assert all(it.get("gui", True) for it in MENUS["combined"] if it.get("live"))
     pip = action_setup_python()[0][0]
     assert pip[-1] == "./pokeredus[dev]"
     if os.name == "nt":
@@ -862,8 +817,10 @@ def main(argv: list[str] | None = None) -> int:
             print("usage: python tools/pr.py setup [node|python|quantum|--all]")
             return 2
         return run_jobs(jobs)
-    if cmd == "gui":
-        return run_jobs(action_gui("--no-build" in rest))
+    if cmd in ("gui", "combined"):
+        print("The web UI is the only UI. Use: python tools/pr.py web")
+        print("Detect and manage Showdown games from the Games page.")
+        return 2
     if cmd == "web":
         return run_jobs(action_web())
     if cmd in ("pokelink", "live", "quantum", "softmax"):
@@ -873,14 +830,6 @@ def main(argv: list[str] | None = None) -> int:
         extra = rest[1:]
         policy = "softmax" if cmd == "softmax" else ("quantum" if cmd == "quantum" else None)
         return do_integrated(battle, policy=policy, extra=extra, pause=False)
-    if cmd == "combined":
-        if rest and not rest[0].startswith("-"):
-            extra = rest[1:]
-            return do_integrated(rest[0], extra=extra, web=True, pause=False)
-        spawn_detached(action_web()[0][0])
-        spawn_detached(action_gui()[0][0], cwd=ROOT / "pokeredus")
-        print("GUI + web started in detached processes.")
-        return 0
     if cmd == "score":
         transcript = rest[0] if rest and not rest[0].startswith("-") else None
         return run_jobs(action_score(transcript))

@@ -3,6 +3,7 @@ import react from '@vitejs/plugin-react';
 import path from 'node:path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { gamesApiPlugin } from './server/games';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '../..');
@@ -65,7 +66,7 @@ function teamsApiPlugin(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), teamsApiPlugin()],
+  plugins: [react(), teamsApiPlugin(), gamesApiPlugin(root)],
   resolve: {
     alias: {
       '@pokeredus/pack/schema': path.resolve(__dirname, '../pack/src/schema.ts'),

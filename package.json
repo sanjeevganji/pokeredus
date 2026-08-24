@@ -6,11 +6,9 @@
   "scripts": {
     "menu": "python tools/pr.py",
     "setup": "python tools/pr.py setup",
-    "gui": "python tools/pr.py gui",
     "web": "python tools/pr.py web",
     "live": "python tools/pr.py live",
     "pokelink": "python tools/pr.py pokelink",
-    "combined": "python tools/pr.py combined",
     "train": "python tools/pr.py train",
     "typecheck": "npm run typecheck --workspaces --if-present",
     "test": "npm run test --workspaces --if-present",
