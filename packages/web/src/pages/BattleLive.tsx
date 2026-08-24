@@ -449,10 +449,9 @@ function prettySpecies(id: string): string {
   return id.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
 }
 
-function actionLabel(id: string, slots?: LiveSlot[], teraMode = false): string {
+function actionLabel(id: string, slots?: LiveSlot[]): string {
   if (id.startsWith('move:')) {
-    const move = id.slice(5).replace(/:tera$/, '');
-    return teraMode ? prettySpecies(move) : prettySpecies(move);
+    return prettySpecies(id.slice(5).replace(/:tera$/, ''));
   }
   if (id.startsWith('switch:')) {
     const n = Number(id.slice(7));

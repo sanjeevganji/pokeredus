@@ -415,6 +415,44 @@ a.btn-primary, a.btn-secondary, button.btn-primary, button.btn-secondary, button
 .choice-sampled { outline: 1px solid var(--neon-green); outline-offset: 4px; border-radius: 4px; }
 .choice-meta { display: flex; gap: 12px; font-size: 0.75rem; margin-top: 4px; }
 
+.choice-head-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.choice-head-row .bench-title { margin: 0; }
+
+.choice-list.compact .choice-row { padding: 4px 0; }
+.choice-list.compact .choice-track { height: 5px; margin-top: 2px; }
+.choice-list.compact .choice-meta { margin-top: 2px; }
+
+.tera-toggle {
+  font: inherit;
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--fg-dim);
+  background: transparent;
+  color: var(--fg-secondary);
+  cursor: pointer;
+}
+
+.tera-toggle-on {
+  border-color: #c084fc;
+  color: #e9d5ff;
+  background: rgba(168, 85, 247, 0.25);
+}
+
+.tera-mode {
+  background: linear-gradient(180deg, rgba(168, 85, 247, 0.18), transparent 42%);
+  box-shadow: inset 0 0 0 1px rgba(168, 85, 247, 0.35);
+}
+
 .theater-log summary {
   cursor: pointer;
   color: var(--fg-secondary);
