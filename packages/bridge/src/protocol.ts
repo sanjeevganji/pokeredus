@@ -379,21 +379,26 @@ export class BattleTracker {
 
       case 'switch':
       case 'drag': {
+        const map = this.monsFor(ev.side);
+        for (const m of map.values()) m.active = false;
+        const key = monKey(ev.identity, ev.speciesId);
+        const existing = map.get(key);
         const mon: TrackedMon = {
           slot: ev.slot, side: ev.side, identity: ev.identity, speciesId: ev.speciesId, details: ev.details,
           hp: ev.hp, maxHp: ev.maxHp, status: ev.status,
-          boosts: emptyBoosts(), pp: {}, tauntTurns: 0, fainted: ev.status === 'fnt' || ev.hp <= 0, active: true,
+          boosts: emptyBoosts(), pp: existing?.pp ?? {}, lastMove: existing?.lastMove,
+          choiceLock: existing?.choiceLock, tauntTurns: 0, fainted: ev.status === 'fnt' || ev.hp <= 0, active: true,
         };
-        (ev.side === 'p1' ? this.myMons : this.oppMons).set(ev.slot, mon);
+        map.set(key, mon);
         // #region agent log
-        agentLog('D', 'protocol.ts:switch', 'switch/drag store', { evSide: ev.side, ourSide: this.ourSide, slot: ev.slot, species: ev.speciesId, mySize: this.myMons.size, oppSize: this.oppMons.size, mySpecies: [...this.myMons.values()].map((m) => m.speciesId), oppSpecies: [...this.oppMons.values()].map((m) => m.speciesId) });
+        agentLog('D', 'protocol.ts:switch', 'switch/drag store', { evSide: ev.side, ourSide: this.ourSide, slot: ev.slot, key, species: ev.speciesId, mySize: this.myMons.size, oppSize: this.oppMons.size, mySpecies: [...this.myMons.values()].map((m) => m.speciesId), oppSpecies: [...this.oppMons.values()].map((m) => m.speciesId) });
         // #endregion
         break;
       }
 
       case '-damage':
       case '-heal': {
-        const mon = (ev.side === 'p1' ? this.myMons : this.oppMons).get(ev.slot);
+        const mon = this.findMon(ev.side, ev.identity);
         if (mon) {
           mon.hp = ev.hp;
           if (ev.maxHp > 0) mon.maxHp = ev.maxHp;
@@ -405,20 +410,20 @@ export class BattleTracker {
       }
 
       case '-status': {
-        const mon = (ev.side === 'p1' ? this.myMons : this.oppMons).get(ev.slot);
+        const mon = this.findMon(ev.side, ev.identity);
         if (mon) mon.status = ev.status;
         break;
       }
 
       case 'faint': {
-        const mon = (ev.side === 'p1' ? this.myMons : this.oppMons).get(ev.slot);
+        const mon = this.findMon(ev.side, ev.identity);
         if (mon) { mon.fainted = true; mon.hp = 0; mon.status = 'fnt'; }
         break;
       }
 
       case '-boost':
       case '-unboost': {
-        const mon = (ev.side === 'p1' ? this.myMons : this.oppMons).get(ev.slot);
+        const mon = this.findMon(ev.side, ev.identity);
         if (mon && ev.stat in mon.boosts) {
           const cur = mon.boosts[ev.stat as keyof BoostState];
           mon.boosts[ev.stat as keyof BoostState] = Math.max(-6, Math.min(6, cur + (ev.type === '-boost' ? ev.amount : -ev.amount)));
@@ -429,13 +434,13 @@ export class BattleTracker {
       case '-start':
       case '-end': {
         const on = ev.type === '-start';
-        const mon = (ev.side === 'p1' ? this.myMons : this.oppMons).get(ev.slot);
+        const mon = this.findMon(ev.side, ev.identity);
         if (mon && ev.effect.toLowerCase().includes('taunt')) mon.tauntTurns = on ? 3 : 0;
         break;
       }
 
       case 'move': {
-        const mon = (ev.side === 'p1' ? this.myMons : this.oppMons).get(ev.slot);
+        const mon = this.findMon(ev.side, ev.identity);
         if (mon) mon.lastMove = ev.moveId;
         break;
       }
