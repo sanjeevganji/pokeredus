@@ -28,6 +28,7 @@ export interface DecideResult {
   probabilities: number[];
   sampledId: string;
   sent: boolean;
+  diagnostics?: Record<string, unknown>;
 }
 
 export async function decideAndAct(
