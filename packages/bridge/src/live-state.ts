@@ -2,6 +2,7 @@
 // The live CLI overwrites this JSON; the GUI polls it. No sockets.
 import * as fs from 'node:fs';
 import * as path from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { BattleObservation, Boosts, FieldSnapshot } from '@pokeredus/engine';
 import { emptyBoosts, modifiersFromSlot } from '@pokeredus/engine';
 import type { DecideResult } from './decide.js';
