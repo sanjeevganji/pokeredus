@@ -517,7 +517,7 @@ export class BattleTracker {
     }
     this.myMons = next;
     // #region agent log
-    agentLog('A', 'protocol.ts:applyRequest', 'request team keys', { ourSide: this.ourSide, pokeCount: pokemon.length, idents: pokemon.map((p) => p.ident), keys: [...this.myMons.keys()], species: pokemon.map((p) => speciesIdFromDetails(p.details)), actives: pokemon.map((p) => p.active), mapSpecies: [...this.myMons.values()].map((m) => m.speciesId), mapSize: this.myMons.size, firstActive: [...this.myMons.values()].find((m) => m.active)?.speciesId });
+    agentLog('A', 'protocol.ts:applyRequest', 'request team keys', { runId: 'post-fix', ourSide: this.ourSide, pokeCount: pokemon.length, keys: [...this.myMons.keys()], mapSpecies: [...this.myMons.values()].map((m) => m.speciesId), mapSize: this.myMons.size, firstActive: [...this.myMons.values()].find((m) => m.active)?.speciesId });
     // #endregion
     const firstActive = json.active?.[0];
     const firstPoke = pokemon[0];
