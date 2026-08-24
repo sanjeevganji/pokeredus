@@ -311,9 +311,11 @@ type RankedRow = {
   deltaM?: number;
 };
 
-function rankOurs(choices: LiveChoice[]): RankedRow[] {
+function rankOurs(choices: LiveChoice[], teraMode = false): RankedRow[] {
   const ranked = [...choices]
+    .filter((c) => teraMode || !c.id.endsWith(':tera'))
     .sort((a, b) => b.choiceScore - a.choiceScore)
+    .slice(0, 3)
     .map((c) => ({
       id: c.id,
       score: c.choiceScore,
@@ -322,27 +324,29 @@ function rankOurs(choices: LiveChoice[]): RankedRow[] {
       deltaM: c.expectedModifierDelta,
     }));
   // #region agent log
-  fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'029c39'},body:JSON.stringify({sessionId:'029c39',runId:'pre',hypothesisId:'E',location:'BattleLive.tsx:rankOurs',message:'our ranked choices',data:{count:ranked.length,ids:ranked.map((r)=>r.id),tera:ranked.filter((r)=>r.id.endsWith(':tera')).length,top3:ranked.slice(0,3).map((r)=>r.id)},timestamp:Date.now()})}).catch(()=>{});
+  fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'029c39'},body:JSON.stringify({sessionId:'029c39',runId:'post-fix',hypothesisId:'E',location:'BattleLive.tsx:rankOurs',message:'our ranked choices',data:{count:ranked.length,ids:ranked.map((r)=>r.id),teraMode,tera:ranked.filter((r)=>r.id.endsWith(':tera')).length},timestamp:Date.now()})}).catch(()=>{});
   // #endregion
   return ranked;
 }
 
-function rankTheirs(replies: LiveReply[]): RankedRow[] {
+function rankTheirs(replies: LiveReply[], teraMode = false): RankedRow[] {
   const ranked = [...replies]
+    .filter((r) => teraMode || !r.id.endsWith(':tera'))
     .sort((a, b) => a.expectedImpact - b.expectedImpact)
+    .slice(0, 3)
     .map((r) => ({
       id: r.id,
       score: r.expectedImpact,
       hits: r.hitsToKillUs,
     }));
   // #region agent log
-  fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'029c39'},body:JSON.stringify({sessionId:'029c39',runId:'pre',hypothesisId:'E',location:'BattleLive.tsx:rankTheirs',message:'their ranked replies',data:{count:ranked.length,ids:ranked.map((r)=>r.id),tera:ranked.filter((r)=>r.id.endsWith(':tera')).length,top3:ranked.slice(0,3).map((r)=>r.id)},timestamp:Date.now()})}).catch(()=>{});
+  fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'029c39'},body:JSON.stringify({sessionId:'029c39',runId:'post-fix',hypothesisId:'E',location:'BattleLive.tsx:rankTheirs',message:'their ranked replies',data:{count:ranked.length,ids:ranked.map((r)=>r.id),teraMode},timestamp:Date.now()})}).catch(()=>{});
   // #endregion
   return ranked;
 }
 
 function ChoiceList({
-  title, rows, sampled, quantum, slots, ours, area,
+  title, rows, sampled, quantum, slots, ours, area, tera, onTera,
 }: {
   title: string;
   rows: RankedRow[];
@@ -351,11 +355,25 @@ function ChoiceList({
   slots?: LiveSlot[];
   ours?: boolean;
   area?: string;
+  tera?: boolean;
+  onTera?: (on: boolean) => void;
 }) {
   const maxAbs = Math.max(...rows.map((r) => Math.abs(r.score)), 0.01);
   return (
-    <section className={`card choice-list${area ? ` theater-${area}` : ''}`}>
-      <h2 className="bench-title">{title}</h2>
+    <section className={`card choice-list compact${area ? ` theater-${area}` : ''}${tera ? ' tera-mode' : ''}`}>
+      <div className="choice-head-row">
+        <h2 className="bench-title">{title}</h2>
+        {onTera && (
+          <button
+            type="button"
+            className={`tera-toggle${tera ? ' tera-toggle-on' : ''}`}
+            aria-pressed={Boolean(tera)}
+            onClick={() => onTera(!tera)}
+          >
+            TERA
+          </button>
+        )}
+      </div>
       {rows.length === 0 && <p className="muted">{ours ? 'No eval yet this battle.' : 'No hypothesized replies yet.'}</p>}
       <ol className="choice-ol">
         {rows.map((r, i) => {
