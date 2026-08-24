@@ -116,6 +116,10 @@ describe('LiveStateWriter', () => {
     expect(snap.theirs[0].hp).toBe(80);
     expect(snap.events.some((e: { text: string }) => e.text.includes('Garchomp in'))).toBe(true);
     expect(snap.events.some((e: { text: string }) => e.text.includes('roundScore=0.420'))).toBe(true);
+    const obsFile = path.join(path.dirname(file), 'live-observation.json');
+    tmpFiles.push(obsFile);
+    hud.fromObservation(obs());
+    expect(JSON.parse(fs.readFileSync(obsFile, 'utf8')).turn).toBe(3);
   });
 });
 
