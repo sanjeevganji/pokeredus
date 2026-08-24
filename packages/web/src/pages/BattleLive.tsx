@@ -79,22 +79,26 @@ export default function BattleLive() {
         <>
           <ScoreStrip state={live} />
           <div className="theater-body">
-            <Bench area="ours" title="Ours" slots={live.ours ?? []} field={live.field?.ours} accent="cyan" />
+            <Bench area="ours" title="Ours" slots={live.ours ?? []} field={live.field?.ours} accent="cyan" tera={ourTera} />
             <ChoiceList
               area="ourc"
               title="Our choices"
-              rows={rankOurs(live.eval?.choices ?? [])}
+              rows={rankOurs(ourTera ? (live.eval?.teraChoices ?? live.eval?.choices ?? []) : (live.eval?.choices ?? []), ourTera)}
               sampled={live.eval?.sampledAction}
               quantum={live.eval?.quantum}
               slots={live.ours}
               ours
+              tera={ourTera}
+              onTera={setOurTera}
             />
-            <Bench area="theirs" title="Theirs" slots={live.theirs ?? []} field={live.field?.theirs} accent="pink" />
+            <Bench area="theirs" title="Theirs" slots={live.theirs ?? []} field={live.field?.theirs} accent="pink" tera={theirTera} />
             <ChoiceList
               area="theirc"
               title="Their replies"
-              rows={rankTheirs(live.eval?.replies ?? [])}
+              rows={rankTheirs(theirTera ? (live.eval?.teraReplies ?? live.eval?.replies ?? []) : (live.eval?.replies ?? []), theirTera)}
               slots={live.theirs}
+              tera={theirTera}
+              onTera={setTheirTera}
             />
           </div>
         </>
