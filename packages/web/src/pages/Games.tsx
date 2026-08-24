@@ -87,6 +87,22 @@ export default function Games() {
     url: url || undefined,
   }));
 
+  const goLive = async (id: string) => {
+    setBusy('attach');
+    setErr('');
+    try {
+      const next = await attachGame(id, { dryRun });
+      apply(next);
+      if (!next.error && next.attached) navigate('/games/live');
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy('');
+    }
+  };
+
+  const liveOn = Boolean(snap.attached) || (live.status && live.status !== 'idle');
+
   return (
     <div>
       <h1 className="neon-title" style={{ fontSize: '1.8rem' }}>Games</h1>
