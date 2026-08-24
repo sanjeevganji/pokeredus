@@ -305,7 +305,7 @@ type RankedRow = {
 };
 
 function rankOurs(choices: LiveChoice[]): RankedRow[] {
-  return [...choices]
+  const ranked = [...choices]
     .sort((a, b) => b.choiceScore - a.choiceScore)
     .map((c) => ({
       id: c.id,
