@@ -314,10 +314,14 @@ function rankOurs(choices: LiveChoice[]): RankedRow[] {
       hits: c.hitsToKill,
       deltaM: c.expectedModifierDelta,
     }));
+  // #region agent log
+  fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'029c39'},body:JSON.stringify({sessionId:'029c39',runId:'pre',hypothesisId:'E',location:'BattleLive.tsx:rankOurs',message:'our ranked choices',data:{count:ranked.length,ids:ranked.map((r)=>r.id),tera:ranked.filter((r)=>r.id.endsWith(':tera')).length,top3:ranked.slice(0,3).map((r)=>r.id)},timestamp:Date.now()})}).catch(()=>{});
+  // #endregion
+  return ranked;
 }
 
 function rankTheirs(replies: LiveReply[]): RankedRow[] {
-  return [...replies]
+  const ranked = [...replies]
     .sort((a, b) => a.expectedImpact - b.expectedImpact)
     .map((r) => ({
       id: r.id,
