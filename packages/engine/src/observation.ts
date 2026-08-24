@@ -107,6 +107,14 @@ export interface MonValue {
   M: number;
 }
 
+export interface ChoiceFeaturesView {
+  health: number;
+  modifier: number;
+  secondary: number;
+  switchRisk: number;
+  sacrifice: number;
+}
+
 export interface ChoiceEvaluation {
   action: LegalAction;
   success: number;
@@ -115,16 +123,37 @@ export interface ChoiceEvaluation {
   expectedImpact: number;
   expectedHealthDelta: number;
   expectedModifierDelta: number;
+  ourHealth: number;
+  theirHealth: number;
+  ourModifier: number;
+  theirModifier: number;
   hitsToKill: number | null;
   choiceScore: number;
   scaledChoiceScore: number;
   meanPostScore: number;
+  features: ChoiceFeaturesView;
+  probability?: number;
 }
 
 export interface ReplyEvaluation {
   action: LegalAction;
   expectedImpact: number;
   hitsToKillUs: number | null;
+  choiceScore: number;
+  expectedHealthDelta?: number;
+  expectedModifierDelta?: number;
+  ourHealth?: number;
+  theirHealth?: number;
+  ourModifier?: number;
+  theirModifier?: number;
+  features?: ChoiceFeaturesView;
+  probability?: number;
+}
+
+export interface PairScore {
+  ourId: string;
+  theirId: string;
+  score: number;
 }
 
 export interface RoundEvaluation {
@@ -133,6 +162,8 @@ export interface RoundEvaluation {
   roundScore: number;
   forcedOutcome: ForcedOutcome;
   mateProbability: number;
+  pairs?: PairScore[];
+  diagnostics?: Record<string, unknown>;
 }
 
 export function emptyBoosts(): Boosts {

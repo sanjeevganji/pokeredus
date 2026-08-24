@@ -71,4 +71,7 @@ Thumbs.db
 *.local.yaml
 tools/launch-settings.json
 live-state.json
+live-observation.json
+score-weights.json
+data/scenarios/
 decisions.jsonl

@@ -7,6 +7,8 @@ export * from './sim.js';
 export * from './evaluate.js';
 export * from './policy.js';
 export * from './log.js';
+export * from './weights.js';
+export * from './scenario.js';
 export * from './generate-pool.js';
 export {
   computeDamage,
