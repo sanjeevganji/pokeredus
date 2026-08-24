@@ -32,8 +32,8 @@ policy weight.
 **PokeLink** is the Showdown battle CLI (`packages/cli`) plus the Games page
 in the web UI. **PokeRedus** is the web team-builder and knowledge-graph
 pipeline. Open the web UI and use **Games** to detect battles on your Showdown
-account and attach the live engine so the HUD can show eval scores and protocol
-updates.
+account and attach the live engine. Attach opens `/games/live`, a full-page
+theater for eval scores, 6v6 benches, and turn bars.
 
 ## Terminal launcher
 
