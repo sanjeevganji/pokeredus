@@ -6,6 +6,7 @@ import PokemonBrowser from './pages/PokemonBrowser';
 import MatchupGraph from './pages/MatchupGraph';
 import Games from './pages/Games';
 import BattleLive from './pages/BattleLive';
+import Scenarios from './pages/Scenarios';
 
 const NAV = [
   { to: '/', label: 'Home' },
