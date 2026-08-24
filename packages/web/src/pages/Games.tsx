@@ -184,8 +184,6 @@ export default function Games() {
           </button>
         </div>
       </div>
-
-      <Hud state={live} />
     </div>
   );
 }
