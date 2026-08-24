@@ -90,8 +90,7 @@ export function withOurTera(obs: BattleObservation): BattleObservation {
 
 export function evaluateRound(obs: BattleObservation, opts?: { chanceSeeds?: number; theirTera?: boolean }): RoundEvaluation {
   const legal = (obs.legalActions.length ? obs.legalActions : enumerateFromRequest(obs.request as ShowdownRequest))
-    .filter((a) => a.tera ? Boolean(opts?.theirTera) : !opts?.theirTera || a.type !== 'move' ? true : true)
-    .filter((a) => opts?.theirTera || !a.tera);
+    .filter((a) => !a.tera);
   const chanceN = opts?.chanceSeeds ?? CHANCE_SEEDS;
   const choices: ChoiceEvaluation[] = [];
   const postScores: number[] = [];
