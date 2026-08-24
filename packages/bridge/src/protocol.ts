@@ -10,6 +10,7 @@
 // ponytail: singles only (one active slot per side).
 
 import {
+  modifiersFromSlot,
   placeholderSlot,
   type BattleObservation,
   type SlotSnapshot,
