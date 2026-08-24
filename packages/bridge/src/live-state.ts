@@ -132,6 +132,10 @@ export interface LiveState {
   error?: string;
 }
 
+export function defaultLiveStatePath(): string {
+  return process.env.POKELINK_STATE || path.resolve('live-state.json');
+}
+
 export function defaultLiveObservationPath(statePath = defaultLiveStatePath()): string {
   return path.join(path.dirname(path.resolve(statePath)), 'live-observation.json');
 }
