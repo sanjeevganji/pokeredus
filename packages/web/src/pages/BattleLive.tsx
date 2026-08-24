@@ -4,22 +4,21 @@ import {
   detachGame,
   getLiveState,
   type LiveChoice,
-  type LiveField,
   type LiveQuantum,
   type LiveReply,
   type LiveSlot,
   type LiveState,
   type LiveTurn,
 } from '../lib/games';
-
-const STAT_LABEL: Record<string, string> = {
-  atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe', accuracy: 'Acc', evasion: 'Eva',
-};
+import { importScenario } from '../lib/scenarios';
+import { ScoreBar } from '../components/ScoreBar';
+import { Bench, FieldBadges, actionLabel, hkoLabel } from '../components/theater';
 
 export default function BattleLive() {
   const navigate = useNavigate();
   const [live, setLive] = useState<LiveState>({ status: 'idle' });
   const [busy, setBusy] = useState(false);
+  const [saveMsg, setSaveMsg] = useState('');
   const [ourTera, setOurTera] = useState(false);
   const [theirTera, setTheirTera] = useState(false);
 
@@ -39,6 +38,18 @@ export default function BattleLive() {
     setBusy(false);
     navigate('/games');
   }, [navigate]);
+
+  const save = useCallback(async () => {
+    setBusy(true);
+    setSaveMsg('');
+    try {
+      const s = await importScenario({ source: 'live', name: live.room ? `${live.room} turn ${live.turn ?? 0}` : undefined });
+      setSaveMsg(`Saved ${s.name}`);
+    } catch (err) {
+      setSaveMsg(err instanceof Error ? err.message : String(err));
+    }
+    setBusy(false);
+  }, [live.room, live.turn]);
 
   const idle = !live.status || live.status === 'idle';
   if (idle) {
@@ -65,6 +76,9 @@ export default function BattleLive() {
         <span className="muted">{live.policy}</span>
         <span className="muted">{live.dryRun ? 'dry-run' : 'send'}</span>
         <FieldBadges field={live.field} />
+        <button type="button" className="btn-secondary" onClick={save} disabled={busy}>
+          Save scenario
+        </button>
         <button type="button" className="btn-danger" onClick={detach} disabled={busy} style={{ marginLeft: 'auto' }}>
           {busy ? 'Detaching…' : 'Detach'}
         </button>
@@ -72,6 +86,7 @@ export default function BattleLive() {
 
       {live.error && <p className="theater-alert theater-alert-error" role="alert">{live.error}</p>}
       {live.winner && <p className="theater-alert theater-alert-win" role="status">{live.winner} wins</p>}
+      {saveMsg && <p className="theater-alert" role="status">{saveMsg} {saveMsg.startsWith('Saved') && <Link to="/scenarios">Open lab</Link>}</p>}
 
       {loading ? (
         <TheaterSkeleton />
@@ -112,163 +127,28 @@ export default function BattleLive() {
   );
 }
 
-function FieldBadges({ field }: { field?: LiveField }) {
-  if (!field) return null;
-  const pills: string[] = [];
-  if (field.weather) pills.push(field.weather);
-  if (field.terrain) pills.push(field.terrain);
-  if (field.trickroom) pills.push('TR');
-  return (
-    <>
-      {pills.map((p) => <span key={p} className="status-pill">{p}</span>)}
-    </>
-  );
-}
-
-function SideFieldBadges({ side }: { side?: LiveField['ours'] }) {
-  if (!side) return null;
-  const pills: string[] = [];
-  const h = side.hazards;
-  if (h?.stealthrock) pills.push('SR');
-  if (h?.spikes) pills.push(`spikes ${h.spikes}`);
-  if (h?.toxicspikes) pills.push(`tspikes ${h.toxicspikes}`);
-  if (h?.stickyweb) pills.push('web');
-  if (side.reflect) pills.push('Reflect');
-  if (side.lightscreen) pills.push('Light Screen');
-  if (!pills.length) return null;
-  return (
-    <div className="side-pills">
-      {pills.map((p) => <span key={p} className="status-pill">{p}</span>)}
-    </div>
-  );
-}
-
-function Bench({
-  title, slots, field, accent, area, tera,
-}: {
-  title: string;
-  slots: LiveSlot[];
-  field?: LiveField['ours'];
-  accent: 'cyan' | 'pink';
-  area: string;
-  tera?: boolean;
-}) {
-  const six = [...slots];
-  while (six.length < 6) {
-    six.push({
-      speciesId: '', hp: 0, maxHp: 100, status: '', fainted: false, active: false, revealed: false,
-    });
-  }
-  return (
-    <section className={`card bench bench-${accent} theater-${area}${tera ? ' tera-mode' : ''}`}>
-      <h2 className="bench-title">{title}</h2>
-      <SideFieldBadges side={field} />
-      <ul className="bench-list">
-        {six.slice(0, 6).map((s, i) => <SlotRow key={i} slot={s} accent={accent} />)}
-      </ul>
-    </section>
-  );
-}
-
-function SlotRow({ slot, accent }: { slot: LiveSlot; accent: 'cyan' | 'pink' }) {
-  const revealed = slot.revealed;
-  const max = Math.max(slot.maxHp || 0, 1);
-  const ratio = slot.fainted || !revealed ? (revealed ? 0 : 0) : Math.max(0, Math.min(1, slot.hp / max));
-  const color = !revealed ? 'var(--fg-dim)' : ratio < 0.25 ? 'var(--neon-red)' : ratio < 0.5 ? 'var(--neon-yellow)' : `var(--neon-${accent})`;
-  const name = revealed ? prettySpecies(slot.speciesId) : 'Unknown';
-  const hpLabel = revealed ? (slot.fainted ? 'fainted' : `${slot.hp}/${slot.maxHp}`) : 'hidden';
-  return (
-    <li className={`slot-row${slot.fainted ? ' slot-fainted' : ''}${slot.active ? ' slot-active' : ''}${revealed ? '' : ' slot-hidden'}`}>
-      <Sprite speciesId={revealed ? slot.speciesId : ''} />
-      <div className="slot-body">
-        <div className="slot-meta">
-          <span>{slot.active ? '● ' : ''}{name}</span>
-          {revealed && slot.status ? <span className="status-pill">{slot.status}</span> : null}
-          <BoostPills slot={slot} />
-        </div>
-        <div
-          className="hp-track"
-          role="meter"
-          aria-label={`${name} HP`}
-          aria-valuemin={0}
-          aria-valuemax={max}
-          aria-valuenow={revealed ? (slot.fainted ? 0 : slot.hp) : 0}
-        >
-          <div className="hp-fill" style={{ width: `${ratio * 100}%`, background: color }} />
-        </div>
-        <span className="dim slot-hp">{hpLabel}</span>
-      </div>
-    </li>
-  );
-}
-
-function Sprite({ speciesId }: { speciesId: string }) {
-  const [failed, setFailed] = useState(false);
-  if (!speciesId || failed) {
-    return <div className="sprite sprite-empty" aria-hidden="true" />;
-  }
-  return (
-    <img
-      className="sprite"
-      alt=""
-      width={40}
-      height={40}
-      src={`https://play.pokemonshowdown.com/sprites/gen5/${speciesId}.png`}
-      onError={() => setFailed(true)}
-    />
-  );
-}
-
-function BoostPills({ slot }: { slot: LiveSlot }) {
-  if (!slot.revealed || !slot.boosts) return null;
-  const bits: string[] = [];
-  for (const [k, v] of Object.entries(slot.boosts)) {
-    if (!v) continue;
-    bits.push(`${v > 0 ? '+' : ''}${v} ${STAT_LABEL[k] ?? k}`);
-  }
-  for (const m of slot.modifiers ?? []) {
-    if (m.name.startsWith('boost:')) continue;
-    bits.push(m.name);
-  }
-  if (!bits.length) return null;
-  return (
-    <span className="boost-pills" title={bits.join(', ')}>
-      {bits.map((b) => <span key={b} className="status-pill">{b}</span>)}
-    </span>
-  );
-}
-
 function ScoreStrip({ state }: { state: LiveState }) {
   const ev = state.eval;
-  const score = ev?.roundScore ?? 0;
-  const pct = ((Math.max(-6, Math.min(6, score)) + 6) / 12) * 100;
-  const positive = score >= 0;
-  const fillLeft = positive ? 50 : pct;
-  const fillWidth = positive ? pct - 50 : 50 - pct;
+  const sampled = ev?.choices?.find((c) => c.id === ev.sampledAction) ?? ev?.choices?.[0];
+  const score = sampled?.choiceScore ?? ev?.roundScore ?? 0;
+  const maxAbs = Math.max(
+    ...((ev?.choices ?? []).map((c) => Math.abs(c.choiceScore))),
+    Math.abs(score),
+    0.01,
+  );
   const label = `${score >= 0 ? '+' : ''}${score.toFixed(3)}`;
   const color = score > 0.05 ? 'var(--matchup-win)' : score < -0.05 ? 'var(--matchup-lose)' : 'var(--matchup-neutral)';
   return (
     <section className="score-strip card">
-      <div
-        className="bipolar"
-        role="meter"
-        aria-label="round score"
-        aria-valuemin={-6}
-        aria-valuemax={6}
-        aria-valuenow={Number(score.toFixed(3))}
-      >
-        <div className="bipolar-mid" />
-        <div
-          className="bipolar-fill"
-          style={{
-            left: `${fillLeft}%`,
-            width: `${Math.max(fillWidth, 0)}%`,
-            background: color,
-          }}
-        />
-      </div>
+      <ScoreBar
+        score={score}
+        maxAbs={maxAbs}
+        parts={sampled}
+        label="turn score"
+      />
       <div className="score-meta">
-        <strong style={{ color }}>roundScore {label}</strong>
+        <strong style={{ color }}>turn {label}</strong>
+        {ev && <span className="muted">round {ev.roundScore >= 0 ? '+' : ''}{ev.roundScore.toFixed(3)}</span>}
         {ev && <span className="muted">mate {ev.forcedOutcome}{ev.mateProbability ? ` ${ev.mateProbability.toFixed(2)}` : ''}</span>}
         {ev?.sampledAction && <span className="sampled-label">sampled {actionLabel(ev.sampledAction, state.ours)}</span>}
         {ev?.quantum && (
@@ -308,11 +188,14 @@ type RankedRow = {
   score: number;
   probability?: number;
   hits?: number | null;
-  deltaM?: number;
+  ourHealth?: number;
+  theirHealth?: number;
+  ourModifier?: number;
+  theirModifier?: number;
 };
 
 function rankOurs(choices: LiveChoice[], teraMode = false): RankedRow[] {
-  const ranked = [...choices]
+  return [...choices]
     .filter((c) => teraMode || !c.id.endsWith(':tera'))
     .sort((a, b) => b.choiceScore - a.choiceScore)
     .slice(0, 3)
@@ -321,28 +204,27 @@ function rankOurs(choices: LiveChoice[], teraMode = false): RankedRow[] {
       score: c.choiceScore,
       probability: c.probability,
       hits: c.hitsToKill,
-      deltaM: c.expectedModifierDelta,
+      ourHealth: c.ourHealth,
+      theirHealth: c.theirHealth,
+      ourModifier: c.ourModifier,
+      theirModifier: c.theirModifier,
     }));
-  // #region agent log
-  fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'029c39'},body:JSON.stringify({sessionId:'029c39',runId:'post-fix',hypothesisId:'E',location:'BattleLive.tsx:rankOurs',message:'our ranked choices',data:{count:ranked.length,ids:ranked.map((r)=>r.id),teraMode,tera:ranked.filter((r)=>r.id.endsWith(':tera')).length},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-  return ranked;
 }
 
 function rankTheirs(replies: LiveReply[], teraMode = false): RankedRow[] {
-  const ranked = [...replies]
+  return [...replies]
     .filter((r) => teraMode || !r.id.endsWith(':tera'))
-    .sort((a, b) => a.expectedImpact - b.expectedImpact)
+    .sort((a, b) => (a.choiceScore ?? a.expectedImpact) - (b.choiceScore ?? b.expectedImpact))
     .slice(0, 3)
     .map((r) => ({
       id: r.id,
-      score: r.expectedImpact,
+      score: r.choiceScore ?? r.expectedImpact,
       hits: r.hitsToKillUs,
+      ourHealth: r.ourHealth,
+      theirHealth: r.theirHealth,
+      ourModifier: r.ourModifier,
+      theirModifier: r.theirModifier,
     }));
-  // #region agent log
-  fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'029c39'},body:JSON.stringify({sessionId:'029c39',runId:'post-fix',hypothesisId:'E',location:'BattleLive.tsx:rankTheirs',message:'their ranked replies',data:{count:ranked.length,ids:ranked.map((r)=>r.id),teraMode},timestamp:Date.now()})}).catch(()=>{});
-  // #endregion
-  return ranked;
 }
 
 function ChoiceList({
@@ -378,8 +260,6 @@ function ChoiceList({
       <ol className="choice-ol">
         {rows.map((r, i) => {
           const mark = r.id === sampled;
-          const width = (Math.abs(r.score) / maxAbs) * 100;
-          const pos = r.score >= 0;
           return (
             <li key={r.id} className={`choice-row${mark ? ' choice-sampled' : ''}`}>
               <span className="choice-rank">{i + 1}</span>
@@ -388,23 +268,7 @@ function ChoiceList({
                   <span>{mark ? '▸ ' : ''}{actionLabel(r.id, slots)}</span>
                   <span className="choice-score">{r.score >= 0 ? '+' : ''}{r.score.toFixed(2)}</span>
                 </div>
-                <div
-                  className="choice-track"
-                  role="meter"
-                  aria-label={`${actionLabel(r.id, slots)} score`}
-                  aria-valuemin={-maxAbs}
-                  aria-valuemax={maxAbs}
-                  aria-valuenow={Number(r.score.toFixed(3))}
-                >
-                  <div
-                    className="choice-fill"
-                    style={{
-                      width: `${width}%`,
-                      marginLeft: pos ? 0 : `${100 - width}%`,
-                      background: pos ? 'var(--neon-cyan)' : 'var(--neon-pink)',
-                    }}
-                  />
-                </div>
+                <ScoreBar score={r.score} maxAbs={maxAbs} parts={r} label={`${actionLabel(r.id, slots)} score`} />
                 {ours && r.probability != null && (
                   <div
                     className="choice-p"
@@ -420,7 +284,6 @@ function ChoiceList({
                 )}
                 <div className="choice-meta dim">
                   <span>{hkoLabel(r.hits)}</span>
-                  {r.deltaM != null && <span>ΔM {r.deltaM >= 0 ? '+' : ''}{r.deltaM.toFixed(2)}</span>}
                   {ours && r.probability != null && <span>p={r.probability.toFixed(2)}</span>}
                 </div>
               </div>
@@ -442,31 +305,6 @@ function TheaterSkeleton() {
       ))}
     </div>
   );
-}
-
-function prettySpecies(id: string): string {
-  if (!id) return '?';
-  return id.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
-}
-
-function actionLabel(id: string, slots?: LiveSlot[]): string {
-  if (id.startsWith('move:')) {
-    return prettySpecies(id.slice(5).replace(/:tera$/, ''));
-  }
-  if (id.startsWith('switch:')) {
-    const n = Number(id.slice(7));
-    const slot = Number.isFinite(n) ? slots?.[n - 1] : undefined;
-    if (slot?.revealed && slot.speciesId) return `Switch ${prettySpecies(slot.speciesId)}`;
-    return `Switch ${n || id}`;
-  }
-  return id;
-}
-
-function hkoLabel(n: number | null | undefined): string {
-  if (n == null || n < 1) return '—';
-  if (n === 1) return 'OHKO';
-  if (n <= 3) return `${n}HKO`;
-  return '—';
 }
 
 function quantumTitle(q: { mode: string; nQubits?: number; shots?: number; exact?: boolean }): string {
