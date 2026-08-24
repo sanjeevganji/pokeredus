@@ -29,6 +29,8 @@ export interface DecideResult {
   sampledId: string;
   sent: boolean;
   diagnostics?: Record<string, unknown>;
+  teraOurs?: RoundEvaluation;
+  teraTheirs?: RoundEvaluation;
 }
 
 export async function decideAndAct(
