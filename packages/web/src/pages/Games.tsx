@@ -176,7 +176,7 @@ export default function Games() {
             placeholder="gen9randombattle-… or battle-gen9randombattle-…"
             style={{ flex: 1, minWidth: 220 }}
           />
-          <button type="button" onClick={() => run('attach', () => attachGame(room, { dryRun }))} disabled={!room.trim() || Boolean(busy)}>
+          <button type="button" onClick={() => goLive(room)} disabled={!room.trim() || Boolean(busy)}>
             Attach
           </button>
           <button type="button" onClick={() => run('detach', () => detachGame())} disabled={!snap.attached}>
