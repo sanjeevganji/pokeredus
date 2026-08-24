@@ -74,6 +74,17 @@ export interface ImpactParts {
   health: number;
   modifier: number;
   total: number;
+  ourHealth: number;
+  theirHealth: number;
+  ourModifier: number;
+  theirModifier: number;
+}
+
+export function emptyImpactParts(): ImpactParts {
+  return {
+    health: 0, modifier: 0, total: 0,
+    ourHealth: 0, theirHealth: 0, ourModifier: 0, theirModifier: 0,
+  };
 }
 
 export function impactParts(
@@ -82,18 +93,27 @@ export function impactParts(
   expectedValueTurns = EXPECTED_VALUE_TURNS,
 ): ImpactParts {
   const n = Math.min(before.length, after.length);
-  let health = 0;
-  let modifier = 0;
+  let ourHealth = 0;
+  let theirHealth = 0;
+  let ourModifier = 0;
+  let theirModifier = 0;
   for (let i = 0; i < n; i++) {
     const b = before[i]!;
     const a = after[i]!;
     if (!b.revealed && !a.revealed) continue;
     const dh = a.h - b.h;
-    const dM = a.M - b.M;
-    health += b.side === 'ours' ? dh : -dh;
-    modifier += (b.side === 'ours' ? dM : -dM) * expectedValueTurns;
+    const dM = (a.M - b.M) * expectedValueTurns;
+    if (b.side === 'ours') {
+      ourHealth += dh;
+      ourModifier += dM;
+    } else {
+      theirHealth += dh;
+      theirModifier += dM;
+    }
   }
-  return { health, modifier, total: health + modifier };
+  const health = ourHealth - theirHealth;
+  const modifier = ourModifier - theirModifier;
+  return { health, modifier, total: health + modifier, ourHealth, theirHealth, ourModifier, theirModifier };
 }
 
 export function impact(
