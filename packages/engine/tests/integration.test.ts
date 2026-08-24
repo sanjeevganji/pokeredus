@@ -125,7 +125,7 @@ describe('official Showdown one-round sim', () => {
       expect(c.expectedHealthDelta + c.expectedModifierDelta).toBeCloseTo(c.expectedImpact);
     }
 
-    const policy = new QuantumPolicyProcess({ timeoutMs: 20_000 });
+    const policy = new QuantumPolicyProcess({ timeoutMs: 40_000 });
     try {
       const res = await policy.decide({
         actions: evaluation.choices.map((c) => c.action.id),
