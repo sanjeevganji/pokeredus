@@ -2,11 +2,14 @@
 // The live CLI overwrites this JSON; the GUI polls it. No sockets.
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { BattleObservation } from '@pokeredus/engine';
+import type { BattleObservation, Boosts, FieldSnapshot, PlayerSide } from '@pokeredus/engine';
+import { emptyBoosts, modifiersFromSlot } from '@pokeredus/engine';
 import type { DecideResult } from './decide.js';
 import type { BattleEvent, BattleTracker } from './protocol.js';
 
 export const MAX_LIVE_EVENTS = 40;
+export const MAX_LIVE_TURNS = 16;
+export const LIVE_SLOT_COUNT = 6;
 
 export type LiveStatus =
   | 'idle'
