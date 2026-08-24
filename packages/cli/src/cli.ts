@@ -1,7 +1,7 @@
 // PokeRedus CLI — knowledge-pack tools, Random Battle scoring, live play.
 import * as fs from 'node:fs';
 import { loadKnowledgePack } from '@pokeredus/pack/load';
-import { BattleTracker, decideAndAct, ShowdownClient, type BattleEvent } from '@pokeredus/bridge';
+import { BattleTracker, decideAndAct, LiveStateWriter, ShowdownClient, type BattleEvent } from '@pokeredus/bridge';
 import {
   QuantumPolicyProcess,
   generateRandomSetPool,
@@ -149,7 +149,19 @@ async function main(): Promise<void> {
       console.error('live requires --battle <roomid>');
       process.exit(1);
     }
-    const room = battle.startsWith('battle-') ? battle : `battle-${battle}`;
+    const room = battle.startsWith('battle-')
+      ? battle
+      : /^\d+$/.test(battle)
+        ? `battle-gen9randombattle-${battle}`
+        : `battle-${battle}`;
+    const policy = policyMode(flags);
+    const hud = new LiveStateWriter({
+      path: flags['live-state'] || process.env.POKELINK_STATE,
+      room,
+      dryRun,
+      policy,
+    });
+    hud.patch({ status: 'connecting' });
     await withPolicy(async (proc) => {
       const client = new ShowdownClient({
         url: flags['url'],
@@ -159,28 +171,45 @@ async function main(): Promise<void> {
         dryRun,
       });
       const tracker = new BattleTracker();
-      client.onEvent((ev) => {
+      client.onEvent((ev: BattleEvent) => {
         tracker.apply(ev);
+        hud.noteEvent(ev);
+        hud.fromTracker(tracker);
         if (ev.type === 'request') {
           if (!ev.json.active || ev.json.active.length === 0) return;
-          const obs = tracker.toObservation(pool, ourSets);
+          let obs;
+          try {
+            obs = tracker.toObservation(pool, ourSets);
+          } catch (err) {
+            console.error('[pokeredus] observation failed:', err);
+            hud.patch({ status: 'error', error: err instanceof Error ? err.message : String(err) });
+            return;
+          }
+          hud.fromObservation(obs);
+          hud.patch({ status: 'deciding' });
           console.log(`\n=== turn ${obs.turn} (your move) ===`);
           void decideAndAct(client, obs, {
             dryRun,
-            policy: policyMode(flags),
+            policy,
             process: proc,
             seed,
             shots,
             logPath,
-          }).catch((err) => console.error(err));
+          }).then((result) => hud.fromDecision(result)).catch((err) => {
+            console.error(err);
+            hud.patch({ status: 'error', error: err instanceof Error ? err.message : String(err) });
+          });
         }
       });
       console.log(`[pokeredus] joining ${room} ...`);
       await client.connect();
+      hud.patch({ status: 'connected' });
+      hud.pushEvent(`joined ${room}`);
       console.log('[pokeredus] connected. Waiting for your turn — Ctrl-C to quit.');
       await new Promise<void>((resolve) => {
         process.on('SIGINT', () => {
           console.log('\n[pokeredus] shutting down.');
+          hud.patch({ status: 'idle' });
           client.close();
           proc.close();
           resolve();
@@ -212,6 +241,7 @@ Flags:
   --seed <n>          Policy / pool seed.
   --shots <n>         Finite-shot QAOA (omit for exact).
   --decision-log <f>  Append-only JSONL decision records.
+  --live-state <f>    HUD snapshot JSON for the PokeRedus game-state screen.
   --dry-run           Log the chosen move but never send it.
 `);
 }

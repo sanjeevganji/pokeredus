@@ -22,20 +22,23 @@ CLI mode. If the quantum process fails, no battle action is sent.
 | `packages/web` | Team builder + matchup graph UI (no simulator) |
 | `packages/pack` | Knowledge-pack schema/load |
 | `quantum-policy` | Persistent PennyLane QAOA JSON-lines subprocess |
-| `pokeredus/` | Python KG / team-builder GUI (visualization only) |
+| `pokeredus/` | Python KG / team-builder GUI, including the PokeLink game-state screen |
 | `tools/pr.py` | Arrow-key launcher and one-liner commands |
 
 Graph-only role/coverage weights in the team builder are visualization, not
 battle policy. Pokémon physical `weight` (mass) is a species field, not a
 policy weight.
 
-**PokeLink** is the Showdown battle CLI (`packages/cli`). **PokeRedus** is the
-team-builder GUI / web UI and knowledge-graph pipeline.
+**PokeLink** is the Showdown battle CLI (`packages/cli`) plus the game-state
+screen in the PokeRedus GUI. **PokeRedus** is the team-builder GUI / web UI
+and knowledge-graph pipeline. Live battles start only through the integrated
+launch (GUI + PokeLink together) so the game-state screen can show eval scores
+and protocol updates from the connected room.
 
 ## Terminal launcher
 
-Arrow-key menu for setup, PokeRedus, PokeLink, combined launch, training,
-quantum, maintain, and settings:
+Arrow-key menu for setup, PokeRedus, PokeLink tools, combined (integrated)
+launch, training, quantum, maintain, and settings:
 
 ```bash
 python tools/pr.py
@@ -45,12 +48,16 @@ Keys: `↑` `↓` move · Enter run · Esc / Backspace back · `q` quit.
 
 Saved options (policy, dry-run, Showdown account, decision log, QAOA seed/shots)
 live in `tools/launch-settings.json` (gitignored). Env overrides:
-`POKELINK_USER`, `POKELINK_PASS`, `POKELINK_URL`, `POKEREDUS_POLICY`.
+`POKELINK_USER`, `POKELINK_PASS`, `POKELINK_URL`, `POKEREDUS_POLICY`,
+`POKELINK_STATE` (HUD snapshot path, default `live-state.json` at repo root).
 
 ### Simple commands
 
 Battle id is a Showdown room (`gen9randombattle-…` or `battle-gen9randombattle-…`).
 Default live mode is dry-run; pass `--send` to actually choose moves.
+`pokelink` / `live` / `quantum` / `softmax` always start the PokeRedus GUI
+alongside the battle so the PokeLink page can follow eval scores and live
+updates. There is no standalone PokeLink process launch from the menu.
 
 ```bash
 python tools/pr.py setup
@@ -82,11 +89,11 @@ npm run train
 | Command | Purpose |
 | --- | --- |
 | `setup` | `npm install` + `pip install -e pokeredus[dev]` + `pip install -e quantum-policy` |
-| `gui` | Python team-builder (`pokeredus/scripts/launch.py`) |
+| `gui` | Python team-builder (`pokeredus/scripts/launch.py`), including PokeLink HUD |
 | `web` | Vite team-builder UI |
-| `pokelink` / `live` | Join a Showdown battle with the quantum (or settings) policy |
+| `pokelink` / `live` | Integrated launch: GUI + Showdown live (quantum or settings policy) |
 | `combined` | GUI + web; with a battle id, also start PokeLink live |
-| `quantum` / `softmax` | Live battle forcing QAOA or the softmax benchmark |
+| `quantum` / `softmax` | Integrated live forcing QAOA or the softmax benchmark |
 | `train` | Generate Random Battle pool + export pack + rebuild matchup graph |
 | `pool` / `pack` / `graph` | Standalone model/data updates |
 | `score` | Replay a transcript into the decision log |
@@ -182,10 +189,14 @@ npx tsx packages/cli/src/cli.ts render-pack --pack pokeredus/data/knowledge-pack
 npx tsx packages/cli/src/cli.ts export-pack --mini
 npx tsx packages/cli/src/cli.ts generate-pool --samples 200 --seed 1 --out packages/engine/data/gen9randombattle-pool.v1.json
 npx tsx packages/cli/src/cli.ts score --replay packages/cli/tests/fixtures/transcript.txt --pool packages/engine/data/gen9randombattle-pool.v1.json --policy softmax --dry-run
-npx tsx packages/cli/src/cli.ts live --battle <roomid> --policy quantum --dry-run --decision-log decisions.jsonl
+npx tsx packages/cli/src/cli.ts live --battle <roomid> --policy quantum --dry-run --decision-log decisions.jsonl --live-state live-state.json
 ```
 
 `--dry-run` logs the sampled choice and never sends it. The launcher default is dry-run; `--send` turns that off.
+
+The live CLI overwrites `live-state.json` (or `$POKELINK_STATE`) each event and
+decision. Open **PokeLink** on the GUI title screen for current `roundScore`,
+choice CTA/CTS, the sampled action, side HP, and a rolling protocol log.
 
 ## Decision log
 
@@ -201,6 +212,10 @@ python tools/pr.py gui
 python tools/pr.py web
 python tools/pr.py graph
 ```
+
+The Python GUI title screen has Pokémon Stats, Team Builder, Matchup Graph,
+and PokeLink (game state). PokeLink is a spectator HUD: it does not connect
+to Showdown itself.
 
 Or by hand: `python pokeredus/scripts/launch.py` and `npm --workspace @pokeredus/web run dev`.
 
@@ -226,5 +241,5 @@ Or by hand:
 ```bash
 npm test && npm run typecheck && npm run build
 python -m unittest discover -s quantum-policy/tests
-cd pokeredus && pytest tests/test_matchup_graph_8attr.py tests/test_matchup_graph_view.py tests/test_attribute_engine.py tests/test_phase5.py
+cd pokeredus && pytest tests/test_matchup_graph_8attr.py tests/test_matchup_graph_view.py tests/test_attribute_engine.py tests/test_phase5.py tests/test_game_state.py
 ```

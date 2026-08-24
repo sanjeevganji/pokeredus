@@ -1,0 +1,249 @@
+// Compact battle HUD snapshot for the PokeRedus game-state screen.
+// The live CLI overwrites this JSON; the GUI polls it. No sockets.
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import type { BattleObservation } from '@pokeredus/engine';
+import type { DecideResult } from './decide.js';
+import type { BattleEvent, BattleTracker } from './protocol.js';
+
+export const MAX_LIVE_EVENTS = 40;
+
+export type LiveStatus =
+  | 'idle'
+  | 'connecting'
+  | 'connected'
+  | 'waiting'
+  | 'deciding'
+  | 'ended'
+  | 'error';
+
+export interface LiveSlot {
+  speciesId: string;
+  hp: number;
+  maxHp: number;
+  status: string;
+  fainted: boolean;
+  active: boolean;
+  revealed: boolean;
+}
+
+export interface LiveChoice {
+  id: string;
+  type: string;
+  cta?: number;
+  cts?: number;
+  expectedImpact: number;
+  choiceScore: number;
+  probability?: number;
+}
+
+export interface LiveEval {
+  roundScore: number;
+  forcedOutcome: string;
+  mateProbability: number;
+  sampledAction: string;
+  choices: LiveChoice[];
+}
+
+export interface LiveEvent {
+  ts: string;
+  text: string;
+}
+
+export interface LiveState {
+  ts: string;
+  status: LiveStatus;
+  room: string;
+  dryRun: boolean;
+  policy: string;
+  turn: number;
+  winner?: string;
+  field: { weather: string; terrain: string; trickroom: boolean };
+  ours: LiveSlot[];
+  theirs: LiveSlot[];
+  eval?: LiveEval;
+  events: LiveEvent[];
+  error?: string;
+}
+
+export function defaultLiveStatePath(): string {
+  return process.env.POKELINK_STATE || path.resolve('live-state.json');
+}
+
+export function summarizeEvent(ev: BattleEvent): string | null {
+  switch (ev.type) {
+    case 'turn':
+      return `Turn ${ev.num}`;
+    case 'switch':
+    case 'drag':
+      return `${identityName(ev.identity)} in (${hpText(ev.hp, ev.maxHp)})`;
+    case 'move':
+      return `${identityName(ev.identity)} used ${ev.moveId}`;
+    case '-damage':
+      return `${identityName(ev.identity)} ${hpText(ev.hp, ev.maxHp)}${ev.fainted ? ' fainted' : ''}`;
+    case '-heal':
+      return `${identityName(ev.identity)} healed ${hpText(ev.hp, ev.maxHp)}`;
+    case 'faint':
+      return `${identityName(ev.identity)} fainted`;
+    case '-status':
+      return `${identityName(ev.identity)} ${ev.status}`;
+    case '-boost':
+      return `${identityName(ev.identity)} +${ev.stat}`;
+    case '-unboost':
+      return `${identityName(ev.identity)} -${ev.stat}`;
+    case 'weather':
+      return ev.weather ? `Weather: ${ev.weather}` : 'Weather ended';
+    case 'terrain':
+      return ev.terrain ? `Terrain: ${ev.terrain}` : 'Terrain ended';
+    case 'sidestart':
+      return `${ev.side} ${ev.effect}`;
+    case 'sideend':
+      return `${ev.side} ${ev.effect} ended`;
+    case 'win':
+      return `${ev.winner} wins`;
+    default:
+      return null;
+  }
+}
+
+export function slotsFromObservation(obs: BattleObservation, side: 'ours' | 'theirs'): LiveSlot[] {
+  return obs[side]
+    .filter((s) => s.revealed || s.active)
+    .map((s) => ({
+      speciesId: s.speciesId,
+      hp: s.hp,
+      maxHp: s.maxHp || 100,
+      status: s.status,
+      fainted: s.fainted,
+      active: s.active,
+      revealed: s.revealed,
+    }));
+}
+
+export class LiveStateWriter {
+  readonly path: string;
+  state: LiveState;
+
+  constructor(opts: { path?: string; room: string; dryRun: boolean; policy: string }) {
+    this.path = opts.path || defaultLiveStatePath();
+    this.state = {
+      ts: nowIso(),
+      status: 'connecting',
+      room: opts.room,
+      dryRun: opts.dryRun,
+      policy: opts.policy,
+      turn: 0,
+      field: { weather: '', terrain: '', trickroom: false },
+      ours: [],
+      theirs: [],
+      events: [],
+    };
+  }
+
+  patch(partial: Partial<LiveState>): void {
+    this.state = { ...this.state, ...partial, ts: nowIso(), events: partial.events ?? this.state.events };
+    this.flush();
+  }
+
+  pushEvent(text: string): void {
+    const events = [...this.state.events, { ts: nowIso(), text }].slice(-MAX_LIVE_EVENTS);
+    this.state = { ...this.state, ts: nowIso(), events };
+    this.flush();
+  }
+
+  noteEvent(ev: BattleEvent): void {
+    const text = summarizeEvent(ev);
+    if (text) this.pushEvent(text);
+    if (ev.type === 'win') this.patch({ status: 'ended', winner: ev.winner });
+  }
+
+  fromTracker(tracker: BattleTracker): void {
+    this.state = {
+      ...this.state,
+      ts: nowIso(),
+      turn: tracker.turn,
+      field: {
+        weather: tracker.field.weather,
+        terrain: tracker.field.terrain,
+        trickroom: tracker.field.trickroom,
+      },
+      ours: hudSlots(tracker.myMons),
+      theirs: hudSlots(tracker.oppMons),
+    };
+    this.flush();
+  }
+
+  fromObservation(obs: BattleObservation): void {
+    this.state = {
+      ...this.state,
+      ts: nowIso(),
+      turn: obs.turn,
+      field: {
+        weather: obs.field.weather,
+        terrain: obs.field.terrain,
+        trickroom: obs.field.trickroom,
+      },
+      ours: slotsFromObservation(obs, 'ours'),
+      theirs: slotsFromObservation(obs, 'theirs'),
+    };
+    this.flush();
+  }
+
+  fromDecision(result: DecideResult): void {
+    const probabilities = result.probabilities;
+    this.state = {
+      ...this.state,
+      ts: nowIso(),
+      status: 'waiting',
+      eval: {
+        roundScore: result.evaluation.roundScore,
+        forcedOutcome: result.evaluation.forcedOutcome,
+        mateProbability: result.evaluation.mateProbability,
+        sampledAction: result.sampledId,
+        choices: result.evaluation.choices.map((c, i) => ({
+          id: c.action.id,
+          type: c.action.type,
+          cta: c.cta,
+          cts: c.cts,
+          expectedImpact: c.expectedImpact,
+          choiceScore: c.choiceScore,
+          probability: probabilities[i],
+        })),
+      },
+    };
+    this.pushEvent(
+      `eval roundScore=${result.evaluation.roundScore.toFixed(3)} sampled ${result.sampledId}`,
+    );
+  }
+
+  flush(): void {
+    const dir = path.dirname(this.path);
+    if (dir && dir !== '.') fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(this.path, JSON.stringify(this.state) + '\n', 'utf8');
+  }
+}
+
+function nowIso(): string {
+  return new Date().toISOString();
+}
+
+function identityName(identity: string): string {
+  const parts = identity.split(':');
+  return (parts[1] ?? identity).trim() || identity;
+}
+
+function hpText(hp: number, maxHp: number): string {
+  return maxHp > 0 ? `${hp}/${maxHp}` : String(hp);
+}
+
+function hudSlots(mons: BattleTracker['myMons']): LiveSlot[] {
+  return [...mons.values()].map((m) => ({
+    speciesId: m.speciesId,
+    hp: m.hp,
+    maxHp: m.maxHp || 100,
+    status: m.status,
+    fainted: m.fainted,
+    active: m.active,
+    revealed: true,
+  }));
+}

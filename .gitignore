@@ -70,3 +70,5 @@ Thumbs.db
 .env.local
 *.local.yaml
 tools/launch-settings.json
+live-state.json
+decisions.jsonl

@@ -21,6 +21,7 @@ PACK_MINI = ROOT / "pokeredus" / "data" / "knowledge-pack" / "knowledge-pack-min
 POOL_OUT = ROOT / "packages" / "engine" / "data" / "gen9randombattle-pool.v1.json"
 REPLAY = ROOT / "packages" / "cli" / "tests" / "fixtures" / "transcript.txt"
 PY_GUI = ROOT / "pokeredus" / "scripts" / "launch.py"
+LIVE_STATE = ROOT / "live-state.json"
 
 DEFAULTS: dict[str, Any] = {
     "policy": "quantum",
@@ -40,11 +41,11 @@ PokeRedus / PokeLink launcher
   python tools/pr.py setup                   Node + Python GUI + quantum-policy
   python tools/pr.py gui [--no-build]        PokeRedus team-builder GUI
   python tools/pr.py web                     PokeRedus web UI
-  python tools/pr.py pokelink <battle-id>    PokeLink live battle
+  python tools/pr.py pokelink <battle-id>    GUI + PokeLink live (integrated)
   python tools/pr.py live <battle-id>        same as pokelink
-  python tools/pr.py combined [battle-id]    GUI + web, and live if id given
-  python tools/pr.py quantum <battle-id>     live with QAOA policy
-  python tools/pr.py softmax <battle-id>     live with softmax benchmark
+  python tools/pr.py combined [battle-id]    GUI + web; with id, also PokeLink live
+  python tools/pr.py quantum <battle-id>     integrated live with QAOA policy
+  python tools/pr.py softmax <battle-id>     integrated live with softmax benchmark
   python tools/pr.py score [transcript]      replay a Showdown transcript
   python tools/pr.py pool                    generate Random Battle set pool
   python tools/pr.py pack [--mini]           export knowledge pack
@@ -117,9 +118,13 @@ def which_cmd(name: str) -> str:
     return name
 
 
-def child_env() -> dict[str, str]:
+def child_env(*, relax_tls: bool = False) -> dict[str, str]:
     env = os.environ.copy()
     env.setdefault("POKEREDUS_PYTHON", sys.executable)
+    env.setdefault("POKELINK_STATE", str(LIVE_STATE))
+    if relax_tls:
+        # ponytail: intercepted TLS on some Windows boxes breaks undici/ws verify. Set NODE_EXTRA_CA_CERTS to drop this.
+        env.setdefault("NODE_TLS_REJECT_UNAUTHORIZED", "0")
     return env
 
 
@@ -131,7 +136,8 @@ def prepare_argv(argv: list[str]) -> list[str]:
     suffix = Path(first).suffix.lower()
     name = Path(first).name.lower()
     if suffix in (".cmd", ".bat") or name in ("npm", "npx", "npm.cmd", "npx.cmd"):
-        return [os.environ.get("COMSPEC", "cmd.exe"), "/c", *argv]
+        # `/c call` so a quoted path under Program Files is not stripped by cmd.
+        return [os.environ.get("COMSPEC", "cmd.exe"), "/c", "call", *argv]
     return argv
 
 
@@ -142,10 +148,10 @@ def fmt_cmd(argv: list[str]) -> str:
     return shlex.join(argv)
 
 
-def run_cmd(argv: list[str], *, cwd: Path = ROOT, pause: bool = False) -> int:
+def run_cmd(argv: list[str], *, cwd: Path = ROOT, pause: bool = False, env: dict[str, str] | None = None) -> int:
     print(f"$ {fmt_cmd(argv)}")
     try:
-        proc = subprocess.run(prepare_argv(argv), cwd=str(cwd), env=child_env())
+        proc = subprocess.run(prepare_argv(argv), cwd=str(cwd), env=env or child_env())
         code = proc.returncode
     except OSError as exc:
         print(exc)
@@ -158,8 +164,8 @@ def run_cmd(argv: list[str], *, cwd: Path = ROOT, pause: bool = False) -> int:
     return code
 
 
-def spawn_detached(argv: list[str], *, cwd: Path = ROOT) -> subprocess.Popen:
-    kwargs: dict[str, Any] = {"cwd": str(cwd), "env": child_env()}
+def spawn_detached(argv: list[str], *, cwd: Path = ROOT, env: dict[str, str] | None = None) -> subprocess.Popen:
+    kwargs: dict[str, Any] = {"cwd": str(cwd), "env": env or child_env()}
     if os.name == "nt":
         kwargs["creationflags"] = subprocess.CREATE_NEW_CONSOLE
     else:
@@ -205,6 +211,7 @@ def live_argv(
         argv.extend(["--url", str(s["url"])])
     if s.get("decision_log"):
         argv.extend(["--decision-log", str(s["decision_log"])])
+    argv.extend(["--live-state", str(LIVE_STATE)])
     if s.get("seed") is not None and s["seed"] != "":
         argv.extend(["--seed", str(s["seed"])])
     if s.get("shots") is not None and s["shots"] != "":
@@ -279,7 +286,7 @@ def action_sprites() -> list[tuple[list[str], Path]]:
 def action_pytest() -> list[tuple[list[str], Path]]:
     return [([sys.executable, "-m", "pytest", "tests/test_matchup_graph_8attr.py",
               "tests/test_matchup_graph_view.py", "tests/test_attribute_engine.py",
-              "tests/test_phase5.py"], ROOT / "pokeredus")]
+              "tests/test_phase5.py", "tests/test_game_state.py"], ROOT / "pokeredus")]
 
 
 def action_pool() -> list[tuple[list[str], Path]]:
@@ -354,9 +361,9 @@ MENUS: dict[str, list[dict[str, Any]]] = {
         {"label": "PokeRedus", "kind": "submenu", "to": "pokeredus",
          "help": "Team-builder GUI, web UI, graph and pack exporters"},
         {"label": "PokeLink", "kind": "submenu", "to": "pokelink",
-         "help": "Showdown live battle, replay score, pack tools"},
+         "help": "Replay score and pack tools; live battles launch from Combined"},
         {"label": "Combined launch", "kind": "submenu", "to": "combined",
-         "help": "GUI + web, optionally with a live battle"},
+         "help": "GUI + web; PokeLink live always starts the GUI game-state screen"},
         {"label": "Train / update models", "kind": "submenu", "to": "train",
          "help": "Pool, knowledge pack, matchup graph, Showdown data"},
         {"label": "Quantum", "kind": "submenu", "to": "quantum",
@@ -386,8 +393,6 @@ MENUS: dict[str, list[dict[str, Any]]] = {
         {"label": "Back", "kind": "back"},
     ],
     "pokelink": [
-        {"label": "Live battle (dry-run)", "kind": "live", "dry_run": True},
-        {"label": "Live battle (send moves)", "kind": "live", "dry_run": False},
         {"label": "Score replay transcript", "kind": "run", "jobs": "score"},
         {"label": "Render knowledge pack", "kind": "run", "jobs": "render"},
         {"label": "Generate Random Battle pool", "kind": "run", "jobs": "pool"},
@@ -398,7 +403,6 @@ MENUS: dict[str, list[dict[str, Any]]] = {
     "combined": [
         {"label": "GUI + web UI", "kind": "combined", "live": False},
         {"label": "GUI + PokeLink live", "kind": "combined", "live": True, "web": False},
-        {"label": "Web + PokeLink live", "kind": "combined", "live": True, "gui": False},
         {"label": "GUI + web + PokeLink live", "kind": "combined", "live": True},
         {"label": "Back", "kind": "back"},
     ],
@@ -673,28 +677,42 @@ def ask_battle() -> str | None:
     return raw or None
 
 
+def do_integrated(
+    battle: str,
+    *,
+    policy: str | None = None,
+    dry_run: bool | None = None,
+    extra: list[str] | None = None,
+    web: bool = False,
+    pause: bool = True,
+) -> int:
+    """Start the PokeRedus GUI plus PokeLink live. This is the only live launch."""
+    env = child_env(relax_tls=True)
+    if web:
+        spawn_detached(action_web()[0][0], env=env)
+    spawn_detached(action_gui()[0][0], cwd=ROOT / "pokeredus", env=env)
+    print(f"PokeLink HUD snapshot: {LIVE_STATE}")
+    return run_cmd(live_argv(battle, policy=policy, dry_run=dry_run, extra=extra), pause=pause, env=env)
+
+
 def do_live(*, policy: str | None = None, dry_run: bool | None = None, pause: bool = True) -> int:
     battle = ask_battle()
     if not battle:
         return 0
-    return run_cmd(live_argv(battle, policy=policy, dry_run=dry_run), pause=pause)
+    return do_integrated(battle, policy=policy, dry_run=dry_run, pause=pause)
 
 
 def do_combined(item: dict[str, Any], *, pause: bool = True) -> int:
-    want_gui = item.get("gui", True)
     want_web = item.get("web", True)
     want_live = item.get("live", False)
-    battle = None
     if want_live:
         battle = ask_battle()
         if not battle:
             return 0
+        return do_integrated(battle, web=want_web, pause=pause)
     if want_web:
         spawn_detached(action_web()[0][0])
-    if want_gui:
-        spawn_detached(action_gui()[0][0], cwd=ROOT / "pokeredus")
-    if want_live and battle:
-        return run_cmd(live_argv(battle), pause=pause)
+    spawn_detached(action_gui()[0][0], cwd=ROOT / "pokeredus")
     if pause:
         try:
             input("\nDetached processes are running. Press Enter to return to the menu...")
@@ -782,6 +800,7 @@ def self_check() -> int:
     argv = live_argv("gen9randombattle-1", policy="quantum", dry_run=True)
     assert "--battle" in argv and "gen9randombattle-1" in argv
     assert "--dry-run" in argv
+    assert "--live-state" in argv
     assert argv[argv.index("--policy") + 1] == "quantum"
     send = live_argv("x", dry_run=False, extra=["--send"])
     assert "--dry-run" not in send
@@ -797,6 +816,9 @@ def self_check() -> int:
     for jobs in JOBS:
         JOBS[jobs]()  # builders must not raise
     assert "pokelink" in MENUS and "quantum" in MENUS and "setup" in MENUS
+    assert all(it.get("kind") != "live" for it in MENUS["pokelink"])
+    assert any(it.get("live") for it in MENUS["combined"])
+    assert all(it.get("gui", True) for it in MENUS["combined"] if it.get("live"))
     pip = action_setup_python()[0][0]
     assert pip[-1] == "./pokeredus[dev]"
     if os.name == "nt":
@@ -850,13 +872,11 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         extra = rest[1:]
         policy = "softmax" if cmd == "softmax" else ("quantum" if cmd == "quantum" else None)
-        return run_cmd(live_argv(battle, policy=policy, extra=extra))
+        return do_integrated(battle, policy=policy, extra=extra, pause=False)
     if cmd == "combined":
         if rest and not rest[0].startswith("-"):
-            spawn_detached(action_web()[0][0])
-            spawn_detached(action_gui()[0][0], cwd=ROOT / "pokeredus")
             extra = rest[1:]
-            return run_cmd(live_argv(rest[0], extra=extra))
+            return do_integrated(rest[0], extra=extra, web=True, pause=False)
         spawn_detached(action_web()[0][0])
         spawn_detached(action_gui()[0][0], cwd=ROOT / "pokeredus")
         print("GUI + web started in detached processes.")
