@@ -33,13 +33,12 @@ function valuesOf(ours: SlotSnapshot[], theirs: SlotSnapshot[]) {
   ];
 }
 
-function theirActions(obs: BattleObservation, hyp: CanonicalSet | undefined): LegalAction[] {
+function theirActions(obs: BattleObservation, hyp: CanonicalSet | undefined, tera = false): LegalAction[] {
   const active = obs.theirs.find((s) => s.active) ?? obs.theirs[0];
   const moves = hyp?.moves ?? active?.knownMoves ?? [];
   const out: LegalAction[] = [];
   for (const moveId of moves) {
-    const id = actionId({ type: 'move', moveId });
-    out.push({ id, type: 'move', moveId });
+    out.push({ id: actionId({ type: 'move', moveId, tera }), type: 'move', moveId, tera });
   }
   for (const slot of obs.theirs) {
     if (slot.active || slot.fainted || !slot.revealed) continue;
