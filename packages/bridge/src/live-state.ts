@@ -67,6 +67,8 @@ export interface LiveEval {
   sampledAction: string;
   choices: LiveChoice[];
   replies: LiveReply[];
+  teraChoices?: LiveChoice[];
+  teraReplies?: LiveReply[];
   quantum?: LiveQuantum;
 }
 
