@@ -256,10 +256,10 @@ function assemble(
 
   for (let i = 0; i < legal.length; i++) {
     const action = legal[i]!;
-    const mixed = mixFeatures(replies.map((reply, j) => {
+    const mixed = mixFeatures(replies.flatMap((reply, j) => {
       const cell = cells.get(pairKey(action.id, reply.id));
-      return { w: pTheir[j] ?? 0, cell: cell! };
-    }).filter((x) => x.cell));
+      return cell ? [{ w: pTheir[j] ?? 0, cell }] : [];
+    }));
     let success = mixed.success;
     if (action.type === 'switch') {
       const { stay, after } = switchStayScores(obs, action);
