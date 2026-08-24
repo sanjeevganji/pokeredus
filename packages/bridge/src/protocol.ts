@@ -484,7 +484,7 @@ export class BattleTracker {
       this.myMons.set(slot, mon);
     }
     // #region agent log
-    fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'029c39'},body:JSON.stringify({sessionId:'029c39',runId:'pre',hypothesisId:'A',location:'protocol.ts:applyRequest',message:'request team keys',data:{ourSide:this.ourSide,pokeCount:pokemon.length,idents:pokemon.map((p)=>p.ident),slots:pokemon.map((p)=>splitIdentity(p.ident).slot),species:pokemon.map((p)=>speciesIdFromDetails(p.details)),actives:pokemon.map((p)=>p.active),mapKeys:[...this.myMons.keys()],mapSpecies:[...this.myMons.values()].map((m)=>m.speciesId),mapSize:this.myMons.size},timestamp:Date.now()})}).catch(()=>{});
+    agentLog('A', 'protocol.ts:applyRequest', 'request team keys', { ourSide: this.ourSide, pokeCount: pokemon.length, idents: pokemon.map((p) => p.ident), slots: pokemon.map((p) => splitIdentity(p.ident).slot), species: pokemon.map((p) => speciesIdFromDetails(p.details)), actives: pokemon.map((p) => p.active), mapKeys: [...this.myMons.keys()], mapSpecies: [...this.myMons.values()].map((m) => m.speciesId), mapSize: this.myMons.size });
     // #endregion
     // Choice-item lock detection: if all-but-one active move is disabled.
     const firstActive = json.active?.[0];
