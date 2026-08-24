@@ -67,6 +67,10 @@ describe('impact and choice/round', () => {
     expect(parts.health).toBeCloseTo(0.6);
     expect(parts.modifier).toBeGreaterThan(0);
     expect(parts.health + parts.modifier).toBeCloseTo(parts.total);
+    expect(parts.ourHealth).toBeCloseTo(0);
+    expect(parts.theirHealth).toBeCloseTo(-0.6);
+    expect(parts.ourModifier).toBeGreaterThan(0);
+    expect(parts.theirModifier).toBeCloseTo(0);
   });
 
   it('hitsToKill is ceil of remaining over expected damage', () => {
