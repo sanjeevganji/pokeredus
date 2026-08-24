@@ -385,7 +385,7 @@ function ChoiceList({
               <span className="choice-rank">{i + 1}</span>
               <div className="choice-body">
                 <div className="choice-head">
-                  <span>{mark ? '▸ ' : ''}{actionLabel(r.id, slots)}</span>
+                  <span>{mark ? '▸ ' : ''}{actionLabel(r.id, slots, tera)}</span>
                   <span className="choice-score">{r.score >= 0 ? '+' : ''}{r.score.toFixed(2)}</span>
                 </div>
                 <div
