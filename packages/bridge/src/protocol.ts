@@ -368,7 +368,7 @@ export class BattleTracker {
         };
         (ev.side === 'p1' ? this.myMons : this.oppMons).set(ev.slot, mon);
         // #region agent log
-        fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'029c39'},body:JSON.stringify({sessionId:'029c39',runId:'pre',hypothesisId:'D',location:'protocol.ts:switch',message:'switch/drag store',data:{evSide:ev.side,ourSide:this.ourSide,slot:ev.slot,species:ev.speciesId,mySize:this.myMons.size,oppSize:this.oppMons.size,mySpecies:[...this.myMons.values()].map((m)=>m.speciesId),oppSpecies:[...this.oppMons.values()].map((m)=>m.speciesId)},timestamp:Date.now()})}).catch(()=>{});
+        agentLog('D', 'protocol.ts:switch', 'switch/drag store', { evSide: ev.side, ourSide: this.ourSide, slot: ev.slot, species: ev.speciesId, mySize: this.myMons.size, oppSize: this.oppMons.size, mySpecies: [...this.myMons.values()].map((m) => m.speciesId), oppSpecies: [...this.oppMons.values()].map((m) => m.speciesId) });
         // #endregion
         break;
       }
