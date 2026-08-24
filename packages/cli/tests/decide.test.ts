@@ -57,7 +57,10 @@ describe('decideAndAct', () => {
       evaluate: () => ({
         choices: [{
           action: { id: 'move:earthquake', type: 'move', moveId: 'earthquake' },
-          success: 1, cta: 1, expectedImpact: 1, expectedHealthDelta: 1, expectedModifierDelta: 0, hitsToKill: 1, choiceScore: 1, scaledChoiceScore: 1, meanPostScore: 0,
+          success: 1, cta: 1, expectedImpact: 1, expectedHealthDelta: 1, expectedModifierDelta: 0,
+          ourHealth: 0, theirHealth: -1, ourModifier: 0, theirModifier: 0,
+          hitsToKill: 1, choiceScore: 1, scaledChoiceScore: 1, meanPostScore: 0,
+          features: { health: 1, modifier: 0, secondary: 0, switchRisk: 0, sacrifice: 0 },
         }],
         roundScore: 0,
         replies: [],
@@ -79,7 +82,10 @@ describe('decideAndAct', () => {
       evaluate: () => ({
         choices: [{
           action: { id: 'move:earthquake', type: 'move', moveId: 'earthquake' },
-          success: 1, cta: 1, expectedImpact: 1, expectedHealthDelta: 1, expectedModifierDelta: 0, hitsToKill: 1, choiceScore: 1, scaledChoiceScore: 1, meanPostScore: 0,
+          success: 1, cta: 1, expectedImpact: 1, expectedHealthDelta: 1, expectedModifierDelta: 0,
+          ourHealth: 0, theirHealth: -1, ourModifier: 0, theirModifier: 0,
+          hitsToKill: 1, choiceScore: 1, scaledChoiceScore: 1, meanPostScore: 0,
+          features: { health: 1, modifier: 0, secondary: 0, switchRisk: 0, sacrifice: 0 },
         }],
         roundScore: 0,
         replies: [],
