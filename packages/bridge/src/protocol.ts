@@ -13,6 +13,7 @@ import {
   modifiersFromSlot,
   placeholderSlot,
   type BattleObservation,
+  type SetHypothesis,
   type SlotSnapshot,
 } from '@pokeredus/engine';
 import { enumerateFromRequest } from '@pokeredus/engine';
