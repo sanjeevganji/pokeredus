@@ -555,7 +555,7 @@ export class BattleTracker {
         status: m.status,
         boosts: { ...m.boosts },
         fainted: m.fainted,
-        active: m.active || m.slot.endsWith('a'),
+        active: m.active,
         knownMoves: Object.keys(m.pp),
         set,
         hypotheses: [],
