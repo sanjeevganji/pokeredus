@@ -282,6 +282,9 @@ export class LiveStateWriter {
       },
     };
     this.flush();
+    this.pushEvent(
+      `eval roundScore=${result.evaluation.roundScore.toFixed(3)} sampled ${result.sampledId}`,
+    );
   }
 
   writeObservation(obs: BattleObservation): void {
