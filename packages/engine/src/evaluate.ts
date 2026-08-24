@@ -115,7 +115,7 @@ export function evaluateRound(obs: BattleObservation, opts?: { chanceSeeds?: num
     const repliesAgg: Array<{ pWin: number; pLoss: number; w: number }> = [];
 
     for (const hyp of hyps) {
-      const replies = theirActions(obs, hyp.set);
+      const replies = theirActions(obs, hyp.set, Boolean(opts?.theirTera));
       const theirSets = obs.theirs.map((s) => (s.active ? hyp.set : (s.set ?? hyp.set)));
       for (const reply of replies) {
         let win = 0;
