@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { type MonValue } from '../src/observation.js';
 import {
-  cta, cts, impact, pokemonValue, stateScore, choiceScore, roundScore, mateFromForced, signedLog1p, clamp,
+  cta, cts, impact, impactParts, hitsToKill, pokemonValue, stateScore, choiceScore, roundScore, mateFromForced, signedLog1p, clamp,
 } from '../src/math.js';
 
 function mon(side: 'ours' | 'theirs', h: number, L = 1, M = 0, revealed = true): MonValue {
