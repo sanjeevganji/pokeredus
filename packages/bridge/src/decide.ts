@@ -39,7 +39,10 @@ export async function decideAndAct(
   obs: BattleObservation,
   opts: DecideOptions,
 ): Promise<DecideResult> {
-  const evaluation = (opts.evaluate ?? evaluateRound)(obs);
+  const evaluate = opts.evaluate ?? evaluateRound;
+  const evaluation = evaluate(obs);
+  const teraOurs = opts.evaluate ? undefined : evaluateRound(withOurTera(obs));
+  const teraTheirs = opts.evaluate ? undefined : evaluateRound(obs, { theirTera: true });
   const ids = evaluation.choices.map((c) => c.action.id);
   if (!ids.length) {
     console.warn('[pokeredus] no legal actions this turn');
