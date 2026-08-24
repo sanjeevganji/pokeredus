@@ -1,4 +1,9 @@
-import type { ScoreParts } from '../lib/scenarios';
+export interface ScoreParts {
+  ourHealth: number;
+  theirHealth: number;
+  ourModifier: number;
+  theirModifier: number;
+}
 
 const SEGMENTS: Array<{ key: keyof ScoreParts; color: string; label: string }> = [
   { key: 'ourHealth', color: 'var(--neon-cyan)', label: 'our HP' },
