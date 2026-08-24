@@ -84,6 +84,9 @@ export function evaluateRound(obs: BattleObservation, opts?: { chanceSeeds?: num
   const choices: ChoiceEvaluation[] = [];
   const postScores: number[] = [];
   const forcedRows: Array<Array<{ pWin: number; pLoss: number }>> = [];
+  const theirIdx = activeIndex(obs.theirs);
+  const ourIdx = activeIndex(obs.ours);
+  const replyAcc = new Map<string, { action: LegalAction; impactSum: number; weight: number; ourHBefore: number; ourHAfter: number }>();
 
   for (const action of legal) {
     const hyps: SetHypothesis[] = (obs.theirs.find((s) => s.active)?.hypotheses?.length
@@ -91,9 +94,13 @@ export function evaluateRound(obs: BattleObservation, opts?: { chanceSeeds?: num
       : [{ set: obs.theirs.find((s) => s.active)?.set ?? { species: 'smeargle', level: 100, item: '', ability: 'owntempo', moves: ['splash'], nature: 'hardy' }, count: 1, probability: 1 }]);
 
     let impactSum = 0;
+    let healthSum = 0;
+    let modSum = 0;
     let weightSum = 0;
     let successSum = 0;
     let postSum = 0;
+    let theirHBefore = 0;
+    let theirHAfter = 0;
     const repliesAgg: Array<{ pWin: number; pLoss: number; w: number }> = [];
 
     for (const hyp of hyps) {
@@ -109,8 +116,21 @@ export function evaluateRound(obs: BattleObservation, opts?: { chanceSeeds?: num
           const before = valuesOf(obs.ours, obs.theirs);
           const after = valuesOf(result.afterOurs, result.afterTheirs);
           const w = hyp.probability / (replies.length * chanceN);
-          impactSum += impact(before, after) * w;
+          const parts = impactParts(before, after);
+          impactSum += parts.total * w;
+          healthSum += parts.health * w;
+          modSum += parts.modifier * w;
           weightSum += w;
+          theirHBefore += hpFrac(obs.theirs, theirIdx) * w;
+          theirHAfter += hpFrac(result.afterTheirs, theirIdx) * w;
+          const acc = replyAcc.get(reply.id) ?? {
+            action: reply, impactSum: 0, weight: 0, ourHBefore: 0, ourHAfter: 0,
+          };
+          acc.impactSum += parts.total * w;
+          acc.weight += w;
+          acc.ourHBefore += hpFrac(obs.ours, ourIdx) * w;
+          acc.ourHAfter += hpFrac(result.afterOurs, ourIdx) * w;
+          replyAcc.set(reply.id, acc);
           const success = action.type === 'move'
             ? cta(result.pExecute, result.pHit, result.aliveAtExecution)
             : 0;
@@ -124,14 +144,15 @@ export function evaluateRound(obs: BattleObservation, opts?: { chanceSeeds?: num
       }
     }
 
-    const expectedImpact = weightSum > 0 ? impactSum / weightSum * weightSum : 0;
+    const expectedImpact = weightSum > 0 ? impactSum : 0;
+    const expectedHealthDelta = weightSum > 0 ? healthSum : 0;
+    const expectedModifierDelta = weightSum > 0 ? modSum : 0;
     let success = 0;
     if (action.type === 'switch') {
       const { stay, after } = switchStayScores(obs, action);
       success = cts(after, stay, Boolean(action.forced));
     } else {
-      success = weightSum > 0 ? successSum / weightSum * weightSum : 0;
-      success = Math.min(1, Math.max(0, success / Math.max(weightSum, 1e-9)));
+      success = Math.min(1, Math.max(0, weightSum > 0 ? successSum / Math.max(weightSum, 1e-9) : 0));
     }
     const raw = choiceScore(success, expectedImpact);
     const meanPost = weightSum > 0 ? postSum : 0;
@@ -142,6 +163,9 @@ export function evaluateRound(obs: BattleObservation, opts?: { chanceSeeds?: num
       cta: action.type === 'move' ? success : undefined,
       cts: action.type === 'switch' ? success : undefined,
       expectedImpact,
+      expectedHealthDelta,
+      expectedModifierDelta,
+      hitsToKill: weightSum > 0 ? hitsToKill(theirHBefore / weightSum, theirHAfter / weightSum) : null,
       choiceScore: raw,
       scaledChoiceScore: signedLog1p(raw),
       meanPostScore: meanPost,
@@ -149,9 +173,16 @@ export function evaluateRound(obs: BattleObservation, opts?: { chanceSeeds?: num
     forcedRows.push(repliesAgg.map((r) => ({ pWin: r.pWin, pLoss: r.pLoss })));
   }
 
+  const replyList: ReplyEvaluation[] = [...replyAcc.values()].map((acc) => ({
+    action: acc.action,
+    expectedImpact: acc.weight > 0 ? acc.impactSum / acc.weight * acc.weight : 0,
+    hitsToKillUs: acc.weight > 0 ? hitsToKill(acc.ourHBefore / acc.weight, acc.ourHAfter / acc.weight) : null,
+  }));
+
   const mate = mateFromForced(forcedRows);
   return {
     choices,
+    replies: replyList,
     roundScore: roundScore(postScores),
     forcedOutcome: mate.forcedOutcome,
     mateProbability: mate.mateProbability,
