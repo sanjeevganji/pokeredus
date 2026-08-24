@@ -8,12 +8,20 @@ const require = createRequire(import.meta.url);
 
 type AnyBattle = {
   toJSON?: () => unknown;
-  p1: { pokemon: AnyPokemon[]; active: AnyPokemon[]; requestState?: string };
-  p2: { pokemon: AnyPokemon[]; active: AnyPokemon[]; requestState?: string };
+  p1: AnySide;
+  p2: AnySide;
   ended?: boolean;
   winner?: string | null;
+  field?: { weather?: string | { id?: string }; terrain?: string | { id?: string } };
   makeChoices: (c1: string, c2: string) => void;
   setPlayer: (slot: 'p1' | 'p2', opts: { name: string; team: string }) => void;
+};
+
+type AnySide = {
+  pokemon: AnyPokemon[];
+  active: AnyPokemon[];
+  requestState?: string;
+  sideConditions?: Record<string, { layers?: number; levels?: number } | unknown>;
 };
 
 type AnyPokemon = {
