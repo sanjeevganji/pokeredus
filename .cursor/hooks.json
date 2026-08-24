@@ -1,0 +1,29 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": "python .cursor/hooks/sync-main.py",
+        "timeout": 60
+      }
+    ],
+    "afterTabFileEdit": [
+      {
+        "command": "python .cursor/hooks/sync-main.py",
+        "timeout": 60
+      }
+    ],
+    "stop": [
+      {
+        "command": "python .cursor/hooks/sync-main.py",
+        "timeout": 180
+      }
+    ],
+    "afterAgentResponse": [
+      {
+        "command": "python .cursor/hooks/sync-main.py",
+        "timeout": 180
+      }
+    ]
+  }
+}
