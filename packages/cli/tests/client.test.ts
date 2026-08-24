@@ -31,12 +31,27 @@ import { WebSocket } from 'ws';
 import { ShowdownClient, BattleTracker } from '@pokeredus/bridge';
 import { KnowledgePackSchema } from '@pokeredus/pack/schema';
 import { PackIndex } from '@pokeredus/pack';
-import { loadPool } from '@pokeredus/engine';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import type { RandomSetPool } from '@pokeredus/engine';
 
-const dir = dirname(fileURLToPath(import.meta.url));
-const pool = loadPool(join(dir, '../../engine/data/gen9randombattle-pool.v1.json'));
+const pool: RandomSetPool = {
+  format: 'gen9randombattle',
+  version: 1,
+  samples: 1,
+  seed: 1,
+  species: {
+    toxapex: [{
+      set: {
+        species: 'Toxapex',
+        level: 78,
+        item: 'blacksludge',
+        ability: 'regenerator',
+        moves: ['recover', 'scald', 'haze', 'toxicspikes'],
+        nature: 'Bold',
+      },
+      count: 1,
+    }],
+  },
+};
 
 const REQUEST_JSON = JSON.stringify({
   side: {

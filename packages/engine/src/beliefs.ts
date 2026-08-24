@@ -1,5 +1,13 @@
+import { appendFileSync } from 'node:fs';
 import type { CanonicalSet, RevealedFacts, SetHypothesis } from './observation.js';
 import type { RandomSetPool } from './pool.js';
+
+function dbg(payload: Record<string, unknown>): void {
+  // #region agent log
+  fetch('http://127.0.0.1:7417/ingest/44062777-1cbd-4eb4-93e8-ab744e7750f5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1551b4'},body:JSON.stringify({sessionId:'1551b4',...payload,timestamp:Date.now()})}).catch(()=>{});
+  try { appendFileSync('d:/PokeRedus/debug-1551b4.log', JSON.stringify({sessionId:'1551b4',...payload,timestamp:Date.now()}) + '\n'); } catch { /* ignore */ }
+  // #endregion
+}
 
 export function canonicalizeSet(set: CanonicalSet): string {
   const moves = [...set.moves].map((m) => m.toLowerCase()).sort().join(',');
@@ -36,6 +44,7 @@ export function compatible(set: CanonicalSet, facts: RevealedFacts): boolean {
 export function hypothesesForSpecies(pool: RandomSetPool, species: string): SetHypothesis[] {
   const key = species.toLowerCase().replace(/[^a-z0-9]/g, '');
   const rows = pool.species[key] ?? pool.species[species];
+  dbg({runId:'post-fix',hypothesisId:'C',location:'beliefs.ts:hypothesesForSpecies',message:'pool lookup',data:{species,key,hasKey:!!pool.species[key],hasRaw:!!pool.species[species],rowCount:rows?.length??0,speciesCount:Object.keys(pool.species).length,hasToxapex:!!pool.species.toxapex,garchompItems:(pool.species.garchomp??[]).map((r)=>({item:r.set.item,count:r.count}))}});
   if (!rows || !rows.length) {
     throw new Error(`random-set pool has no hypotheses for ${species}`);
   }
@@ -48,6 +57,7 @@ export function hypothesesForSpecies(pool: RandomSetPool, species: string): SetH
 
 export function updateBeliefs(prior: SetHypothesis[], facts: RevealedFacts): SetHypothesis[] {
   const kept = prior.filter((h) => compatible(h.set, facts));
+  dbg({runId:'post-fix',hypothesisId:'B',location:'beliefs.ts:updateBeliefs',message:'filter result',data:{species:facts.species,factItem:facts.item,factMoves:facts.moves,priorLen:prior.length,keptLen:kept.length,topItem:prior[0]?.set.item,topProb:prior[0]?.probability,priorItems:prior.map((h)=>h.set.item)}});
   if (!kept.length) {
     throw new Error(`no compatible Random Battle sets remain for ${facts.species}`);
   }

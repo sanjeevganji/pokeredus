@@ -35,7 +35,7 @@ export class ShowdownClient {
   private handlers: EventHandler[] = [];
 
   constructor(opts: ShowdownClientOptions = {}) {
-    this.url = opts.url ?? 'wss://sim3.pokemonshowdown.com:443/';
+    this.url = opts.url ?? 'wss://sim3.psim.us/showdown/websocket';
     this.user = opts.user;
     this.pass = opts.pass;
     this.battleRoom = opts.battleRoom;
@@ -108,5 +108,8 @@ export class ShowdownClient {
       this.send(`|/trn ${guestName()},0,`);
     }
     if (this.battleRoom) this.send(`|/join ${this.battleRoom}`);
+    // #region agent log
+    fetch('http://127.0.0.1:7417/ingest/44062777-1cbd-4eb4-93e8-ab744e7750f5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1551b4'},body:JSON.stringify({sessionId:'1551b4',runId:'live',hypothesisId:'E',location:'client.ts:handleChallstr',message:'auth+join',data:{hasUser:!!this.user,battleRoom:this.battleRoom,named:!!(this.user&&this.pass)},timestamp:Date.now()})}).catch(()=>{});
+    // #endregion
   }
 }

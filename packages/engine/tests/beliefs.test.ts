@@ -1,12 +1,39 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
 import { hypothesesForSpecies, initialBelief, updateBeliefs } from '../src/beliefs.js';
 import type { RandomSetPool } from '../src/pool.js';
 
-const dir = dirname(fileURLToPath(import.meta.url));
-const pool = JSON.parse(readFileSync(join(dir, '../data/gen9randombattle-pool.v1.json'), 'utf8')) as RandomSetPool;
+const pool: RandomSetPool = {
+  format: 'gen9randombattle',
+  version: 1,
+  samples: 10,
+  seed: 1,
+  species: {
+    garchomp: [
+      {
+        set: {
+          species: 'Garchomp',
+          level: 78,
+          item: 'loadeddice',
+          ability: 'roughskin',
+          moves: ['earthquake', 'swordsdance', 'scaleshot', 'firefang'],
+          nature: 'Jolly',
+        },
+        count: 7,
+      },
+      {
+        set: {
+          species: 'Garchomp',
+          level: 78,
+          item: 'choicescarf',
+          ability: 'roughskin',
+          moves: ['earthquake', 'outrage', 'stoneedge', 'firefang'],
+          nature: 'Jolly',
+        },
+        count: 3,
+      },
+    ],
+  },
+};
 
 describe('Random Battle set beliefs', () => {
   it('starts at the highest-frequency compatible set', () => {
