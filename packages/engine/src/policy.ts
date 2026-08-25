@@ -17,6 +17,7 @@ export interface PolicyResponse {
 }
 
 const DEFAULT_TIMEOUT_MS = 5000;
+const START_TIMEOUT_MS = 40_000;
 
 export function repoRootFromEngine(): string {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
