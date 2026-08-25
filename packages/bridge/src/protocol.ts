@@ -720,22 +720,6 @@ export class BattleTracker {
   }
 }
 
-function normalizeWeather(w: string): string {
-  if (w === 'rain' || w === 'raindance' || w === 'harshrain') return 'rain';
-  if (w === 'sunny' || w === 'sunnyday' || w === 'harshsunlight') return 'sunny';
-  if (w === 'sandstorm') return 'sandstorm';
-  if (w === 'hail' || w === 'snow') return 'snow';
-  return '';
-}
-
-function normalizeTerrain(t: string): string {
-  if (t === 'electricterrain') return 'electric';
-  if (t === 'grassyterrain') return 'grassy';
-  if (t === 'mistyterrain') return 'misty';
-  if (t === 'psychicterrain') return 'psychic';
-  return '';
-}
-
 export function battleStateFromEvents(
   events: BattleEvent[],
   pool: RandomSetPool,
