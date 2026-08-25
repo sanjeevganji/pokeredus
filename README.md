@@ -124,7 +124,7 @@ stateScore = Σ value(ours) − Σ value(theirs)     ∈ [-6, +6]
 CTA(move)  = P(executes) × P(hit | executed) × alive-at-execution   ∈ [0, 1]
 CTS(switch)= sigmoid((stateScore(after switch) − stateScore(stay)) / max(|stay|, ε))
              forced switches have CTS = 1
-impact     = Σ_revealed (Δhealth + Δmodifier × expectedValueTurns)  (our perspective)
+impact     = Σ_revealed (Δh + 0.5·Δtanh(M))  (our perspective; each term ∈ [-1, +1])
 choiceScore(c) = success(c) × E[impact]
 roundScore = uniform mean of simulated post-round stateScore over our legal choices
 ```
