@@ -132,6 +132,11 @@ export interface ChoiceEvaluation {
   choiceScore: number;
   scaledChoiceScore: number;
   meanPostScore: number;
+  minTurnScore: number;
+  maxTurnScore: number;
+  minPostScore: number;
+  maxPostScore: number;
+  sampleCount: number;
   features: ChoiceFeaturesView;
   probability?: number;
 }
