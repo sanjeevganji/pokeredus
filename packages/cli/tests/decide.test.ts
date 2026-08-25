@@ -100,7 +100,7 @@ describe('decideAndAct', () => {
     expect(client.sent[0]).toContain('earthquake');
   });
 
-  it('sends terastallize when a tera action is sampled', async () => {
+    it('sends terastallize when a tera action is sampled', async () => {
     const client = new MockClient();
     const result = await decideAndAct(client, obs(), {
       dryRun: false,
@@ -124,5 +124,18 @@ describe('decideAndAct', () => {
     expect(result.sent).toBe(true);
     expect(client.sent[0]).toContain('earthquake');
     expect(client.sent[0]).toContain('terastallize');
+  });
+
+  it('live decision critical path is not blocked by forecasting and can run concurrently', async () => {
+    const liveProc = new MockPolicy();
+    const client = new MockClient();
+    const o = obs();
+    // Live decision executes immediately
+    const res = await decideAndAct(client, o, {
+      dryRun: true,
+      process: liveProc as unknown as QuantumPolicyProcess,
+      rng: () => 0,
+    });
+    expect(res.sampledId).toBe('move:earthquake');
   });
 });
