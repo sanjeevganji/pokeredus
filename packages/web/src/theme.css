@@ -437,13 +437,6 @@ a.btn-primary, a.btn-secondary, button.btn-primary, button.btn-secondary, button
 .choice-p { height: 4px; }
 .choice-fill, .choice-p-fill { height: 100%; border-radius: 2px; }
 .choice-p-fill { background: var(--neon-green); }
-.score-stack { display: block; }
-.score-stack-inner {
-  display: flex;
-  height: 100%;
-  border-radius: 2px;
-  overflow: hidden;
-}
 .score-seg { height: 100%; min-width: 0; }
 .choice-sampled { outline: 1px solid var(--neon-green); outline-offset: 4px; border-radius: 4px; }
 .choice-meta { display: flex; gap: 12px; font-size: 0.75rem; margin-top: 4px; }
