@@ -140,6 +140,7 @@ export interface LiveState {
   turns: LiveTurn[];
   events: LiveEvent[];
   error?: string;
+  warnings?: string[];
 }
 
 export function defaultLiveStatePath(): string {
