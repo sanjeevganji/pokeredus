@@ -340,7 +340,7 @@ a.btn-primary, a.btn-secondary, button.btn-primary, button.btn-secondary, button
 .turn-graph-grid, .turn-graph-zero { vector-effect: non-scaling-stroke; }
 
 .turn-graph-dot { fill: var(--fg-primary); }
-.turn-graph-dot-now { fill: var(--neon-cyan); }
+.turn-graph-dot-now { fill: var(--neon-cyan); stroke: var(--bg-card); stroke-width: 0.6; }
 
 .bipolar {
   position: relative;
