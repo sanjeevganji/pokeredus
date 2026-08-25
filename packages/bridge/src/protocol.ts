@@ -658,7 +658,11 @@ export class BattleTracker {
       }
       const facts = {
         species: m.speciesId,
-        moves: m.lastMove ? [m.lastMove] : [],
+        moves: m.revealedMoves.length ? m.revealedMoves : (m.lastMove ? [m.lastMove] : []),
+        item: m.item,
+        ability: m.ability,
+        level: m.level,
+        teraType: m.teraType,
       };
       let hypotheses: SetHypothesis[] = [];
       try {
