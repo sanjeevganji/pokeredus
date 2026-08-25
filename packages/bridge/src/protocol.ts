@@ -426,16 +426,17 @@ export class BattleTracker {
         for (const m of map.values()) m.active = false;
         const key = monKey(ev.identity, ev.speciesId);
         const existing = map.get(key);
+        const parsed = parseDetails(ev.details);
         const mon: TrackedMon = {
           slot: ev.slot, side: ev.side, identity: ev.identity, speciesId: ev.speciesId, details: ev.details,
           hp: ev.hp, maxHp: ev.maxHp, status: ev.status,
           boosts: emptyBoosts(), pp: existing?.pp ?? {}, lastMove: existing?.lastMove,
+          revealedMoves: existing?.revealedMoves ? [...existing.revealedMoves] : [],
+          item: existing?.item, ability: existing?.ability,
+          level: parsed.level ?? existing?.level, teraType: parsed.teraType ?? existing?.teraType,
           choiceLock: existing?.choiceLock, tauntTurns: 0, fainted: ev.status === 'fnt' || ev.hp <= 0, active: true,
         };
         map.set(key, mon);
-        // #region agent log
-        agentLog('D', 'protocol.ts:switch', 'switch/drag store', { evSide: ev.side, ourSide: this.ourSide, slot: ev.slot, key, species: ev.speciesId, mySize: this.myMons.size, oppSize: this.oppMons.size, mySpecies: [...this.myMons.values()].map((m) => m.speciesId), oppSpecies: [...this.oppMons.values()].map((m) => m.speciesId) });
-        // #endregion
         break;
       }
 
