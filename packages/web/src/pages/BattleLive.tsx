@@ -106,7 +106,7 @@ export default function BattleLive() {
               tera={ourTera}
               onTera={setOurTera}
             />
-            <Bench area="theirs" title="Theirs" slots={live.theirs ?? []} field={live.field?.theirs} accent="pink" tera={theirTera} />
+            <Bench area="theirs" title="Theirs" slots={live.theirs ?? []} field={live.field?.theirs} accent="pink" tera={theirTera} compact />
             <ChoiceList
               area="theirc"
               title="Their replies"
