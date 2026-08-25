@@ -534,7 +534,7 @@ a.btn-primary, a.btn-secondary, button.btn-primary, button.btn-secondary, button
   to { background-position: -100% 0; }
 }
 
-.score-strip .turn-graph {
+.score-strip .turn-graph-wrap {
   min-height: 96px;
 }
 
