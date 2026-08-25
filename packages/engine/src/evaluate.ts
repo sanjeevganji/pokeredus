@@ -650,6 +650,7 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
             theirHAfter: hpFrac(result.afterTheirs, theirIdx),
             ourHBefore: hpFrac(obs.ours, ourIdx),
             ourHAfter: hpFrac(result.afterOurs, ourIdx),
+            theirVal: scored.theirVal,
           });
           let cell = pairAcc.get(key);
           if (!cell) {
@@ -657,7 +658,7 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
               action, reply, w: 0, parts: emptyImpactParts(), success: 0, post: 0,
               ourFaint: 0, theirHpLost: 0, ourRemain: 0,
               pWin: 0, pLoss: 0, theirHBefore: 0, theirHAfter: 0, ourHBefore: 0, ourHAfter: 0,
-              turnScore: 0,
+              turnScore: 0, theirVal: 0,
             };
             pairAcc.set(key, cell);
           }
