@@ -96,7 +96,8 @@ export interface BattleObservation {
   field: FieldSnapshot;
   request?: unknown;
   legalActions: LegalAction[];
-  teraUsed: boolean;
+  teraUsedOurs: boolean;
+  teraUsedTheirs: boolean;
 }
 
 export interface MonValue {
