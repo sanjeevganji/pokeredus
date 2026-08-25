@@ -1,7 +1,7 @@
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest';
 import { handleSetsApi, parseSetsRoute } from '../../web/server/games.ts';
 import type { RandomSetPool } from '@pokeredus/engine';
 import { saveSetOverride } from '@pokeredus/engine';
@@ -23,33 +23,37 @@ function tmp(): string {
 }
 
 const poolPath = path.join(os.tmpdir(), `sets-pool-${Date.now()}-${Math.random().toString(16).slice(2)}.json`);
-tmpFiles.push(poolPath);
 
-const pool: RandomSetPool = {
-  format: 'gen9randombattle',
-  version: 1,
-  samples: 10,
-  seed: 1,
-  species: {
-    garchomp: [
-      {
-        set: {
-          species: 'Garchomp', level: 78, item: 'loadeddice', ability: 'roughskin',
-          moves: ['earthquake', 'swordsdance', 'scaleshot', 'firefang'], nature: 'Jolly',
+beforeAll(() => {
+  const pool: RandomSetPool = {
+    format: 'gen9randombattle',
+    version: 1,
+    samples: 10,
+    seed: 1,
+    species: {
+      garchomp: [
+        {
+          set: {
+            species: 'Garchomp', level: 78, item: 'loadeddice', ability: 'roughskin',
+            moves: ['earthquake', 'swordsdance', 'scaleshot', 'firefang'], nature: 'Jolly',
+          },
+          count: 7,
         },
-        count: 7,
-      },
-      {
-        set: {
-          species: 'Garchomp', level: 78, item: 'choicescarf', ability: 'roughskin',
-          moves: ['earthquake', 'outrage', 'stoneedge', 'firefang'], nature: 'Jolly',
+        {
+          set: {
+            species: 'Garchomp', level: 78, item: 'choicescarf', ability: 'roughskin',
+            moves: ['earthquake', 'outrage', 'stoneedge', 'firefang'], nature: 'Jolly',
+          },
+          count: 3,
         },
-        count: 3,
-      },
-    ],
-  },
-};
-fs.writeFileSync(poolPath, JSON.stringify(pool), 'utf8');
+      ],
+    },
+  };
+  fs.writeFileSync(poolPath, JSON.stringify(pool), 'utf8');
+});
+afterAll(() => {
+  try { fs.unlinkSync(poolPath); } catch { /* ignore */ }
+});
 
 const set = {
   species: 'Garchomp',
