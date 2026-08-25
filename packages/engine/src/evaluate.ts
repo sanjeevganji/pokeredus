@@ -546,6 +546,7 @@ export interface JointPolicyResult {
   jointProbs: Map<string, number>;
   diagnostics?: Record<string, unknown>;
   omittedPairs: number;
+  evaluation: RoundEvaluation;
 }
 
 export function capJointPairs(
