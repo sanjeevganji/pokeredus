@@ -548,6 +548,7 @@ export function simulateRound(
     console.error('makeChoices failed', p1Choice, p2Choice, err);
   }
   const roundLog = (battle.log ?? []).slice(logStart);
+  if (process.env.DEBUG_SIM) console.error(p1Choice, p2Choice, roundLog.slice(0, 40));
   const { ours, theirs } = parseRoundLog(roundLog, obs.ourSide);
   const oursPoke = obs.ourSide === 'p1' ? battle.p1.pokemon : battle.p2.pokemon;
   const theirsPoke = obs.ourSide === 'p1' ? battle.p2.pokemon : battle.p1.pokemon;
