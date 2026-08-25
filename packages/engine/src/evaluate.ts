@@ -637,7 +637,7 @@ async function refineLoop(
   for (let n = 0; n < iters; n++) {
     const assembled = assemble(legal, replies, cells, branches, nextOur, nextTheir, weights);
     const sorted = assembled.pairs.slice().sort((a, b) => Math.abs(b.score) - Math.abs(a.score));
-    const capped = capJointPairs(sorted, legal.map((a) => a.id), JOINT_CAP);
+    const capped = capJointPairs(sorted, legal.map((a) => a.id), replies.map((r) => r.id), JOINT_CAP);
     const pairRows = capped.kept;
     const pairIds = pairRows.map((p) => pairKey(p.ourId, p.theirId));
     const pairScores = pairRows.map((p) => signedLog1p(p.score));
