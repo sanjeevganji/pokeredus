@@ -606,3 +606,95 @@ a.btn-primary, a.btn-secondary, button.btn-primary, button.btn-secondary, button
 @media (max-width: 800px) {
   .grid-2, .hud-grid, .game-form { grid-template-columns: 1fr; }
 }
+
+.set-prov {
+  min-height: 44px;
+  min-width: 44px;
+  font-size: 0.7rem;
+  padding: 4px 8px;
+  border-color: var(--fg-dim);
+  color: var(--fg-secondary);
+  background: transparent;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.set-prov-warn { border-color: var(--neon-red); color: var(--neon-red); }
+.set-prov-mini { color: var(--fg-dim); font-size: 0.65rem; }
+.set-warn {
+  display: block;
+  color: var(--neon-red);
+  font-size: 0.75rem;
+  margin-top: 4px;
+}
+
+.set-drawer-root {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  justify-content: flex-end;
+}
+.set-drawer-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+}
+.set-drawer {
+  position: relative;
+  width: min(480px, 100%);
+  min-width: min(320px, 100%);
+  height: 100%;
+  overflow: auto;
+  background: var(--bg-panel);
+  border-left: 1px solid var(--fg-dim);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.set-drawer-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.set-drawer-head h2 {
+  margin: 0;
+  flex: 1;
+  font-size: 1rem;
+}
+.set-drawer-x { min-width: 44px; min-height: 44px; }
+.set-drawer-species { margin: 0; font-size: 0.8rem; }
+.set-drawer label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  color: var(--fg-secondary);
+  font-size: 0.85rem;
+}
+.set-drawer input, .set-drawer select { width: 100%; }
+.set-facts h3 { margin: 0 0 6px; font-size: 0.85rem; color: var(--fg-secondary); }
+.set-facts ul { margin: 0; padding-left: 18px; font-size: 0.85rem; }
+.set-moves {
+  border: 1px solid var(--fg-dim);
+  border-radius: 6px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 0;
+}
+.set-moves legend { color: var(--fg-secondary); padding: 0 4px; }
+.set-field-error { color: var(--neon-red); font-size: 0.8rem; margin: 0; }
+.set-drawer-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 8px;
+}
+.set-drawer-actions .btn-primary,
+.set-drawer-actions .btn-secondary { width: 100%; min-height: 44px; }
+
+@media (max-width: 600px) {
+  .set-drawer { width: 100%; min-width: 0; }
+}
