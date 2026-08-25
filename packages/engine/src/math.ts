@@ -302,6 +302,27 @@ export function roundScore(postScores: number[]): number {
   return postScores.reduce((a, b) => a + b, 0) / postScores.length;
 }
 
+/** Policy-weighted mean. Missing/zero weights are skipped; empty → 0. */
+export function weightedMean(values: number[], weights: number[]): number {
+  let s = 0;
+  let w = 0;
+  const n = Math.min(values.length, weights.length);
+  for (let i = 0; i < n; i++) {
+    const p = weights[i] ?? 0;
+    const v = values[i] ?? 0;
+    if (!(p > 0) || !Number.isFinite(v)) continue;
+    s += p * v;
+    w += p;
+  }
+  return w > 0 ? s / w : 0;
+}
+
+export function scoreExtrema(values: number[]): { min: number; max: number } {
+  const xs = values.filter((v) => Number.isFinite(v));
+  if (!xs.length) return { min: 0, max: 0 };
+  return { min: Math.min(...xs), max: Math.max(...xs) };
+}
+
 export interface ForcedReply {
   pWin: number;
   pLoss: number;
