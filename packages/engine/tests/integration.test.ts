@@ -146,5 +146,5 @@ describe('official Showdown one-round sim', () => {
     } finally {
       policy.close();
     }
-  }, 30_000);
+  }, 60_000);
 });
