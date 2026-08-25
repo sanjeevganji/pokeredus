@@ -8,7 +8,7 @@ import numpy as np
 
 PAD_PENALTY = 8.0
 QAOA_STEPS = 16
-QAOA_STEPSIZE = 0.25
+
 
 
 def softmax_probs(scores: list[float]) -> list[float]:
