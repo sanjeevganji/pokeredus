@@ -246,7 +246,7 @@ describe('field fidelity, CTA, and ranges', () => {
     expect(eqChoice!.scaledChoiceScore).toBeLessThan(eqChoice!.choiceScore);
 
     const slow = await evaluateRound({
-      ...duel(carp, fast, { ours: 1, theirs: 250 }),
+      ...duel(carp, fast, { ours: 8, theirs: 250 }),
       legalActions: [{ id: 'move:tackle', type: 'move', moveId: 'tackle' }],
     }, { chanceSeeds: 1 });
     const tackle = slow.choices.find((c) => c.action.id === 'move:tackle');

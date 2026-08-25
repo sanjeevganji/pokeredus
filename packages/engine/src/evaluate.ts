@@ -193,14 +193,14 @@ function scoreBranch(
   action: LegalAction,
   result: RoundSimResult,
 ): { pair: number; ourVal: number; theirVal: number; success: number; parts: ImpactParts } {
-  const their = actorValue(result.theirs, false, obs);
+  const their = actorValue(result.theirs, false, obs, result.afterOurs);
   if (action.type === 'switch') {
     const after = observationStateScore(result.afterOurs, result.afterTheirs);
     const before = observationStateScore(obs.ours, obs.theirs);
     const pair = switchScore(after, before, their.value);
     return { pair, ourVal: pair, theirVal: their.value, success: 1, parts: emptyImpactParts() };
   }
-  const our = actorValue(result.ours, true, obs);
+  const our = actorValue(result.ours, true, obs, result.afterTheirs);
   return {
     pair: pairTurnScore(our.value, their.value),
     ourVal: our.value,
