@@ -1,6 +1,6 @@
 # 004 — Budgeted terminal rollouts with QAOA policy weights
 
-**Status:** TODO  
+**Status:** Complete  
 **Commit:** `a400fd1`  
 **Effort:** L  
 **Risk:** High — exponential choice growth and quantum-process latency  
