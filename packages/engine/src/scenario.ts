@@ -1,5 +1,5 @@
 import type { BattleObservation, LegalAction, RoundEvaluation, SlotSnapshot } from './observation.js';
-import { actionId } from './observation.js';
+import { actionId, observationTera } from './observation.js';
 import { sampleAction, type QuantumPolicyProcess } from './policy.js';
 import { evaluateRound, theirActions, type EvaluateOptions } from './evaluate.js';
 import { simulateRound } from './sim.js';
