@@ -544,8 +544,8 @@ export function simulateRound(
   const logStart = battle.log?.length ?? 0;
   try {
     battle.makeChoices(p1Choice, p2Choice);
-  } catch {
-    // illegal in this hypothesized state — treat as no-op branch
+  } catch (err) {
+    console.error('makeChoices failed', p1Choice, p2Choice, err);
   }
   const roundLog = (battle.log ?? []).slice(logStart);
   const { ours, theirs } = parseRoundLog(roundLog, obs.ourSide);
