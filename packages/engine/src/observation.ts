@@ -232,3 +232,51 @@ export function actionId(a: { type: ActionKind; moveId?: string; tera?: boolean;
   if (a.type === 'switch') return `switch:${a.slot ?? 0}`;
   return `move:${a.moveId ?? ''}${a.tera ? ':tera' : ''}`;
 }
+
+/** Read-boundary for old snapshots that still have `teraUsed`. */
+export function observationTera(obs: {
+  teraUsedOurs?: boolean;
+  teraUsedTheirs?: boolean;
+  teraUsed?: boolean;
+}): { ours: boolean; theirs: boolean } {
+  return {
+    ours: obs.teraUsedOurs ?? obs.teraUsed ?? false,
+    theirs: obs.teraUsedTheirs ?? false,
+  };
+}
+
+export function normalizeWeather(w: string): string {
+  const id = w.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (id === 'rain' || id === 'raindance' || id === 'primordialsea' || id === 'harshrain') return 'rain';
+  if (id === 'sunny' || id === 'sunnyday' || id === 'sun' || id === 'desolateland' || id === 'harshsunlight') return 'sunny';
+  if (id === 'sandstorm') return 'sandstorm';
+  if (id === 'hail' || id === 'snow') return 'snow';
+  return '';
+}
+
+export function showdownWeather(w: string): string {
+  const n = normalizeWeather(w);
+  if (n === 'rain') return 'raindance';
+  if (n === 'sunny') return 'sunnyday';
+  if (n === 'sandstorm') return 'sandstorm';
+  if (n === 'snow') return 'snow';
+  return '';
+}
+
+export function normalizeTerrain(t: string): string {
+  const id = t.toLowerCase().replace(/[^a-z0-9]/g, '');
+  if (id === 'electric' || id === 'electricterrain') return 'electric';
+  if (id === 'grassy' || id === 'grassyterrain') return 'grassy';
+  if (id === 'misty' || id === 'mistyterrain') return 'misty';
+  if (id === 'psychic' || id === 'psychicterrain') return 'psychic';
+  return '';
+}
+
+export function showdownTerrain(t: string): string {
+  const n = normalizeTerrain(t);
+  if (n === 'electric') return 'electricterrain';
+  if (n === 'grassy') return 'grassyterrain';
+  if (n === 'misty') return 'mistyterrain';
+  if (n === 'psychic') return 'psychicterrain';
+  return '';
+}
