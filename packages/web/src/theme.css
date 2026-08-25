@@ -281,17 +281,49 @@ a.btn-primary, a.btn-secondary, button.btn-primary, button.btn-secondary, button
 
 .score-strip {
   display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px 16px;
+  grid-template-columns: 1fr;
+  gap: 8px;
   align-items: center;
 }
 
+.turn-graph {
+  width: 100%;
+  height: 96px;
+  display: block;
+}
+
+.turn-graph-grid {
+  stroke: var(--fg-dim);
+  stroke-width: 0.4;
+}
+
+.turn-graph-zero {
+  stroke: var(--fg-secondary);
+  stroke-width: 0.6;
+}
+
+.turn-graph-label {
+  fill: var(--fg-secondary);
+  font-size: 5px;
+}
+
+.turn-graph-fill-up { fill: var(--neon-cyan); opacity: 0.18; }
+.turn-graph-fill-dn { fill: var(--neon-pink); opacity: 0.18; }
+
+.turn-graph-line {
+  fill: none;
+  stroke: var(--fg-primary);
+  stroke-width: 1.2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.turn-graph-dot { fill: var(--fg-primary); }
+.turn-graph-dot-now { fill: var(--neon-cyan); }
+
 .bipolar {
   position: relative;
-  height: 12px;
-  background: var(--bg-input);
-  border-radius: 6px;
-  grid-column: 1 / -1;
+  overflow: hidden;
 }
 
 .bipolar-mid {
@@ -299,16 +331,22 @@ a.btn-primary, a.btn-secondary, button.btn-primary, button.btn-secondary, button
   left: 50%;
   top: 0;
   bottom: 0;
-  width: 2px;
-  background: var(--fg-dim);
+  width: 1px;
+  background: var(--fg-secondary);
+  z-index: 1;
+  transform: translateX(-50%);
 }
 
-.bipolar-fill {
+.bipolar-arm {
   position: absolute;
   top: 0;
   bottom: 0;
-  border-radius: 6px;
+  display: flex;
+  min-width: 0;
 }
+
+.bipolar-pos { left: 50%; }
+.bipolar-neg { right: 50%; flex-direction: row-reverse; }
 
 .score-meta {
   display: flex;
@@ -318,19 +356,6 @@ a.btn-primary, a.btn-secondary, button.btn-primary, button.btn-secondary, button
 }
 
 .sampled-label { color: var(--neon-green); }
-
-.turn-sparks {
-  display: flex;
-  align-items: flex-end;
-  gap: 3px;
-  height: 40px;
-}
-
-.spark {
-  width: 8px;
-  border-radius: 2px 2px 0 0;
-  min-height: 4px;
-}
 
 .theater-body {
   display: grid;
