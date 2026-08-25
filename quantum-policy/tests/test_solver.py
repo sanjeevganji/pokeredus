@@ -28,6 +28,8 @@ class TestQAOA(unittest.TestCase):
         self.assertAlmostEqual(sum(p), 1.0, places=6)
         self.assertGreater(diag["padded"], 0)
         self.assertTrue(all(x >= 0 for x in p))
+        self.assertIn("cost", diag)
+        self.assertIn("params", diag)
 
     def test_exact_is_deterministic(self):
         a, _ = qaoa_probs([1.0, 0.0, -1.0, 0.2], seed=1)
@@ -49,6 +51,12 @@ class TestQAOA(unittest.TestCase):
         out = decide({"actions": ["a", "b"], "scores": [0.0, 0.0], "mode": "softmax"})
         self.assertAlmostEqual(sum(out["probabilities"]), 1.0)
         self.assertEqual(out["diagnostics"]["mode"], "softmax")
+
+    def test_decide_invalid_payload(self):
+        with self.assertRaises(ValueError):
+            decide({"actions": ["a"], "scores": [1.0, 2.0]})
+        with self.assertRaises(ValueError):
+            decide({"actions": [], "scores": []})
 
 
 class TestBenchmark(unittest.TestCase):
