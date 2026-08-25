@@ -110,7 +110,7 @@ export default function BattleLive() {
         <>
           <ScoreStrip state={live} />
           <div className="theater-body">
-            <Bench area="ours" title="Ours" slots={live.ours ?? []} field={live.field?.ours} accent="cyan" tera={ourTera} compact />
+            <Bench area="ours" title="Ours" slots={live.ours ?? []} field={live.field?.ours} accent="cyan" tera={ourTera} compact onEditSet={openSet} />
             <ChoiceList
               area="ourc"
               title="Our choices"
