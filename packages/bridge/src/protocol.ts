@@ -158,6 +158,10 @@ function parseDetails(details: string): { speciesId: string; level?: number; ter
   return { speciesId, level, teraType };
 }
 
+function speciesIdFromDetails(details: string): string {
+  return parseDetails(details).speciesId;
+}
+
 // ──────────────────────────────────────────────────────────────────────
 // parseLine — the protocol tokenizer
 // ──────────────────────────────────────────────────────────────────────
