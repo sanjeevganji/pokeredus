@@ -131,10 +131,35 @@ describe('slotsFromObservation', () => {
     o.theirs.push({
       slot: 1, speciesId: 'smeargle', revealed: false, hp: 100, maxHp: 100, status: '',
       boosts: emptyBoosts(), fainted: false, active: false, knownMoves: [],
-      hypotheses: [], modifiers: [],
+      hypotheses: [], modifiers: [], setComplete: false, setSource: 'incomplete',
     });
     const slots = slotsFromObservation(o, 'theirs');
     expect(slots).toHaveLength(6);
     expect(slots[1]!.revealed).toBe(false);
+    expect(slots[1]!.speciesId).toBe('');
+    expect(slots[1]!.setComplete).toBe(false);
+    expect(slots[1]!.assumedSet).toBeUndefined();
+  });
+
+  it('carries provenance and completeness through JSON mapping', () => {
+    const o = obs();
+    o.theirs[0] = {
+      ...o.theirs[0]!,
+      setSource: 'manual',
+      setComplete: true,
+      candidateProbability: 0.3,
+      set: {
+        species: 'Toxapex', level: 80, item: 'blacksludge', ability: 'regenerator',
+        moves: ['recover'], nature: 'Bold',
+      },
+      setWarning: 'Assumed set for toxapex conflicts with revealed facts; using public candidate',
+    };
+    const slots = slotsFromObservation(o, 'theirs');
+    expect(slots[0]!.setSource).toBe('manual');
+    expect(slots[0]!.setComplete).toBe(true);
+    expect(slots[0]!.assumedSet?.item).toBe('blacksludge');
+    expect(slots[0]!.candidateProbability).toBe(0.3);
+    expect(slots[0]!.setWarning).toMatch(/conflicts/);
+    expect(slots[0]!.speciesId).toBe('toxapex');
   });
 });
