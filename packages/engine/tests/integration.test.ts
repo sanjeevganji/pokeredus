@@ -238,7 +238,7 @@ describe('field fidelity, CTA, and ranges', () => {
     const carp = setOf('Magikarp', ['splash', 'tackle'], { ability: 'swiftswim', nature: 'Hardy' });
     const splash: LegalAction = { id: 'move:splash', type: 'move', moveId: 'splash' };
     const eq: LegalAction = { id: 'move:earthquake', type: 'move', moveId: 'earthquake' };
-    const ohko = await evaluateRound(duel(fast, carp, { ours: 250, theirs: 1 }), { chanceSeeds: 1 });
+    const ohko = await evaluateRound(duel(fast, carp, { ours: 250, theirs: 8 }), { chanceSeeds: 1 });
     const eqChoice = ohko.choices.find((c) => c.action.id === 'move:earthquake');
     expect(eqChoice).toBeTruthy();
     expect(eqChoice!.cta).toBeCloseTo(1);
