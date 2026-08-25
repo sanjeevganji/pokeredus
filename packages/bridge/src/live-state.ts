@@ -250,6 +250,7 @@ export class LiveStateWriter {
       field: liveFieldFromObs(obs),
       ours: slotsFromObservation(obs, 'ours'),
       theirs: slotsFromObservation(obs, 'theirs'),
+      warnings: slotWarnings(obs),
     };
     this.flush();
     this.writeObservation(obs);
