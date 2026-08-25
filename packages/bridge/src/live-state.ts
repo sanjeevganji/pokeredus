@@ -30,6 +30,16 @@ export interface LiveSlot {
   revealed: boolean;
   boosts: Boosts;
   modifiers: { name: string; multiplier: number; remainingTurns: number }[];
+  item?: string;
+  ability?: string;
+  teraType?: string;
+  level?: number;
+  knownMoves?: string[];
+  setSource?: SetSource;
+  assumedSet?: CanonicalSet;
+  candidateProbability?: number;
+  setComplete: boolean;
+  setWarning?: string;
 }
 
 export interface LiveChoice {
