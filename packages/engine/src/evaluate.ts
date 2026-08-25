@@ -316,13 +316,13 @@ function flipFeatures(f: ChoiceFeatures): ChoiceFeatures {
 }
 
 function mixFeatures(cells: Array<{ w: number; cell: PairCell }>): {
-  features: ChoiceFeatures; parts: ImpactParts; success: number; post: number; turn: number;
+  features: ChoiceFeatures; parts: ImpactParts; success: number; post: number; turn: number; theirVal: number;
   htk: { tb: number; ta: number; ob: number; oa: number };
 } {
   const z = {
     features: { health: 0, modifier: 0, secondary: 0, switchRisk: 0, sacrifice: 0 } as ChoiceFeatures,
     parts: emptyImpactParts(),
-    success: 0, post: 0, turn: 0, tb: 0, ta: 0, ob: 0, oa: 0, w: 0,
+    success: 0, post: 0, turn: 0, theirVal: 0, tb: 0, ta: 0, ob: 0, oa: 0, w: 0,
   };
   for (const { w, cell } of cells) {
     if (!(w > 0)) continue;
