@@ -350,12 +350,13 @@ a.btn-primary, a.btn-secondary, button.btn-primary, button.btn-secondary, button
 .bipolar-mid {
   position: absolute;
   left: 50%;
-  top: 0;
-  bottom: 0;
-  width: 1px;
-  background: var(--fg-secondary);
+  top: -2px;
+  bottom: -2px;
+  width: 2px;
+  background: var(--fg-primary);
   z-index: 1;
   transform: translateX(-50%);
+  pointer-events: none;
 }
 
 .bipolar-arm {

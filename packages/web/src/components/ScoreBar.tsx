@@ -51,9 +51,12 @@ export function ScoreBar({
   const segs = scaledChoiceSegments(score, parts);
   const pos = segs.filter((s) => s.value > 0);
   const neg = segs.filter((s) => s.value < 0);
-  const pct = (v: number) => (Math.abs(v) / CHOICE_BAR_DOMAIN) * 50;
-  const posPct = Math.min(50, pos.reduce((s, x) => s + pct(x.value), 0));
-  const negPct = Math.min(50, neg.reduce((s, x) => s + pct(x.value), 0));
+  const posSum = pos.reduce((s, x) => s + x.value, 0);
+  const negSum = neg.reduce((s, x) => s + Math.abs(x.value), 0);
+  const domain = Math.max(CHOICE_BAR_DOMAIN, posSum, negSum);
+  const pct = (v: number) => (Math.abs(v) / domain) * 50;
+  const posPct = pos.reduce((s, x) => s + pct(x.value), 0);
+  const negPct = neg.reduce((s, x) => s + pct(x.value), 0);
   return (
     <div
       className="choice-track bipolar"
