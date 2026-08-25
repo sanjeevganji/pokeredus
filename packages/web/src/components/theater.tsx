@@ -99,13 +99,13 @@ function BoostPills({ slot }: { slot: LiveSlot }) {
 
 function provenanceLabel(slot: LiveSlot): string {
   if (!slot.revealed) return '';
-  if (!slot.setComplete || slot.setSource === 'incomplete') return 'Incomplete assumptions';
-  if (slot.setSource === 'manual') return 'Assumed · manual';
-  if (slot.setSource === 'public') {
-    const pct = slot.candidateProbability != null ? ` · ${(slot.candidateProbability * 100).toFixed(0)}% of pool` : '';
-    return `Assumed · public candidate${pct}`;
-  }
-  return 'Assumed';
+  const tera = slot.teraType || slot.assumedSet?.teraType;
+  const teraSuffix = tera ? ` · Tera ${tera}` : '';
+  if (!slot.setComplete || slot.setSource === 'incomplete') return `Incomplete${teraSuffix}`;
+  if (slot.setSource === 'manual') return `Manual assumption${teraSuffix}`;
+  if (slot.setSource === 'public') return `Public assumption${teraSuffix}`;
+  if (slot.setSource === 'revealed') return `Revealed${teraSuffix}`;
+  return `Revealed${teraSuffix}`;
 }
 
 function SlotRow({
