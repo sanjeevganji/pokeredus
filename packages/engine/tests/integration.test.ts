@@ -90,7 +90,8 @@ describe('official Showdown one-round sim', () => {
       theirs: theirSlots(team),
       field: emptyField(),
       legalActions: team[0]!.moves.map((moveId) => ({ id: `move:${moveId}`, type: 'move' as const, moveId })),
-      teraUsed: false,
+      teraUsedOurs: false,
+      teraUsedTheirs: false,
     };
     const b = createBattle(obs, [1, 2, 3, 4]);
     const c = cloneBattle(b);
@@ -112,7 +113,8 @@ describe('official Showdown one-round sim', () => {
       theirs: theirSlots(theirs),
       field: emptyField(),
       legalActions: legal,
-      teraUsed: false,
+      teraUsedOurs: false,
+      teraUsedTheirs: false,
     };
     const evaluation = await evaluateRound(obs, { chanceSeeds: 1 });
     expect(evaluation.choices.length).toBeGreaterThan(0);
