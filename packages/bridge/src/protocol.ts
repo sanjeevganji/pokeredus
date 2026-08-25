@@ -582,21 +582,25 @@ export class BattleTracker {
       const existing = this.myMons.get(key) ?? [...this.myMons.values()].find((m) => m.speciesId === speciesId);
       const pp: Record<string, number> = {};
       for (const m of p.moves ?? []) pp[m.id] = m.pp;
+      const parsed = parseDetails(p.details);
       const mon: TrackedMon = {
         slot: splitIdentity(p.ident).slot, side: sideId, identity: p.ident,
         speciesId, details: p.details,
         hp, maxHp: existing?.maxHp ?? 0, status,
         boosts: existing?.boosts ?? emptyBoosts(),
-        pp, lastMove: existing?.lastMove, choiceLock: existing?.choiceLock,
+        pp, lastMove: existing?.lastMove,
+        revealedMoves: existing?.revealedMoves ? [...existing.revealedMoves] : Object.keys(pp),
+        item: toId(p.item || '') || existing?.item,
+        ability: toId(p.baseAbility || '') || existing?.ability,
+        level: parsed.level ?? existing?.level,
+        teraType: p.teraType || parsed.teraType || existing?.teraType,
+        choiceLock: existing?.choiceLock,
         tauntTurns: existing?.tauntTurns ?? 0, fainted: hp <= 0, active: !!p.active,
       };
-      if (p.terastallized) this.teraUsed = true;
+      if (p.terastallized) this.teraUsedOurs = true;
       next.set(key, mon);
     }
     this.myMons = next;
-    // #region agent log
-    agentLog('A', 'protocol.ts:applyRequest', 'request team keys', { runId: 'post-fix', ourSide: this.ourSide, pokeCount: pokemon.length, keys: [...this.myMons.keys()], mapSpecies: [...this.myMons.values()].map((m) => m.speciesId), mapSize: this.myMons.size, firstActive: [...this.myMons.values()].find((m) => m.active)?.speciesId });
-    // #endregion
     const firstActive = json.active?.[0];
     const firstPoke = pokemon[0];
     if (firstActive && firstPoke) {
