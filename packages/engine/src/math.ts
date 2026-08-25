@@ -142,6 +142,50 @@ export function hitsToKill(hBefore: number, hAfter: number): number | null {
   return Math.ceil(hBefore / damage);
 }
 
+/** TTK against current HP from damage on a hitting branch. Null when no damage. */
+export function expectedTtk(hBefore: number, damage: number): number | null {
+  const ttk = hitsToKill(hBefore, hBefore - damage);
+  if (ttk == null) return null;
+  return Math.max(1, ttk);
+}
+
+/** CTA / TTK. Empty or no-damage branches are 0, never NaN/Inf. */
+export function damageScore(ctaVal: number, ttk: number | null): number {
+  if (ttk == null || !(ttk >= 1) || !Number.isFinite(ttk) || !Number.isFinite(ctaVal)) return 0;
+  return ctaVal / ttk;
+}
+
+/** Restored HP / max HP, excluding overheal. */
+export function effectiveHeal(hpBefore: number, hpAfter: number, maxHp: number): number {
+  if (!(maxHp > EPS) || !Number.isFinite(hpBefore) || !Number.isFinite(hpAfter)) return 0;
+  const capBefore = Math.min(Math.max(hpBefore, 0), maxHp);
+  const capAfter = Math.min(Math.max(hpAfter, 0), maxHp);
+  return Math.max(0, capAfter - capBefore) / maxHp;
+}
+
+export function modifierValue(mods: Modifier[]): number {
+  return 0.5 * Math.tanh(meanModifier(mods));
+}
+
+export function modifierDelta(before: Modifier[], after: Modifier[]): number {
+  const d = modifierValue(after) - modifierValue(before);
+  return Number.isFinite(d) ? d : 0;
+}
+
+export function switchScore(afterState: number, beforeState: number, opponentActionScore: number): number {
+  const v = afterState - beforeState - opponentActionScore;
+  return Number.isFinite(v) ? v : 0;
+}
+
+export function pairTurnScore(ours: number, theirs: number): number {
+  const v = ours - theirs;
+  return Number.isFinite(v) ? v : 0;
+}
+
+export function finiteOrZero(x: number): number {
+  return Number.isFinite(x) ? x : 0;
+}
+
 export function choiceScore(success: number, expectedImpact: number): number {
   return success * expectedImpact;
 }
