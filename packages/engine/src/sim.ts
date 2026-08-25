@@ -312,6 +312,13 @@ function snapshotSide(mons: AnyPokemon[], prev: SlotSnapshot[], weather: string)
     if (p) used.add(p);
     if (!p) return { ...slot, modifiers: modifiersFromSlot(slot, weather) };
     const fainted = Boolean(p.fainted) || p.hp <= 0;
+    const moveSlots = p.moveSlots ? p.moveSlots.map((m) => ({
+      id: m.id,
+      pp: m.pp,
+      maxpp: slot.moveSlots?.find((s) => s.id === m.id)?.maxpp ?? m.pp,
+      disabled: Boolean(m.disabled),
+    })) : slot.moveSlots;
+
     const next: SlotSnapshot = {
       ...slot,
       hp: fainted ? 0 : p.hp,
@@ -328,6 +335,7 @@ function snapshotSide(mons: AnyPokemon[], prev: SlotSnapshot[], weather: string)
         evasion: p.boosts.evasion ?? 0,
       },
       active: Boolean(p.isActive),
+      moveSlots,
     };
     next.modifiers = modifiersFromSlot(next, weather);
     return next;
