@@ -594,7 +594,7 @@ export function capJointPairs(
 export async function evaluateJointStatePolicy(
   obs: BattleObservation,
   opts?: EvaluateOptions,
-): Promise<JointPolicyResult & { evaluation: RoundEvaluation }> {
+): Promise<JointPolicyResult> {
   const ev = await evaluateRound(obs, opts);
   const ourIds = ev.choices.map((c) => c.action.id);
   const theirIds = ev.replies.map((r) => r.action.id);
