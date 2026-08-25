@@ -4,16 +4,20 @@ import { fileURLToPath } from 'node:url';
 import type { PolicyMode } from './observation.js';
 
 export interface PolicyRequest {
+  id?: string;
   actions: string[];
   scores: number[];
   mode: PolicyMode;
   seed?: number;
   shots?: number | null;
+  timeoutMs?: number;
 }
 
 export interface PolicyResponse {
+  id?: string;
   probabilities: number[];
   diagnostics: Record<string, unknown>;
+  error?: string;
 }
 
 const DEFAULT_TIMEOUT_MS = 5000;
@@ -23,14 +27,21 @@ export function repoRootFromEngine(): string {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 }
 
+interface PendingItem {
+  id?: string;
+  resolve: (v: PolicyResponse) => void;
+  reject: (e: Error) => void;
+}
+
 export class QuantumPolicyProcess {
   private proc: ChildProcessWithoutNullStreams | null = null;
   private buf = '';
-  private pending: Array<{ resolve: (v: PolicyResponse) => void; reject: (e: Error) => void }> = [];
+  private pending: PendingItem[] = [];
   private ready: Promise<void> | null = null;
   private readyResolve: (() => void) | null = null;
   private readyReject: ((e: Error) => void) | null = null;
   private readyTimer: ReturnType<typeof setTimeout> | null = null;
+  private reqSeq = 0;
   readonly timeoutMs: number;
   readonly python: string;
   readonly cwd: string;
@@ -113,13 +124,39 @@ export class QuantumPolicyProcess {
       }
       return;
     }
-    const waiter = this.pending.shift()!;
     try {
-      const parsed = JSON.parse(line) as PolicyResponse;
-      if (!Array.isArray(parsed.probabilities)) throw new Error('missing probabilities');
+      const parsed = JSON.parse(line) as PolicyResponse & { error?: string };
+      let waiter: PendingItem | undefined;
+      if (parsed.id !== undefined) {
+        const idx = this.pending.findIndex((p) => p.id === parsed.id);
+        if (idx >= 0) {
+          waiter = this.pending.splice(idx, 1)[0];
+        }
+      }
+      if (!waiter) {
+        waiter = this.pending.shift()!;
+      }
+
+      if (parsed.error) {
+        throw new Error(`quantum-policy returned error for req ${parsed.id ?? waiter.id ?? 'unknown'}: ${parsed.error}`);
+      }
+      if (!Array.isArray(parsed.probabilities)) {
+        throw new Error(`missing probabilities in quantum-policy response for req ${parsed.id ?? waiter.id ?? 'unknown'}`);
+      }
+      const probs = parsed.probabilities;
+      if (probs.some((p) => typeof p !== 'number' || !Number.isFinite(p) || p < 0)) {
+        throw new Error(`quantum-policy returned non-finite or negative probabilities for req ${parsed.id ?? waiter.id ?? 'unknown'}`);
+      }
+      const sum = probs.reduce((a, b) => a + b, 0);
+      if (!(sum > 0)) {
+        throw new Error(`quantum-policy returned zero-mass distribution for req ${parsed.id ?? waiter.id ?? 'unknown'}`);
+      }
       waiter.resolve(parsed);
     } catch (e) {
-      waiter.reject(e instanceof Error ? e : new Error(String(e)));
+      const waiter = this.pending.shift();
+      if (waiter) {
+        waiter.reject(e instanceof Error ? e : new Error(String(e)));
+      }
     }
   }
 
@@ -128,22 +165,30 @@ export class QuantumPolicyProcess {
     await this.ready;
     const proc = this.proc;
     if (!proc?.stdin) throw new Error('quantum-policy process is not running');
+    const reqId = req.id ?? `req_${++this.reqSeq}_${Date.now()}`;
+    const timeout = req.timeoutMs ?? this.timeoutMs;
+    const fullReq = { ...req, id: reqId };
+
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => {
         const idx = this.pending.findIndex((p) => p.resolve === wrappedResolve);
         if (idx >= 0) this.pending.splice(idx, 1);
-        reject(new Error(`quantum-policy timed out after ${this.timeoutMs}ms`));
-      }, this.timeoutMs);
+        reject(new Error(`quantum-policy timed out after ${timeout}ms for req ${reqId}`));
+      }, timeout);
       const wrappedResolve = (v: PolicyResponse) => {
         clearTimeout(timer);
+        if (v.probabilities.length !== req.actions.length) {
+          reject(new Error(`quantum-policy returned distribution of length ${v.probabilities.length}, expected ${req.actions.length} for req ${reqId}`));
+          return;
+        }
         resolve(v);
       };
       const wrappedReject = (e: Error) => {
         clearTimeout(timer);
         reject(e);
       };
-      this.pending.push({ resolve: wrappedResolve, reject: wrappedReject });
-      proc.stdin.write(JSON.stringify(req) + '\n');
+      this.pending.push({ id: reqId, resolve: wrappedResolve, reject: wrappedReject });
+      proc.stdin.write(JSON.stringify(fullReq) + '\n');
     });
   }
 
