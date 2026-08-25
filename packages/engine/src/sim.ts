@@ -404,6 +404,7 @@ function parseRoundLog(raw: string[], ourSide: PlayerSide): { ours: ActionTeleme
   let current: PlayerSide | null = null;
   let first: PlayerSide | null = null;
   const lastHp: Record<string, number> = {};
+  const lastMax: Record<string, number> = {};
 
   const noteActor = (side: PlayerSide) => {
     if (!first) {
