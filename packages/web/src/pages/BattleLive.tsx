@@ -27,6 +27,12 @@ export default function BattleLive() {
   const [saveMsg, setSaveMsg] = useState('');
   const [ourTera, setOurTera] = useState(false);
   const [theirTera, setTheirTera] = useState(false);
+  const [drawer, setDrawer] = useState<{ slot: LiveSlot; opener: HTMLElement } | null>(null);
+
+  const openSet = useCallback((slot: LiveSlot, opener: HTMLElement) => {
+    if (!slot.revealed || !slot.speciesId) return;
+    setDrawer({ slot, opener });
+  }, []);
 
   useEffect(() => {
     getLiveState().then(setLive).catch(() => { /* ignore */ });
