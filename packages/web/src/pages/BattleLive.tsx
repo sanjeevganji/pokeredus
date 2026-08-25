@@ -387,7 +387,7 @@ type SetForm = {
 
 function formFromSet(set: CanonicalSet): SetForm {
   return {
-    level: String(set.level ?? ''),
+    level: set.level >= 1 && set.level <= 100 ? String(set.level) : '',
     item: set.item ?? '',
     ability: set.ability ?? '',
     nature: set.nature ?? '',

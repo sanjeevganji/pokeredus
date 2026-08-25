@@ -750,7 +750,7 @@ function ourSlotFromMon(
     teraType: m.teraType,
     level: m.level,
     knownMoves: Object.keys(m.pp).length ? Object.keys(m.pp) : (m.revealedMoves ?? []),
-    set: complete || set.species ? set : undefined,
+    set: complete || used.species ? used : undefined,
     setSource,
     setComplete: complete,
     hypotheses: [],
