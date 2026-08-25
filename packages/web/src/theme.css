@@ -286,6 +286,24 @@ a.btn-primary, a.btn-secondary, button.btn-primary, button.btn-secondary, button
   align-items: center;
 }
 
+.turn-graph-wrap {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  gap: 8px;
+  align-items: stretch;
+  min-height: 96px;
+}
+
+.turn-graph-y {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: 0.7rem;
+  color: var(--fg-secondary);
+  line-height: 1;
+  padding: 4px 0;
+}
+
 .turn-graph {
   width: 100%;
   height: 96px;

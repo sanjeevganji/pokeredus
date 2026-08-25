@@ -150,7 +150,7 @@ function ScoreStrip({ state }: { state: LiveState }) {
   );
 }
 
-const GRAPH = { w: 200, h: 52, l: 22, r: 6, t: 6, b: 14 };
+const GRAPH = { w: 200, h: 52, l: 2, r: 2, t: 4, b: 4 };
 
 function TurnGraph({
   turns, currentTurn, currentScore,
@@ -173,39 +173,42 @@ function TurnGraph({
   const area = pts.length
     ? `M ${xAt(0).toFixed(2)} ${y0.toFixed(2)} L ${pts.map((p, i) => `${xAt(i).toFixed(2)} ${yAt(p.score).toFixed(2)}`).join(' ')} L ${xAt(pts.length - 1).toFixed(2)} ${y0.toFixed(2)} Z`
     : '';
-  const uid = 'tg';
   return (
-    <svg className="turn-graph" viewBox={`0 0 ${w} ${h}`} role="img" aria-label="round score over turns, +6 to -6">
-      <title>Round score by turn (−6 to +6)</title>
-      <defs>
-        <clipPath id={`${uid}-up`}><rect x={l} y={t} width={innerW} height={innerH / 2} /></clipPath>
-        <clipPath id={`${uid}-dn`}><rect x={l} y={y0} width={innerW} height={innerH / 2} /></clipPath>
-      </defs>
-      <line className="turn-graph-grid" x1={l} y1={t} x2={w - r} y2={t} />
-      <line className="turn-graph-zero" x1={l} y1={y0} x2={w - r} y2={y0} />
-      <line className="turn-graph-grid" x1={l} y1={t + innerH} x2={w - r} y2={t + innerH} />
-      <text className="turn-graph-label" x={l - 3} y={t + 4} textAnchor="end">+6</text>
-      <text className="turn-graph-label" x={l - 3} y={y0 + 3} textAnchor="end">0</text>
-      <text className="turn-graph-label" x={l - 3} y={t + innerH + 3} textAnchor="end">−6</text>
-      {area && (
-        <>
-          <path d={area} className="turn-graph-fill-up" clipPath={`url(#${uid}-up)`} />
-          <path d={area} className="turn-graph-fill-dn" clipPath={`url(#${uid}-dn)`} />
-        </>
-      )}
-      {pts.length > 0 && <polyline className="turn-graph-line" points={line} />}
-      {pts.map((p, i) => (
-        <circle
-          key={`${p.turn}-${i}`}
-          className={`turn-graph-dot${i === pts.length - 1 ? ' turn-graph-dot-now' : ''}`}
-          cx={xAt(i)}
-          cy={yAt(p.score)}
-          r={i === pts.length - 1 ? 2.4 : 1.6}
-        >
-          <title>{`turn ${p.turn} ${p.score >= 0 ? '+' : ''}${p.score.toFixed(2)}`}</title>
-        </circle>
-      ))}
-    </svg>
+    <div className="turn-graph-wrap">
+      <div className="turn-graph-y" aria-hidden="true">
+        <span>+6</span>
+        <span>0</span>
+        <span>−6</span>
+      </div>
+      <svg className="turn-graph" viewBox={`0 0 ${w} ${h}`} preserveAspectRatio="none" role="img" aria-label="round score over turns, +6 to -6">
+        <title>Round score by turn (−6 to +6)</title>
+        <defs>
+          <clipPath id="tg-up"><rect x={l} y={t} width={innerW} height={innerH / 2} /></clipPath>
+          <clipPath id="tg-dn"><rect x={l} y={y0} width={innerW} height={innerH / 2} /></clipPath>
+        </defs>
+        <line className="turn-graph-grid" x1={l} y1={t} x2={w - r} y2={t} />
+        <line className="turn-graph-zero" x1={l} y1={y0} x2={w - r} y2={y0} />
+        <line className="turn-graph-grid" x1={l} y1={t + innerH} x2={w - r} y2={t + innerH} />
+        {area && (
+          <>
+            <path d={area} className="turn-graph-fill-up" clipPath="url(#tg-up)" />
+            <path d={area} className="turn-graph-fill-dn" clipPath="url(#tg-dn)" />
+          </>
+        )}
+        {pts.length > 0 && <polyline className="turn-graph-line" points={line} fill="none" />}
+        {pts.map((p, i) => (
+          <circle
+            key={`${p.turn}-${i}`}
+            className={`turn-graph-dot${i === pts.length - 1 ? ' turn-graph-dot-now' : ''}`}
+            cx={xAt(i)}
+            cy={yAt(p.score)}
+            r={i === pts.length - 1 ? 2.2 : 1.5}
+          >
+            <title>{`turn ${p.turn} ${p.score >= 0 ? '+' : ''}${p.score.toFixed(2)}`}</title>
+          </circle>
+        ))}
+      </svg>
+    </div>
   );
 }
 
