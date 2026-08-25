@@ -11,8 +11,10 @@ import {
   prngSeedFromInt,
   QuantumPolicyProcess,
   sampleAction,
+  simulateRound,
   type BattleObservation,
   type CanonicalSet,
+  type LegalAction,
   type SlotSnapshot,
 } from '../src/index.js';
 
