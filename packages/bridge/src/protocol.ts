@@ -85,12 +85,17 @@ export type BattleEvent =
   | ({ type: '-start' } & SlotCommon & { effect: string })
   | ({ type: '-end' } & SlotCommon & { effect: string })
   | ({ type: 'move' } & SlotCommon & { moveId: string; target?: string })
-  | { type: 'fieldstart'; side: PlayerSide; effect: string }
-  | { type: 'fieldend'; side: PlayerSide; effect: string }
+  | { type: 'fieldstart'; effect: string }
+  | { type: 'fieldend'; effect: string }
   | { type: 'weather'; weather: string }
   | { type: 'terrain'; terrain: string }
   | { type: 'sidestart'; side: PlayerSide; effect: string }
   | { type: 'sideend'; side: PlayerSide; effect: string }
+  | ({ type: '-item' } & SlotCommon & { item: string })
+  | ({ type: '-ability' } & SlotCommon & { ability: string })
+  | ({ type: '-enditem' } & SlotCommon & { item: string })
+  | ({ type: '-terastallize' } & SlotCommon & { teraType: string })
+  | ({ type: 'detailschange' } & SlotCommon & { speciesId: string; details: string })
   | { type: 'win'; winner: string }
   | { type: 'raw'; text: string }
   | { type: 'other'; raw: string };
