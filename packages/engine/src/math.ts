@@ -2,6 +2,25 @@ import type { FieldSnapshot, ForcedOutcome, Modifier, MonValue, PlayerSide, Slot
 
 export const EPS = 1e-9;
 
+/**
+ * Score contract (our perspective: positive favors us).
+ * damageScore = CTA / expectedTTK, CTA = P(executes)×P(hit|executes)×P(alive at resolve).
+ * expectedTTK is ≥1 from the target's current HP and damage on hitting branches.
+ * Healing is restored HP / max HP, excluding overheal; residuals are not the selected move.
+ * modifierValue = 0.5 × tanh(mean(log(multiplier) × expectedRemainingTurns)).
+ * pairTurnScore = our attributed action − opponent attributed action.
+ * switchScore = stateScore(after) − stateScore(before) − attributedOpponentActionScore.
+ * signedLog1p is Hamiltonian/display only.
+ */
+
+/** Documented duration estimates when Showdown does not expose remaining turns. */
+export const MODIFIER_TURNS = {
+  boost: 6,
+  burn: 3,
+  para: 3,
+  screen: 5,
+} as const;
+
 export function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
 }
