@@ -124,9 +124,9 @@ export class QuantumPolicyProcess {
       }
       return;
     }
+    let waiter: PendingItem | undefined;
     try {
       const parsed = JSON.parse(line) as PolicyResponse & { error?: string };
-      let waiter: PendingItem | undefined;
       if (parsed.id !== undefined) {
         const idx = this.pending.findIndex((p) => p.id === parsed.id);
         if (idx >= 0) {
@@ -153,7 +153,9 @@ export class QuantumPolicyProcess {
       }
       waiter.resolve(parsed);
     } catch (e) {
-      const waiter = this.pending.shift();
+      if (!waiter && this.pending.length) {
+        waiter = this.pending.shift();
+      }
       if (waiter) {
         waiter.reject(e instanceof Error ? e : new Error(String(e)));
       }
