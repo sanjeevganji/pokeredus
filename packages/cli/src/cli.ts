@@ -125,7 +125,7 @@ async function main(): Promise<void> {
       for (const line of lines) {
         const ev: BattleEvent | null = tracker.applyLine(line);
         if (ev && ev.type === 'request') {
-          const obs = tracker.toObservation(pool, ourSets);
+          const obs = tracker.toObservation(pool, ourSets, loadSetOverrides());
           console.log(`\n=== turn ${obs.turn} (request) ===`);
           await decideAndAct(log, obs, {
             dryRun: true,

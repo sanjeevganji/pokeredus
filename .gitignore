@@ -73,5 +73,6 @@ tools/launch-settings.json
 live-state.json
 live-observation.json
 score-weights.json
+set-overrides.json
 data/scenarios/
 decisions.jsonl

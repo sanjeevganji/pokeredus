@@ -371,6 +371,53 @@ function tsxCli(root: string): string {
   throw new Error('tsx CLI not found; run npm install');
 }
 
+export function parseSetsRoute(route: string): { format: string; species: string } | null {
+  const m = /^\/api\/games\/sets\/([^/]+)\/([^/]+)\/?$/.exec(route);
+  if (!m) return null;
+  const format = speciesKey(decodeURIComponent(m[1]!));
+  const species = speciesKey(decodeURIComponent(m[2]!));
+  if (!format || !species) return null;
+  return { format, species };
+}
+
+export function handleSetsApi(opts: {
+  method: string;
+  format: string;
+  species: string;
+  body?: unknown;
+  overridesPath: string;
+  poolPath?: string;
+  facts?: RevealedFacts;
+}): { status: number; body: unknown } {
+  const format = speciesKey(opts.format);
+  const species = speciesKey(opts.species);
+  if (!format || !species) return { status: 400, body: { error: 'format and species are required' } };
+  try {
+    if (opts.method === 'GET') {
+      const pool = loadPool(opts.poolPath ?? defaultPoolPath());
+      const store = loadSetOverrides(opts.overridesPath);
+      return { status: 200, body: listSetCatalog(pool, format, species, store, opts.facts) };
+    }
+    if (opts.method === 'PUT') {
+      const raw = opts.body && typeof opts.body === 'object' && !Array.isArray(opts.body)
+        ? (opts.body as Record<string, unknown>).set
+        : undefined;
+      if (raw === undefined) return { status: 400, body: { error: 'body must be { set }' } };
+      const set = saveSetOverride(format, species, raw, opts.overridesPath);
+      return { status: 200, body: { set } };
+    }
+    if (opts.method === 'DELETE') {
+      deleteSetOverride(format, species, opts.overridesPath);
+      return { status: 200, body: { ok: true } };
+    }
+    return { status: 405, body: { error: 'method not allowed' } };
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : String(err);
+    const status = /malformed|must |required|unknown set|does not match|1–4|1–100/.test(msg) ? 400 : 500;
+    return { status, body: { error: msg } };
+  }
+}
+
 export function gamesApiPlugin(root: string): Plugin {
   // ponytail: intercepted TLS on some Windows boxes breaks undici/ws verify. Set NODE_EXTRA_CA_CERTS to drop this.
   process.env.NODE_TLS_REJECT_UNAUTHORIZED ??= '0';
