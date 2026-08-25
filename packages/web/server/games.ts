@@ -12,6 +12,15 @@ import {
   normalizeBattleRoom,
   type DetectedGame,
 } from '../../bridge/src/lobby';
+import { defaultLiveObservationPath } from '../../bridge/src/live-state';
+import type { BattleObservation, RevealedFacts } from '../../engine/src/observation';
+import { defaultPoolPath, loadPool, speciesKey } from '../../engine/src/pool';
+import {
+  deleteSetOverride,
+  listSetCatalog,
+  loadSetOverrides,
+  saveSetOverride,
+} from '../../engine/src/set-overrides';
 
 const DEFAULT_FORMAT = 'gen9randombattle';
 const AUTH_MS = 8000;
