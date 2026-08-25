@@ -5,6 +5,7 @@ import {
   emptyBoosts,
   emptyField,
   evaluateRound,
+  forecastBattle,
   loadShowdown,
   placeholderSlot,
   probeClone,
