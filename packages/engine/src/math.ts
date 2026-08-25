@@ -365,7 +365,7 @@ export function modifiersFromSlot(slot: SlotSnapshot, _fieldWeather = ''): Modif
     mods.push({ name: `boost:${stat}`, multiplier: stageMultiplier(stages), remainingTurns: MODIFIER_TURNS.boost });
   }
   if (slot.status === 'brn') mods.push({ name: 'burn', multiplier: 0.5, remainingTurns: MODIFIER_TURNS.burn });
-  if (slot.status === 'par') mods.push({ name: 'para', multiplier: 0.5, remainingTurns: 3 });
+  if (slot.status === 'par') mods.push({ name: 'para', multiplier: 0.5, remainingTurns: MODIFIER_TURNS.para });
   if (fieldWeather === 'sunny' || fieldWeather === 'sun') {
     mods.push({ name: 'sun', multiplier: 1.5, remainingTurns: 3 });
   }
