@@ -5,6 +5,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import {
   BattleTracker,
   LiveStateWriter,
+  MAX_LIVE_POINTS,
   summarizeEvent,
   slotsFromObservation,
   type BattleEvent,
@@ -61,7 +62,7 @@ describe('summarizeEvent', () => {
 });
 
 describe('LiveStateWriter', () => {
-  it('writes eval scores and tracker HP into the snapshot file', () => {
+  it('writes eval scores, schemaVersion 2, and points into the snapshot file', () => {
     const file = tmpPath();
     const hud = new LiveStateWriter({ path: file, room: 'battle-gen9randombattle-1', dryRun: true, policy: 'quantum' });
     const tracker = new BattleTracker();
@@ -80,7 +81,7 @@ describe('LiveStateWriter', () => {
           success: 1, cta: 0.9, expectedImpact: 1.2, expectedHealthDelta: 1.0, expectedModifierDelta: 0.2,
           ourHealth: 0, theirHealth: -1, ourModifier: 0.2, theirModifier: 0,
           hitsToKill: 2, choiceScore: 1.1, scaledChoiceScore: 0.7, meanPostScore: 0.2,
-          minTurnScore: 1.1, maxTurnScore: 1.1, minPostScore: 0.2, maxPostScore: 0.2, sampleCount: 1,
+          minTurnScore: 0.8, maxTurnScore: 1.4, minPostScore: 0.2, maxPostScore: 0.2, sampleCount: 4,
           features: { health: 1, modifier: 0.2, secondary: 0, switchRisk: 0, sacrifice: 0 },
         }],
         replies: [{
@@ -96,7 +97,9 @@ describe('LiveStateWriter', () => {
       sent: false,
       diagnostics: { mode: 'quantum', n_qubits: 1, exact: true },
     });
+
     const snap = JSON.parse(fs.readFileSync(file, 'utf8'));
+    expect(snap.schemaVersion).toBe(2);
     expect(snap.room).toBe('battle-gen9randombattle-1');
     expect(snap.turn).toBe(3);
     expect(snap.field.weather).toBe('rain');
@@ -104,24 +107,102 @@ describe('LiveStateWriter', () => {
     expect(snap.eval.roundScore).toBe(0.42);
     expect(snap.eval.sampledAction).toBe('move:earthquake');
     expect(snap.eval.choices[0].choiceScore).toBe(1.1);
+    expect(snap.eval.choices[0].policyWeight).toBe(1);
+    expect(snap.eval.choices[0].minTurnScore).toBe(0.8);
+    expect(snap.eval.choices[0].maxTurnScore).toBe(1.4);
+    expect(snap.eval.choices[0].sampleCount).toBe(4);
     expect(snap.eval.choices[0].hitsToKill).toBe(2);
     expect(snap.eval.choices[0].ourHealth).toBe(0);
     expect(snap.eval.replies[0].id).toBe('move:recover');
     expect(snap.eval.replies[0].choiceScore).toBe(0.3);
     expect(snap.eval.quantum.mode).toBe('quantum');
     expect(snap.eval.quantum.nQubits).toBe(1);
+    expect(snap.points).toHaveLength(1);
+    expect(snap.points[0].status).toBe('forecast');
+    expect(snap.points[0].expectedDelta).toBe(1.1);
+    expect(snap.points[0].minDelta).toBe(0.8);
+    expect(snap.points[0].maxDelta).toBe(1.4);
+    expect(snap.points[0].samples).toBe(4);
     expect(snap.turns).toHaveLength(1);
-    expect(snap.turns[0].roundScore).toBe(0.42);
+    expect(snap.turns[0].roundScore).toBe(1.1);
     expect(snap.ours).toHaveLength(6);
     expect(snap.theirs).toHaveLength(6);
     expect(snap.ours[0].speciesId).toBe('garchomp');
     expect(snap.theirs[0].hp).toBe(80);
     expect(snap.events.some((e: { text: string }) => e.text.includes('Garchomp in'))).toBe(true);
     expect(snap.events.some((e: { text: string }) => e.text.includes('roundScore=0.420'))).toBe(true);
-    const obsFile = path.join(path.dirname(file), 'live-observation.json');
-    tmpFiles.push(obsFile);
-    hud.fromObservation(obs());
-    expect(JSON.parse(fs.readFileSync(obsFile, 'utf8')).turn).toBe(3);
+  });
+
+  it('settles prior forecast point when next observation arrives', () => {
+    const file = tmpPath();
+    const hud = new LiveStateWriter({ path: file, room: 'battle-gen9randombattle-2', dryRun: true, policy: 'softmax' });
+    const o1 = obs();
+    hud.fromObservation(o1);
+
+    hud.fromDecision({
+      evaluation: {
+        choices: [{
+          action: { id: 'move:earthquake', type: 'move', moveId: 'earthquake' },
+          success: 1, cta: 1, expectedImpact: 1, expectedHealthDelta: 1, expectedModifierDelta: 0,
+          ourHealth: 0, theirHealth: -1, ourModifier: 0, theirModifier: 0,
+          hitsToKill: 1, choiceScore: 0.8, scaledChoiceScore: 0.8, meanPostScore: 0.5,
+          minTurnScore: 0.5, maxTurnScore: 1.0, minPostScore: 0.5, maxPostScore: 0.5, sampleCount: 2,
+          features: { health: 1, modifier: 0, secondary: 0, switchRisk: 0, sacrifice: 0 },
+        }],
+        replies: [],
+        roundScore: 0.8, expectedRoundScore: 0.8, minRoundScore: 0.5, maxRoundScore: 1.0,
+        forcedOutcome: 'none',
+        mateProbability: 0,
+      },
+      probabilities: [1],
+      sampledId: 'move:earthquake',
+      sent: true,
+    });
+
+    expect(hud.state.points![0]!.status).toBe('forecast');
+
+    // Next turn observation: opponent toxapex fainted (hp = 0)
+    const o2 = obs();
+    o2.turn = 4;
+    o2.theirs[0]!.hp = 0;
+    o2.theirs[0]!.fainted = true;
+    hud.fromObservation(o2);
+
+    expect(hud.state.points![0]!.status).toBe('settled');
+    expect(hud.state.points![0]!.realizedDelta).toBeGreaterThan(0);
+    expect(hud.state.points![0]!.cumulativeTotal).toBe(hud.state.points![0]!.realizedDelta);
+  });
+
+  it('caps points at MAX_LIVE_POINTS (64)', () => {
+    const file = tmpPath();
+    const hud = new LiveStateWriter({ path: file, room: 'battle-gen9randombattle-3', dryRun: true, policy: 'softmax' });
+    const o = obs();
+    hud.fromObservation(o);
+
+    for (let i = 0; i < 70; i++) {
+      hud.fromDecision({
+        evaluation: {
+          choices: [{
+            action: { id: 'move:earthquake', type: 'move', moveId: 'earthquake' },
+            success: 1, cta: 1, expectedImpact: 1, expectedHealthDelta: 1, expectedModifierDelta: 0,
+            ourHealth: 0, theirHealth: 0, ourModifier: 0, theirModifier: 0,
+            hitsToKill: null, choiceScore: 0.1, scaledChoiceScore: 0.1, meanPostScore: 0.1,
+            minTurnScore: 0.1, maxTurnScore: 0.1, minPostScore: 0.1, maxPostScore: 0.1, sampleCount: 1,
+            features: { health: 0, modifier: 0, secondary: 0, switchRisk: 0, sacrifice: 0 },
+          }],
+          replies: [],
+          roundScore: 0.1, expectedRoundScore: 0.1, minRoundScore: 0.1, maxRoundScore: 0.1,
+          forcedOutcome: 'none',
+          mateProbability: 0,
+        },
+        probabilities: [1],
+        sampledId: 'move:earthquake',
+        sent: true,
+      });
+    }
+
+    expect(hud.state.points!.length).toBe(MAX_LIVE_POINTS);
+    expect(hud.state.points!.length).toBe(64);
   });
 });
 
