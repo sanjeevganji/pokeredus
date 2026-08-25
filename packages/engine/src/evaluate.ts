@@ -403,8 +403,7 @@ async function refineLoop(
       const marg = marginalize(pairIds, joint.probs, legal.map((a) => a.id), replies.map((r) => r.id));
       nextOur = marg.pOur;
       nextTheir = marg.pTheir;
-    } catch (err) {
-      if (opts.refineFallback === 'throw') throw err;
+    } catch {
       const ourScores = assembled.choices.map((c) => c.scaledChoiceScore);
       const theirScores = assembled.replies.map((r) => signedLog1p(r.choiceScore));
       try {
