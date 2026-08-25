@@ -25,12 +25,15 @@ export function legalFromSlots(ours: SlotSnapshot[]): LegalAction[] {
 
 export function flipObservation(obs: BattleObservation): BattleObservation {
   const legal = theirActions(obs, obs.theirs.find((s) => s.active)?.set ?? obs.theirs.find((s) => s.active)?.hypotheses[0]?.set);
+  const tera = observationTera(obs);
   return {
     ...obs,
     ourSide: obs.ourSide === 'p1' ? 'p2' : 'p1',
     ours: obs.theirs.map((s) => ({ ...s })),
     theirs: obs.ours.map((s) => ({ ...s })),
     legalActions: legal,
+    teraUsedOurs: tera.theirs,
+    teraUsedTheirs: tera.ours,
   };
 }
 

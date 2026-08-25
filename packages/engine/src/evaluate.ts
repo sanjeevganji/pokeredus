@@ -364,7 +364,7 @@ function assemble(
   branches: Branch[],
   pOur: number[],
   pTheir: number[],
-  weights: ScoreWeights,
+  _weights: ScoreWeights,
 ): { choices: ChoiceEvaluation[]; replies: ReplyEvaluation[]; postScores: number[]; forcedRows: Array<Array<{ pWin: number; pLoss: number }>>; pairs: PairScore[] } {
   const choices: ChoiceEvaluation[] = [];
   const postScores: number[] = [];
