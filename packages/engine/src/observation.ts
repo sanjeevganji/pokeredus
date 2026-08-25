@@ -64,6 +64,13 @@ export interface LegalAction {
 
 export type SetSource = 'revealed' | 'manual' | 'public' | 'incomplete';
 
+export interface MoveSlotSnapshot {
+  id: string;
+  pp: number;
+  maxpp: number;
+  disabled?: boolean;
+}
+
 export interface SlotSnapshot {
   slot: number;
   speciesId: string;
@@ -77,8 +84,12 @@ export interface SlotSnapshot {
   item?: string;
   ability?: string;
   teraType?: string;
+  terastallized?: boolean;
   level?: number;
   knownMoves: string[];
+  moveSlots?: MoveSlotSnapshot[];
+  choiceLock?: string;
+  trapped?: boolean;
   set?: CanonicalSet;
   setSource?: SetSource;
   candidateProbability?: number;
