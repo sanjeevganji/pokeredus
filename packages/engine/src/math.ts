@@ -1,7 +1,6 @@
 import type { FieldSnapshot, ForcedOutcome, Modifier, MonValue, PlayerSide, SlotSnapshot } from './observation.js';
 
 export const EPS = 1e-9;
-export const EXPECTED_VALUE_TURNS = 3;
 
 export function clamp(x: number, lo: number, hi: number): number {
   return Math.min(hi, Math.max(lo, x));
