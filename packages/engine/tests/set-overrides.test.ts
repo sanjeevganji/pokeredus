@@ -14,11 +14,11 @@ import type { RandomSetPool } from '../src/pool.js';
 
 const tmpFiles: string[] = [];
 afterEach(() => {
-  vi.restoreAllMocks();
   for (const f of tmpFiles) {
     try { fs.unlinkSync(f); } catch { /* ignore */ }
     try { fs.unlinkSync(`${f}.tmp`); } catch { /* ignore */ }
     try { fs.unlinkSync(`${f}.${process.pid}.tmp`); } catch { /* ignore */ }
+    try { fs.rmdirSync(`${f}.bak`); } catch { /* ignore */ }
     try { fs.unlinkSync(`${f}.bak`); } catch { /* ignore */ }
   }
   tmpFiles.length = 0;
