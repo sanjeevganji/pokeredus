@@ -70,6 +70,21 @@ describe('forecast benchmark', () => {
       teraUsedTheirs: false,
     };
 
+    // Cold and warm per-state QAOA latency
+    const proc = new QuantumPolicyProcess({ timeoutMs: 30_000 });
+    let coldMs = 0;
+    let warmMs = 0;
+    try {
+      const t0 = Date.now();
+      await proc.decide({ actions: ['m1', 'm2'], scores: [0.1, 0.2], mode: 'quantum', seed: 1 });
+      coldMs = Date.now() - t0;
+      const t1 = Date.now();
+      await proc.decide({ actions: ['m1', 'm2'], scores: [0.1, 0.2], mode: 'quantum', seed: 1 });
+      warmMs = Date.now() - t1;
+    } finally {
+      proc.close();
+    }
+
     let firstProgressMs = 0;
     const start = Date.now();
 
@@ -86,16 +101,22 @@ describe('forecast benchmark', () => {
 
     const elapsed = Date.now() - start;
     const rolloutsPerSec = forecast.totalSamples / (elapsed / 1000);
+    const hits = (forecast.diagnostics?.cacheHits as number) ?? 0;
+    const misses = (forecast.diagnostics?.cacheMisses as number) ?? 0;
+    const hitRate = hits + misses > 0 ? (hits / (hits + misses)) * 100 : 0;
 
     console.log('\n--- 6v6 Forecast Benchmark ---');
+    console.log(`Cold per-state QAOA latency: ${coldMs}ms`);
+    console.log(`Warm per-state QAOA latency: ${warmMs}ms`);
     console.log(`Total rollouts: ${forecast.totalSamples}`);
     console.log(`Elapsed ms: ${elapsed}ms`);
     console.log(`Rollouts/sec: ${rolloutsPerSec.toFixed(2)}`);
+    console.log(`Cache hit rate: ${hitRate.toFixed(1)}% (${hits} hits / ${misses} misses)`);
     console.log(`Time to first partial: ${firstProgressMs}ms`);
     console.log(`Cache stats:`, forecast.diagnostics);
     console.log(`Status: ${forecast.status}`);
 
     expect(forecast.totalSamples).toBeGreaterThan(0);
     expect(forecast.choices.length).toBe(legal.length);
-  }, 30_000);
+  }, 40_000);
 });
