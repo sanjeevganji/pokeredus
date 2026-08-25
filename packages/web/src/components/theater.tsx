@@ -130,7 +130,7 @@ function SlotRow({ slot, accent }: { slot: LiveSlot; accent: 'cyan' | 'pink' }) 
 }
 
 export function Bench({
-  title, slots, field, accent, area, tera,
+  title, slots, field, accent, area, tera, compact,
 }: {
   title: string;
   slots: LiveSlot[];
@@ -138,6 +138,7 @@ export function Bench({
   accent: 'cyan' | 'pink';
   area?: string;
   tera?: boolean;
+  compact?: boolean;
 }) {
   const six = [...slots];
   while (six.length < 6) {
@@ -145,13 +146,38 @@ export function Bench({
       speciesId: '', hp: 0, maxHp: 100, status: '', fainted: false, active: false, revealed: false,
     });
   }
+  const shown = six.slice(0, 6);
+  const activeIdx = shown.findIndex((s) => s.active);
+  const lead = shown[activeIdx >= 0 ? activeIdx : 0]!;
+  const rest = shown.filter((_, i) => i !== (activeIdx >= 0 ? activeIdx : 0));
   return (
-    <section className={`card bench bench-${accent}${area ? ` theater-${area}` : ''}${tera ? ' tera-mode' : ''}`}>
+    <section className={`card bench bench-${accent}${compact ? ' compact' : ''}${area ? ` theater-${area}` : ''}${tera ? ' tera-mode' : ''}`}>
       <h2 className="bench-title">{title}</h2>
       <SideFieldBadges side={field} />
-      <ul className="bench-list">
-        {six.slice(0, 6).map((s, i) => <SlotRow key={i} slot={s} accent={accent} />)}
-      </ul>
+      {compact ? (
+        <>
+          <ul className="bench-list">
+            <SlotRow slot={lead} accent={accent} />
+          </ul>
+          <div className="bench-rest">
+            {rest.map((s, i) => {
+              const name = s.revealed && s.speciesId ? prettySpecies(s.speciesId) : 'Unknown';
+              return (
+                <span
+                  key={i}
+                  className={`bench-name${s.fainted ? ' slot-fainted' : ''}${s.revealed ? '' : ' slot-hidden'}`}
+                >
+                  {name}
+                </span>
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <ul className="bench-list">
+          {shown.map((s, i) => <SlotRow key={i} slot={s} accent={accent} />)}
+        </ul>
+      )}
     </section>
   );
 }
