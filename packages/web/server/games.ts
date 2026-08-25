@@ -233,6 +233,7 @@ export class GameHub {
       ...process.env,
       POKELINK_STATE: this.liveStatePath(),
       POKEREDUS_WEIGHTS: path.join(this.root, 'score-weights.json'),
+      POKEREDUS_SET_OVERRIDES: this.setOverridesPath(),
       // ponytail: intercepted TLS on some Windows boxes breaks undici/ws verify. Set NODE_EXTRA_CA_CERTS to drop this.
       NODE_TLS_REJECT_UNAUTHORIZED: process.env.NODE_TLS_REJECT_UNAUTHORIZED ?? '0',
     };
