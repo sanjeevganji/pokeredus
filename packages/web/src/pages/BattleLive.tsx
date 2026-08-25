@@ -129,26 +129,14 @@ export default function BattleLive() {
 
 function ScoreStrip({ state }: { state: LiveState }) {
   const ev = state.eval;
-  const sampled = ev?.choices?.find((c) => c.id === ev.sampledAction) ?? ev?.choices?.[0];
-  const score = sampled?.choiceScore ?? ev?.roundScore ?? 0;
-  const maxAbs = Math.max(
-    ...((ev?.choices ?? []).map((c) => Math.abs(c.choiceScore))),
-    Math.abs(score),
-    0.01,
-  );
-  const label = `${score >= 0 ? '+' : ''}${score.toFixed(3)}`;
-  const color = score > 0.05 ? 'var(--matchup-win)' : score < -0.05 ? 'var(--matchup-lose)' : 'var(--matchup-neutral)';
+  const round = ev?.roundScore ?? 0;
+  const label = `${round >= 0 ? '+' : ''}${round.toFixed(3)}`;
+  const color = round > 0.05 ? 'var(--matchup-win)' : round < -0.05 ? 'var(--matchup-lose)' : 'var(--matchup-neutral)';
   return (
     <section className="score-strip card">
-      <ScoreBar
-        score={score}
-        maxAbs={maxAbs}
-        parts={sampled}
-        label="turn score"
-      />
+      <TurnGraph turns={state.turns ?? []} currentTurn={state.turn} currentScore={ev?.roundScore} />
       <div className="score-meta">
-        <strong style={{ color }}>turn {label}</strong>
-        {ev && <span className="muted">round {ev.roundScore >= 0 ? '+' : ''}{ev.roundScore.toFixed(3)}</span>}
+        <strong style={{ color }}>round {label}</strong>
         {ev && <span className="muted">mate {ev.forcedOutcome}{ev.mateProbability ? ` ${ev.mateProbability.toFixed(2)}` : ''}</span>}
         {ev?.sampledAction && <span className="sampled-label">sampled {actionLabel(ev.sampledAction, state.ours)}</span>}
         {ev?.quantum && (
@@ -158,28 +146,66 @@ function ScoreStrip({ state }: { state: LiveState }) {
           </span>
         )}
       </div>
-      <TurnSparks turns={state.turns ?? []} />
     </section>
   );
 }
 
-function TurnSparks({ turns }: { turns: LiveTurn[] }) {
-  if (!turns.length) return null;
+const GRAPH = { w: 200, h: 52, l: 22, r: 6, t: 6, b: 14 };
+
+function TurnGraph({
+  turns, currentTurn, currentScore,
+}: {
+  turns: LiveTurn[];
+  currentTurn?: number;
+  currentScore?: number;
+}) {
+  const pts: { turn: number; score: number }[] = turns.map((t) => ({ turn: t.turn, score: t.roundScore }));
+  if (currentScore != null && (pts.length === 0 || pts[pts.length - 1]!.turn !== currentTurn)) {
+    pts.push({ turn: currentTurn ?? (pts[pts.length - 1]?.turn ?? 0) + 1, score: currentScore });
+  }
+  const { w, h, l, r, t, b } = GRAPH;
+  const innerW = w - l - r;
+  const innerH = h - t - b;
+  const y0 = t + innerH / 2;
+  const yAt = (s: number) => t + ((6 - Math.max(-6, Math.min(6, s))) / 12) * innerH;
+  const xAt = (i: number) => (pts.length <= 1 ? l + innerW / 2 : l + (i / (pts.length - 1)) * innerW);
+  const line = pts.map((p, i) => `${xAt(i).toFixed(2)},${yAt(p.score).toFixed(2)}`).join(' ');
+  const area = pts.length
+    ? `M ${xAt(0).toFixed(2)} ${y0.toFixed(2)} L ${pts.map((p, i) => `${xAt(i).toFixed(2)} ${yAt(p.score).toFixed(2)}`).join(' ')} L ${xAt(pts.length - 1).toFixed(2)} ${y0.toFixed(2)} Z`
+    : '';
+  const uid = 'tg';
   return (
-    <div className="turn-sparks" aria-label="turn scores">
-      {turns.map((t, i) => {
-        const h = Math.min(1, Math.abs(t.roundScore) / 6) * 100;
-        const color = t.roundScore > 0.05 ? 'var(--neon-cyan)' : t.roundScore < -0.05 ? 'var(--neon-pink)' : 'var(--fg-dim)';
-        return (
-          <div
-            key={`${t.turn}-${i}`}
-            className="spark"
-            title={`turn ${t.turn} ${t.roundScore >= 0 ? '+' : ''}${t.roundScore.toFixed(2)}`}
-            style={{ height: `${Math.max(h, 8)}%`, background: color }}
-          />
-        );
-      })}
-    </div>
+    <svg className="turn-graph" viewBox={`0 0 ${w} ${h}`} role="img" aria-label="round score over turns, +6 to -6">
+      <title>Round score by turn (−6 to +6)</title>
+      <defs>
+        <clipPath id={`${uid}-up`}><rect x={l} y={t} width={innerW} height={innerH / 2} /></clipPath>
+        <clipPath id={`${uid}-dn`}><rect x={l} y={y0} width={innerW} height={innerH / 2} /></clipPath>
+      </defs>
+      <line className="turn-graph-grid" x1={l} y1={t} x2={w - r} y2={t} />
+      <line className="turn-graph-zero" x1={l} y1={y0} x2={w - r} y2={y0} />
+      <line className="turn-graph-grid" x1={l} y1={t + innerH} x2={w - r} y2={t + innerH} />
+      <text className="turn-graph-label" x={l - 3} y={t + 4} textAnchor="end">+6</text>
+      <text className="turn-graph-label" x={l - 3} y={y0 + 3} textAnchor="end">0</text>
+      <text className="turn-graph-label" x={l - 3} y={t + innerH + 3} textAnchor="end">−6</text>
+      {area && (
+        <>
+          <path d={area} className="turn-graph-fill-up" clipPath={`url(#${uid}-up)`} />
+          <path d={area} className="turn-graph-fill-dn" clipPath={`url(#${uid}-dn)`} />
+        </>
+      )}
+      {pts.length > 0 && <polyline className="turn-graph-line" points={line} />}
+      {pts.map((p, i) => (
+        <circle
+          key={`${p.turn}-${i}`}
+          className={`turn-graph-dot${i === pts.length - 1 ? ' turn-graph-dot-now' : ''}`}
+          cx={xAt(i)}
+          cy={yAt(p.score)}
+          r={i === pts.length - 1 ? 2.4 : 1.6}
+        >
+          <title>{`turn ${p.turn} ${p.score >= 0 ? '+' : ''}${p.score.toFixed(2)}`}</title>
+        </circle>
+      ))}
+    </svg>
   );
 }
 

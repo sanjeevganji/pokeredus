@@ -300,8 +300,6 @@ function RankList({
 }) {
   const [dragId, setDragId] = useState<string | null>(null);
   const ids = rows.map((r) => r.action.id);
-  const maxAbs = Math.max(...rows.map((r) => Math.abs(r.choiceScore)), 0.01);
-
   function move(id: string, dir: -1 | 1) {
     const i = ids.indexOf(id);
     const j = i + dir;
