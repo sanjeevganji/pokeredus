@@ -144,9 +144,18 @@ function parseCondition(cond: string): { hp: number; maxHp: number; status: stri
   return { hp: Number.isFinite(hp) ? hp : 0, maxHp: Number.isFinite(maxHp) ? maxHp : 0, status, fainted };
 }
 
-function speciesIdFromDetails(details: string): string {
-  const name = (details ?? '').split(',')[0] ?? '';
-  return toId(name);
+function parseDetails(details: string): { speciesId: string; level?: number; teraType?: string } {
+  const bits = (details ?? '').split(',').map((s) => s.trim());
+  const speciesId = toId(bits[0] ?? '');
+  let level: number | undefined;
+  let teraType: string | undefined;
+  for (const bit of bits.slice(1)) {
+    const lv = /^L(\d+)$/i.exec(bit);
+    if (lv) level = Number(lv[1]);
+    const tera = /^tera:\s*(.+)$/i.exec(bit);
+    if (tera) teraType = tera[1];
+  }
+  return { speciesId, level, teraType };
 }
 
 // ──────────────────────────────────────────────────────────────────────
