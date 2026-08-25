@@ -232,6 +232,8 @@ export function placeholderSlot(slot: number): SlotSnapshot {
     knownMoves: [],
     hypotheses: [],
     modifiers: [],
+    setComplete: false,
+    setSource: 'incomplete',
   };
 }
 
