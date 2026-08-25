@@ -540,25 +540,82 @@ function marginalize(
   };
 }
 
-function capJointPairs(pairs: PairScore[], ourIds: string[], cap: number): { kept: PairScore[]; omitted: number } {
+export interface JointPolicyResult {
+  pOur: number[];
+  pTheir: number[];
+  jointProbs: Map<string, number>;
+  diagnostics?: Record<string, unknown>;
+  omittedPairs: number;
+}
+
+export function capJointPairs(
+  pairs: PairScore[],
+  ourIds: string[],
+  theirIds: string[],
+  cap: number,
+): { kept: PairScore[]; omitted: number } {
   if (pairs.length <= cap) return { kept: pairs, omitted: 0 };
   const used = new Set<string>();
   const kept: PairScore[] = [];
   const keyOf = (p: PairScore) => `${p.ourId}\t${p.theirId}`;
+
+  // First reserve at least one best pair per our action
   for (const id of ourIds) {
     const candidates = pairs.filter((p) => p.ourId === id);
     if (!candidates.length) continue;
-    const best = candidates.reduce((a, b) => Math.abs(b.score) > Math.abs(a.score) ? b : a);
+    const best = candidates.reduce((a, b) => (Math.abs(b.score) > Math.abs(a.score) ? b : a));
     kept.push(best);
     used.add(keyOf(best));
   }
-  const rest = pairs.filter((p) => !used.has(keyOf(p))).sort((a, b) => Math.abs(b.score) - Math.abs(a.score));
+
+  // Next reserve at least one best pair per their action
+  for (const id of theirIds) {
+    const candidates = pairs.filter((p) => p.theirId === id && !used.has(keyOf(p)));
+    if (!candidates.length) continue;
+    const best = candidates.reduce((a, b) => (Math.abs(b.score) > Math.abs(a.score) ? b : a));
+    kept.push(best);
+    used.add(keyOf(best));
+  }
+
+  // Fill remaining capacity by absolute score
+  const rest = pairs
+    .filter((p) => !used.has(keyOf(p)))
+    .sort((a, b) => Math.abs(b.score) - Math.abs(a.score));
+
   for (const p of rest) {
     if (kept.length >= cap) break;
     kept.push(p);
     used.add(keyOf(p));
   }
   return { kept, omitted: pairs.length - kept.length };
+}
+
+export async function evaluateJointStatePolicy(
+  obs: BattleObservation,
+  opts?: EvaluateOptions,
+): Promise<JointPolicyResult & { evaluation: RoundEvaluation }> {
+  const ev = await evaluateRound(obs, opts);
+  const ourIds = ev.choices.map((c) => c.action.id);
+  const theirIds = ev.replies.map((r) => r.action.id);
+  const pOur = ev.choices.map((c) => c.probability ?? (ourIds.length ? 1 / ourIds.length : 1));
+  const pTheir = ev.replies.map((r) => r.probability ?? (theirIds.length ? 1 / theirIds.length : 1));
+
+  const jointProbs = new Map<string, number>();
+  for (let i = 0; i < ourIds.length; i++) {
+    for (let j = 0; j < theirIds.length; j++) {
+      jointProbs.set(pairKey(ourIds[i]!, theirIds[j]!), (pOur[i] ?? 0) * (pTheir[j] ?? 0));
+    }
+  }
+
+  const omitted = typeof ev.diagnostics?.omittedPairs === 'number' ? ev.diagnostics.omittedPairs : 0;
+  return {
+    pOur,
+    pTheir,
+    jointProbs,
+    diagnostics: ev.diagnostics,
+    omittedPairs: omitted,
+    evaluation: ev,
+  };
 }
 
 async function refineLoop(
