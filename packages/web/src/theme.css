@@ -513,9 +513,8 @@ a.btn-primary, a.btn-secondary, button.btn-primary, button.btn-secondary, button
   to { background-position: -100% 0; }
 }
 
-.score-strip .choice-track {
-  grid-column: 1 / -1;
-  height: 12px;
+.score-strip .turn-graph {
+  min-height: 96px;
 }
 
 .lab-layout {
