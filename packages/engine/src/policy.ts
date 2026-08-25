@@ -27,6 +27,10 @@ export class QuantumPolicyProcess {
   private proc: ChildProcessWithoutNullStreams | null = null;
   private buf = '';
   private pending: Array<{ resolve: (v: PolicyResponse) => void; reject: (e: Error) => void }> = [];
+  private ready: Promise<void> | null = null;
+  private readyResolve: (() => void) | null = null;
+  private readyReject: ((e: Error) => void) | null = null;
+  private readyTimer: ReturnType<typeof setTimeout> | null = null;
   readonly timeoutMs: number;
   readonly python: string;
   readonly cwd: string;
@@ -39,9 +43,18 @@ export class QuantumPolicyProcess {
 
   start(): void {
     if (this.proc) return;
+    this.ready = new Promise((resolve, reject) => {
+      this.readyResolve = resolve;
+      this.readyReject = reject;
+      this.readyTimer = setTimeout(() => {
+        this.failReady(new Error(`quantum-policy failed to start within ${START_TIMEOUT_MS}ms`));
+      }, START_TIMEOUT_MS);
+    });
+    this.ready.catch(() => undefined);
     const proc = spawn(this.python, ['-m', 'pokeredus_quantum'], {
       cwd: this.cwd,
       stdio: ['pipe', 'pipe', 'pipe'],
+      env: { ...process.env, PYTHONUNBUFFERED: '1' },
     });
     this.proc = proc;
     proc.stdout.setEncoding('utf8');
@@ -58,16 +71,42 @@ export class QuantumPolicyProcess {
     proc.stderr.on('data', (chunk: string) => {
       process.stderr.write(chunk);
     });
-    proc.on('exit', (code) => {
-      const err = new Error(`quantum-policy exited (${code})`);
-      while (this.pending.length) this.pending.shift()!.reject(err);
-      this.proc = null;
+    proc.on('error', (err) => {
+      this.failAll(err instanceof Error ? err : new Error(String(err)));
     });
+    proc.on('exit', (code) => {
+      this.failAll(new Error(`quantum-policy exited (${code})`));
+    });
+  }
+
+  private markReady(): void {
+    if (this.readyTimer) clearTimeout(this.readyTimer);
+    this.readyTimer = null;
+    this.readyResolve?.();
+    this.readyResolve = null;
+    this.readyReject = null;
+  }
+
+  private failReady(err: Error): void {
+    if (this.readyTimer) clearTimeout(this.readyTimer);
+    this.readyTimer = null;
+    this.readyReject?.(err);
+    this.readyResolve = null;
+    this.readyReject = null;
+  }
+
+  private failAll(err: Error): void {
+    this.failReady(err);
+    while (this.pending.length) this.pending.shift()!.reject(err);
+    this.proc = null;
   }
 
   private onLine(line: string): void {
     const waiter = this.pending.shift();
-    if (!waiter) return;
+    if (!waiter) {
+      this.markReady();
+      return;
+    }
     try {
       const parsed = JSON.parse(line) as PolicyResponse;
       if (!Array.isArray(parsed.probabilities)) throw new Error('missing probabilities');
@@ -79,6 +118,7 @@ export class QuantumPolicyProcess {
 
   async decide(req: PolicyRequest): Promise<PolicyResponse> {
     this.start();
+    await this.ready;
     const proc = this.proc;
     if (!proc?.stdin) throw new Error('quantum-policy process is not running');
     return new Promise((resolve, reject) => {
