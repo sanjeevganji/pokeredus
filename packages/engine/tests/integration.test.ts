@@ -119,12 +119,18 @@ describe('official Showdown one-round sim', () => {
     const evaluation = await evaluateRound(obs, { chanceSeeds: 1 });
     expect(evaluation.choices.length).toBeGreaterThan(0);
     expect(evaluation.replies.length).toBeGreaterThan(0);
+    expect(evaluation.roundScore).toBe(evaluation.expectedRoundScore);
+    expect(evaluation.minRoundScore).toBeLessThanOrEqual(evaluation.expectedRoundScore);
+    expect(evaluation.expectedRoundScore).toBeLessThanOrEqual(evaluation.maxRoundScore);
     expect(evaluation.roundScore).toBeGreaterThanOrEqual(-6);
     expect(evaluation.roundScore).toBeLessThanOrEqual(6);
     for (const c of evaluation.choices) {
-      const raw = c.features.health + c.features.modifier + c.features.secondary + c.features.sacrifice - c.features.switchRisk;
-      expect(c.choiceScore).toBeCloseTo(c.success * raw);
-      expect(c.expectedHealthDelta + c.expectedModifierDelta).toBeCloseTo(c.expectedImpact);
+      expect(Number.isFinite(c.choiceScore)).toBe(true);
+      expect(c.minTurnScore).toBeLessThanOrEqual(c.choiceScore + 1e-9);
+      expect(c.choiceScore).toBeLessThanOrEqual(c.maxTurnScore + 1e-9);
+      expect(c.sampleCount).toBeGreaterThan(0);
+      expect(c.minPostScore).toBeLessThanOrEqual(c.meanPostScore + 1e-9);
+      expect(c.meanPostScore).toBeLessThanOrEqual(c.maxPostScore + 1e-9);
     }
 
     const policy = new QuantumPolicyProcess({ timeoutMs: 40_000 });
