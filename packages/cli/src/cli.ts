@@ -179,7 +179,7 @@ async function main(): Promise<void> {
           if (!ev.json.active || ev.json.active.length === 0) return;
           let obs;
           try {
-            obs = tracker.toObservation(pool, ourSets);
+            obs = tracker.toObservation(pool, ourSets, loadSetOverrides());
           } catch (err) {
             console.error('[pokeredus] observation failed:', err);
             hud.patch({ status: 'error', error: err instanceof Error ? err.message : String(err) });

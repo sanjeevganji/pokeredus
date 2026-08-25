@@ -439,6 +439,20 @@ export function gamesApiPlugin(root: string): Plugin {
             sendJson(res, hub.snapshot());
             return;
           }
+          const sets = parseSetsRoute(route);
+          if (sets) {
+            const body = req.method === 'PUT' ? await readJsonBody(req) : {};
+            const out = handleSetsApi({
+              method: req.method ?? 'GET',
+              format: sets.format,
+              species: sets.species,
+              body,
+              overridesPath: hub.setOverridesPath(),
+              facts: hub.factsForSpecies(sets.species),
+            });
+            sendJson(res, out.body, out.status);
+            return;
+          }
           if (req.method !== 'POST') return next();
           const body = await readJsonBody(req);
           if (route === '/api/games/detect' || route === '/api/games/connect') {
