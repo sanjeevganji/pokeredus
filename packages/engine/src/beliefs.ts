@@ -1,3 +1,6 @@
+import type { CanonicalSet, RevealedFacts, SetHypothesis } from './observation.js';
+import type { RandomSetPool } from './pool.js';
+
 export function canonicalizeSet(set: CanonicalSet): string {
   const moves = [...set.moves].map((m) => m.toLowerCase()).sort().join(',');
   return [
