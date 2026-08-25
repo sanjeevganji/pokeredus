@@ -362,7 +362,7 @@ export function modifiersFromSlot(slot: SlotSnapshot, fieldWeather = ''): Modifi
   for (const [stat, stages] of Object.entries(slot.boosts)) {
     if (stat === 'accuracy' || stat === 'evasion') continue;
     if (!stages) continue;
-    mods.push({ name: `boost:${stat}`, multiplier: stageMultiplier(stages), remainingTurns: 6 });
+    mods.push({ name: `boost:${stat}`, multiplier: stageMultiplier(stages), remainingTurns: MODIFIER_TURNS.boost });
   }
   if (slot.status === 'brn') mods.push({ name: 'burn', multiplier: 0.5, remainingTurns: 3 });
   if (slot.status === 'par') mods.push({ name: 'para', multiplier: 0.5, remainingTurns: 3 });
