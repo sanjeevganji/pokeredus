@@ -34,7 +34,7 @@ function fainted(condition: string): boolean {
   return c.includes('fnt') || c.startsWith('0 ');
 }
 
-export function enumerateFromRequest(req: ShowdownRequest | undefined | null): LegalAction[] {
+export function enumerateFromRequest(req: ShowdownRequest | undefined | null, teraUsed = false): LegalAction[] {
   if (!req || req.wait) return [];
   const pokemon = req.side?.pokemon ?? [];
   const force = req.forceSwitch?.[0] === true;
