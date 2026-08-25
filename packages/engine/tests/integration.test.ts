@@ -213,6 +213,7 @@ describe('field fidelity, CTA, and ranges', () => {
     const sw = simulateRound(obs, { id: 'switch:2', type: 'switch', slot: 2 }, splash, [1, 2, 3, 4]);
     const char = sw.afterOurs.find((s) => s.speciesId === 'charizard') ?? sw.afterOurs[1];
     expect(char).toBeTruthy();
+    expect(char!.active).toBe(true);
     expect(char!.hp).toBeLessThan(char!.maxHp);
   });
 
