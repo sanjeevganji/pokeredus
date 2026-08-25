@@ -293,6 +293,7 @@ function meanCell(cell: PairCell): PairCell {
     ourHBefore: cell.ourHBefore * inv,
     ourHAfter: cell.ourHAfter * inv,
     turnScore: cell.turnScore * inv,
+    theirVal: cell.theirVal * inv,
   };
 }
 
