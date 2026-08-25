@@ -97,13 +97,40 @@ function pickReply(ev: RoundEvaluation, rng: () => number): LegalAction {
   return ev.replies.find((r) => r.action.id === id)?.action ?? ev.replies[0]!.action;
 }
 
-export function applySimResult(obs: BattleObservation, afterOurs: SlotSnapshot[], afterTheirs: SlotSnapshot[]): BattleObservation {
+export function applySimResult(
+  obs: BattleObservation,
+  afterOurs: SlotSnapshot[],
+  afterTheirs: SlotSnapshot[],
+  afterField?: FieldSnapshot,
+  chosenAction?: LegalAction,
+  chosenOppAction?: LegalAction,
+): BattleObservation {
+  const teraUsedOurs = obs.teraUsedOurs || Boolean(chosenAction?.tera);
+  const teraUsedTheirs = obs.teraUsedTheirs || Boolean(chosenOppAction?.tera);
+
+  const ours = afterOurs.map((s) => {
+    if (s.active && chosenAction?.tera) {
+      return { ...s, terastallized: true };
+    }
+    return s;
+  });
+
+  const theirs = afterTheirs.map((s) => {
+    if (s.active && chosenOppAction?.tera) {
+      return { ...s, terastallized: true };
+    }
+    return s;
+  });
+
   return {
     ...obs,
     turn: obs.turn + 1,
-    ours: afterOurs,
-    theirs: afterTheirs,
-    legalActions: legalFromSlots(afterOurs),
+    ours,
+    theirs,
+    field: afterField ?? obs.field,
+    teraUsedOurs,
+    teraUsedTheirs,
+    legalActions: legalFromSlots(ours, teraUsedOurs),
   };
 }
 
