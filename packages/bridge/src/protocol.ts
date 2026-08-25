@@ -234,9 +234,9 @@ export function parseLine(raw: string): BattleEvent | null {
     }
 
     case '-fieldstart':
-      return { type: 'fieldstart', side: sideFromPlayer(parts[2] ?? ''), effect: parts[3] ?? '' };
+      return { type: 'fieldstart', effect: parts[2] ?? '' };
     case '-fieldend':
-      return { type: 'fieldend', side: sideFromPlayer(parts[2] ?? ''), effect: parts[3] ?? '' };
+      return { type: 'fieldend', effect: parts[2] ?? '' };
     case '-weather':
       return { type: 'weather', weather: toId(parts[2] ?? '') };
     case '-terrain':
