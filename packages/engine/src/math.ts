@@ -368,3 +368,32 @@ export function modifiersFromSlot(slot: SlotSnapshot, _fieldWeather = ''): Modif
   if (slot.status === 'par') mods.push({ name: 'para', multiplier: 0.5, remainingTurns: MODIFIER_TURNS.para });
   return mods;
 }
+
+/**
+ * Wilson score interval for a binomial proportion at 95% confidence (z = 1.95996).
+ * Returns { low, high } bounded in [0, 1].
+ */
+export function wilsonScoreInterval(successes: number, total: number, z = 1.95996): { low: number; high: number } {
+  if (total <= 0) return { low: 0, high: 0 };
+  const p = clamp(successes / total, 0, 1);
+  const z2 = z * z;
+  const denom = 1 + z2 / total;
+  const center = (p + z2 / (2 * total)) / denom;
+  const margin = (z * Math.sqrt((p * (1 - p) + z2 / (4 * total)) / total)) / denom;
+  return {
+    low: clamp(center - margin, 0, 1),
+    high: clamp(center + margin, 0, 1),
+  };
+}
+
+/** Simple linear congruential generator / mulberry32 for deterministic pseudo-random sequences. */
+export function createSeededRng(seed: number): () => number {
+  let s = Math.floor(seed) >>> 0;
+  return function () {
+    s |= 0;
+    s = (s + 0x6d2b79f5) | 0;
+    let t = Math.imul(s ^ (s >>> 15), 1 | s);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
