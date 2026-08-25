@@ -432,7 +432,7 @@ function assemble(
       return cell ? [{ w: pOur[i] ?? 0, cell }] : [];
     }));
     const flipped = flipFeatures(mixed.features);
-    const raw = finiteOrZero(-mixed.turn);
+    const raw = finiteOrZero(mixed.theirVal);
     const rows = branches.filter((b) => b.reply.id === reply.id);
     const range = rangeFromBranches(rows);
     return {
