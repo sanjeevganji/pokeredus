@@ -788,17 +788,7 @@ function theirSlotFromMon(
     if (compatible(override, facts)) {
       set = override;
       setSource = 'manual';
-      const match = hypotheses.find((h) =>
-        compatible(h.set, {
-          species: facts.species,
-          moves: override.moves,
-          item: override.item,
-          ability: override.ability,
-          level: override.level,
-          teraType: override.teraType,
-        }),
-      );
-      candidateProbability = match?.probability;
+      candidateProbability = undefined;
     } else {
       setWarning = `Assumed set for ${m.speciesId} conflicts with revealed facts; using public candidate`;
       console.error(`[pokeredus] ${setWarning}`);
