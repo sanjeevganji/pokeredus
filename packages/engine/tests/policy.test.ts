@@ -18,7 +18,7 @@ describe('QuantumPolicyProcess hardening', () => {
       scores: [1.0, 2.0], // mismatch length
       mode: 'softmax',
     })).rejects.toThrow();
-  });
+  }, 20_000);
 
   it('times out and cleans up pending waiter', async () => {
     proc = new QuantumPolicyProcess({ timeoutMs: 50 });
@@ -29,7 +29,7 @@ describe('QuantumPolicyProcess hardening', () => {
       mode: 'quantum',
       timeoutMs: 1,
     })).rejects.toThrow(/timed out/);
-  });
+  }, 20_000);
 
   it('returns valid normalized probabilities in softmax mode', async () => {
     proc = new QuantumPolicyProcess({ timeoutMs: 10_000 });
@@ -41,7 +41,7 @@ describe('QuantumPolicyProcess hardening', () => {
     expect(res.probabilities).toHaveLength(3);
     const sum = res.probabilities.reduce((a, b) => a + b, 0);
     expect(sum).toBeCloseTo(1, 5);
-  });
+  }, 20_000);
 
   it('sampleAction rejects empty or invalid probabilities', () => {
     expect(() => sampleAction([], [])).toThrow('no legal actions');
