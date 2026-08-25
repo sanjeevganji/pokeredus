@@ -28,8 +28,6 @@ import {
   observationStateScore,
   pairTurnScore,
   pokemonValue,
-  scoredChoice,
-  scoreExtrema,
   signedLog1p,
   slotToMonValue,
   softmax,
