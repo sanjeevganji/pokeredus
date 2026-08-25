@@ -293,7 +293,7 @@ function ChoiceList({
                   <span>{mark ? '▸ ' : ''}{actionLabel(r.id, slots)}</span>
                   <span className="choice-score">{r.score >= 0 ? '+' : ''}{r.score.toFixed(2)}</span>
                 </div>
-                <ScoreBar score={r.score} maxAbs={maxAbs} parts={r} label={`${actionLabel(r.id, slots)} score`} />
+                <ScoreBar score={r.score} parts={r} label={`${actionLabel(r.id, slots)} score`} />
                 {ours && r.probability != null && (
                   <div
                     className="choice-p"

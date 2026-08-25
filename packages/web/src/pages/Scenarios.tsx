@@ -348,7 +348,6 @@ function RankList({
                 </div>
                 <ScoreBar
                   score={r.choiceScore}
-                  maxAbs={maxAbs}
                   parts={{
                     ourHealth: r.ourHealth ?? 0,
                     theirHealth: r.theirHealth ?? 0,
