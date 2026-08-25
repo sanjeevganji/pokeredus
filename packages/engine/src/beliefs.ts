@@ -33,7 +33,6 @@ export function compatible(set: CanonicalSet, facts: RevealedFacts): boolean {
 export function hypothesesForSpecies(pool: RandomSetPool, species: string): SetHypothesis[] {
   const key = species.toLowerCase().replace(/[^a-z0-9]/g, '');
   const rows = pool.species[key] ?? pool.species[species];
-  dbg({runId:'post-fix',hypothesisId:'C',location:'beliefs.ts:hypothesesForSpecies',message:'pool lookup',data:{species,key,hasKey:!!pool.species[key],hasRaw:!!pool.species[species],rowCount:rows?.length??0,speciesCount:Object.keys(pool.species).length,hasToxapex:!!pool.species.toxapex,garchompItems:(pool.species.garchomp??[]).map((r)=>({item:r.set.item,count:r.count}))}});
   if (!rows || !rows.length) {
     throw new Error(`random-set pool has no hypotheses for ${species}`);
   }
