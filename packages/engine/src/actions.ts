@@ -42,9 +42,18 @@ export function enumerateFromRequest(req: ShowdownRequest | undefined | null): L
   const actions: LegalAction[] = [];
 
   if (!force && req.active?.[0]) {
+    const canTera = !teraUsed && Boolean(req.active[0].canTerastallize);
     for (const mv of req.active[0].moves ?? []) {
       if (!mv?.id || mv.disabled || mv.pp <= 0) continue;
       actions.push({ id: actionId({ type: 'move', moveId: mv.id }), type: 'move', moveId: mv.id, tera: false });
+      if (canTera) {
+        actions.push({
+          id: actionId({ type: 'move', moveId: mv.id, tera: true }),
+          type: 'move',
+          moveId: mv.id,
+          tera: true,
+        });
+      }
     }
   }
 
