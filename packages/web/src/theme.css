@@ -456,6 +456,7 @@ a.btn-primary, a.btn-secondary, button.btn-primary, button.btn-secondary, button
   margin-top: 4px;
   overflow: hidden;
 }
+.choice-track.bipolar { overflow: visible; }
 .choice-p { height: 4px; }
 .choice-fill, .choice-p-fill { height: 100%; border-radius: 2px; }
 .choice-p-fill { background: var(--neon-green); }
