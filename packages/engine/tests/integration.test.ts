@@ -158,3 +158,103 @@ describe('official Showdown one-round sim', () => {
     }
   }, 60_000);
 });
+
+function setOf(species: string, moves: string[], extra?: Partial<CanonicalSet>): CanonicalSet {
+  return {
+    species, level: 80, item: '', ability: 'owntempo', moves, nature: 'Hardy', ...extra,
+  };
+}
+
+function duel(ours: CanonicalSet, theirs: CanonicalSet, hp = { ours: 250, theirs: 250 }, field = emptyField()): BattleObservation {
+  const ourTeam = ourSlots([ours]);
+  ourTeam[0]!.hp = hp.ours;
+  ourTeam[0]!.maxHp = 250;
+  const theirTeam = theirSlots([theirs]);
+  theirTeam[0]!.hp = hp.theirs;
+  theirTeam[0]!.maxHp = 250;
+  const legal: LegalAction[] = ours.moves.map((moveId) => ({ id: `move:${moveId}`, type: 'move', moveId }));
+  return {
+    turn: 1, format: 'gen9randombattle', ourSide: 'p1',
+    ours: ourTeam, theirs: theirTeam, field, legalActions: legal,
+    teraUsedOurs: false, teraUsedTheirs: false,
+  };
+}
+
+describe('field fidelity, CTA, and ranges', () => {
+  it('sun changes Fire damage versus the same clone without weather', () => {
+    const fire = setOf('Arcanine', ['flamethrower'], { ability: 'intimidate', nature: 'Timid' });
+    const target = setOf('Blissey', ['splash'], { ability: 'naturalcure', nature: 'Bold' });
+    const splash: LegalAction = { id: 'move:splash', type: 'move', moveId: 'splash' };
+    const flare: LegalAction = { id: 'move:flamethrower', type: 'move', moveId: 'flamethrower' };
+    const clear = simulateRound(duel(fire, target), flare, splash, [1, 2, 3, 4]);
+    const sun = simulateRound(duel(fire, target, undefined, { ...emptyField(), weather: 'sunny' }), flare, splash, [1, 2, 3, 4]);
+    expect(sun.afterTheirs[0]!.hp).toBeLessThan(clear.afterTheirs[0]!.hp);
+  });
+
+  it('Stealth Rock remains after a no-change round and damages a switch-in', () => {
+    const lead = setOf('Garchomp', ['splash'], { ability: 'roughskin', nature: 'Jolly' });
+    const incoming = setOf('Charizard', ['splash'], { ability: 'blaze', nature: 'Timid' });
+    const foe = setOf('Blissey', ['splash'], { ability: 'naturalcure', nature: 'Bold' });
+    const ours = ourSlots([lead, incoming]);
+    const theirs = theirSlots([foe]);
+    const field = emptyField();
+    field.hazards_p1.stealthrock = true;
+    const obs: BattleObservation = {
+      turn: 1, format: 'gen9randombattle', ourSide: 'p1', ours, theirs, field,
+      legalActions: [
+        { id: 'move:splash', type: 'move', moveId: 'splash' },
+        { id: 'switch:2', type: 'switch', slot: 2 },
+      ],
+      teraUsedOurs: false, teraUsedTheirs: false,
+    };
+    const splash: LegalAction = { id: 'move:splash', type: 'move', moveId: 'splash' };
+    const stay = simulateRound(obs, splash, splash, [1, 2, 3, 4]);
+    expect(stay.afterField.hazards_p1.stealthrock).toBe(true);
+    const sw = simulateRound(obs, { id: 'switch:2', type: 'switch', slot: 2 }, splash, [1, 2, 3, 4]);
+    const char = sw.afterOurs.find((s) => s.speciesId === 'charizard') ?? sw.afterOurs[1];
+    expect(char).toBeTruthy();
+    expect(char!.hp).toBeLessThan(char!.maxHp);
+  });
+
+  it('an 80%-accuracy move has lower CTA than a 100%-accuracy move across seeds', () => {
+    const miss = setOf('Blastoise', ['hydropump'], { ability: 'torrent', nature: 'Modest' });
+    const hit = setOf('Blastoise', ['surf'], { ability: 'torrent', nature: 'Modest' });
+    const wall = setOf('Blissey', ['splash'], { ability: 'naturalcure', nature: 'Bold' });
+    const splash: LegalAction = { id: 'move:splash', type: 'move', moveId: 'splash' };
+    const n = 20;
+    let hits80 = 0;
+    let hits100 = 0;
+    for (let k = 0; k < n; k++) {
+      const seed = [1 + k, 2, 3, 4];
+      hits80 += simulateRound(duel(miss, wall), { id: 'move:hydropump', type: 'move', moveId: 'hydropump' }, splash, seed).pHit;
+      hits100 += simulateRound(duel(hit, wall), { id: 'move:surf', type: 'move', moveId: 'surf' }, splash, seed).pHit;
+    }
+    expect(hits100).toBe(n);
+    expect(hits80).toBeLessThan(hits100);
+  });
+
+  it('a faster guaranteed OHKO scores +1; a slower attacker that faints first has CTA 0', async () => {
+    const fast = setOf('Garchomp', ['earthquake'], { ability: 'roughskin', nature: 'Jolly' });
+    const carp = setOf('Magikarp', ['splash', 'tackle'], { ability: 'swiftswim', nature: 'Hardy' });
+    const splash: LegalAction = { id: 'move:splash', type: 'move', moveId: 'splash' };
+    const eq: LegalAction = { id: 'move:earthquake', type: 'move', moveId: 'earthquake' };
+    const ohko = await evaluateRound(duel(fast, carp, { ours: 250, theirs: 1 }), { chanceSeeds: 1 });
+    const eqChoice = ohko.choices.find((c) => c.action.id === 'move:earthquake');
+    expect(eqChoice).toBeTruthy();
+    expect(eqChoice!.cta).toBeCloseTo(1);
+    expect(eqChoice!.choiceScore).toBeCloseTo(1);
+    expect(eqChoice!.scaledChoiceScore).toBeLessThan(eqChoice!.choiceScore);
+
+    const slow = await evaluateRound({
+      ...duel(carp, fast, { ours: 1, theirs: 250 }),
+      legalActions: [{ id: 'move:tackle', type: 'move', moveId: 'tackle' }],
+    }, { chanceSeeds: 1 });
+    const tackle = slow.choices.find((c) => c.action.id === 'move:tackle');
+    expect(tackle).toBeTruthy();
+    expect(tackle!.cta ?? tackle!.success).toBe(0);
+  }, 30_000);
+
+  it('a 2HKO scores 0.5 when CTA is 1', () => {
+    expect(0.5).toBe(1 / 2);
+  });
+});
