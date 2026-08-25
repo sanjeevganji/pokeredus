@@ -96,17 +96,24 @@ export class QuantumPolicyProcess {
   }
 
   private failAll(err: Error): void {
+    const proc = this.proc;
+    this.proc = null;
     this.failReady(err);
     while (this.pending.length) this.pending.shift()!.reject(err);
-    this.proc = null;
+    if (proc && !proc.killed) proc.kill();
   }
 
   private onLine(line: string): void {
-    const waiter = this.pending.shift();
-    if (!waiter) {
-      this.markReady();
+    if (!this.pending.length) {
+      try {
+        const msg = JSON.parse(line) as { ready?: unknown };
+        if (msg && msg.ready) this.markReady();
+      } catch {
+        /* ignore stdout noise before handshake */
+      }
       return;
     }
+    const waiter = this.pending.shift()!;
     try {
       const parsed = JSON.parse(line) as PolicyResponse;
       if (!Array.isArray(parsed.probabilities)) throw new Error('missing probabilities');
