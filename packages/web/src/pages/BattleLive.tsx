@@ -447,7 +447,9 @@ function SetDrawer({
     const focusable = () => [...panel.querySelectorAll<HTMLElement>(
       'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
     )].filter((el) => !el.hasAttribute('disabled') && el.tabIndex !== -1);
-    focusable()[0]?.focus();
+    const nodes = focusable();
+    const firstField = nodes.find((el) => el.tagName === 'SELECT' || el.tagName === 'INPUT') ?? nodes[0];
+    firstField?.focus();
     function onKey(e: KeyboardEvent) {
       if (e.key === 'Escape') {
         e.preventDefault();
