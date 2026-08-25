@@ -97,6 +97,10 @@ export default function BattleLive() {
       </header>
 
       {live.error && <p className="theater-alert theater-alert-error" role="alert">{live.error}</p>}
+      {live.warnings?.map((w) => <p key={w} className="theater-alert theater-alert-error" role="alert">{w}</p>)}
+      {(live.ours ?? []).concat(live.theirs ?? []).some((s) => s.revealed && s.setComplete === false) && (
+        <p className="theater-alert" role="status">Incomplete assumptions — one or more revealed Pokémon has no full set.</p>
+      )}
       {live.winner && <p className="theater-alert theater-alert-win" role="status">{live.winner} wins</p>}
       {saveMsg && <p className="theater-alert" role="status">{saveMsg} {saveMsg.startsWith('Saved') && <Link to="/scenarios">Open lab</Link>}</p>}
 
