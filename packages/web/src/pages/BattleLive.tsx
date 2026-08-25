@@ -419,7 +419,7 @@ function SetDrawer({
   const panelRef = useRef<HTMLDivElement>(null);
   const [catalog, setCatalog] = useState<SetCatalog | null>(null);
   const [form, setForm] = useState<SetForm>(() => formFromSet(slot.assumedSet ?? {
-    species: slot.speciesId, level: slot.level ?? 80, item: slot.item ?? '', ability: slot.ability ?? '',
+    species: slot.speciesId, level: slot.level ?? 0, item: slot.item ?? '', ability: slot.ability ?? '',
     moves: slot.knownMoves ?? [], nature: '', teraType: slot.teraType,
   }));
   const [pick, setPick] = useState('');
