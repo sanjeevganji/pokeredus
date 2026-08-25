@@ -129,3 +129,46 @@ describe('signedLog1p', () => {
     expect(clamp(-10, -6, 6)).toBe(-6);
   });
 });
+
+describe('score contract helpers', () => {
+  it('OHKO with CTA 1 scores +1', () => {
+    expect(expectedTtk(1, 1)).toBe(1);
+    expect(damageScore(1, 1)).toBe(1);
+  });
+
+  it('2HKO with CTA 1 scores 0.5', () => {
+    expect(expectedTtk(1, 0.5)).toBe(2);
+    expect(damageScore(1, 2)).toBe(0.5);
+  });
+
+  it('empty or no-damage branches are finite 0', () => {
+    expect(damageScore(1, null)).toBe(0);
+    expect(damageScore(0, 1)).toBe(0);
+    expect(expectedTtk(1, 0)).toBeNull();
+    expect(pairTurnScore(Number.NaN, 1)).toBe(0);
+  });
+
+  it('healing excludes overheal', () => {
+    expect(effectiveHeal(80, 120, 100)).toBeCloseTo(0.2);
+    expect(effectiveHeal(100, 100, 100)).toBe(0);
+    expect(effectiveHeal(40, 70, 100)).toBeCloseTo(0.3);
+  });
+
+  it('modifier duration and sign', () => {
+    const up = modifierValue([{ name: 'boost:atk', multiplier: 1.5, remainingTurns: 6 }]);
+    const down = modifierValue([{ name: 'boost:atk', multiplier: 2 / 3, remainingTurns: 6 }]);
+    const short = modifierValue([{ name: 'boost:atk', multiplier: 1.5, remainingTurns: 1 }]);
+    expect(up).toBeGreaterThan(0);
+    expect(down).toBeLessThan(0);
+    expect(up).toBeGreaterThan(short);
+    expect(modifierDelta(
+      [{ name: 'boost:atk', multiplier: 1, remainingTurns: 6 }],
+      [{ name: 'boost:atk', multiplier: 1.5, remainingTurns: 6 }],
+    )).toBeGreaterThan(0);
+  });
+
+  it('switch formula subtracts opponent action from state delta', () => {
+    expect(switchScore(1, 0, 0.3)).toBeCloseTo(0.7);
+    expect(switchScore(0, 0, 0)).toBe(0);
+  });
+});
