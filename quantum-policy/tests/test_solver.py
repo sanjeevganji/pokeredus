@@ -66,5 +66,31 @@ class TestBenchmark(unittest.TestCase):
         self.assertAlmostEqual(sum(qp), 1.0, places=6)
 
 
+class TestServerHandshake(unittest.TestCase):
+    def test_ready_then_softmax(self):
+        import json
+        import subprocess
+        root = os.path.join(os.path.dirname(__file__), "..")
+        proc = subprocess.Popen(
+            [sys.executable, "-m", "pokeredus_quantum"],
+            cwd=root,
+            stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+        try:
+            line = proc.stdout.readline()
+            self.assertTrue(json.loads(line).get("ready"))
+            proc.stdin.write(json.dumps({"actions": ["a", "b"], "scores": [0.0, 0.0], "mode": "softmax"}) + "\n")
+            proc.stdin.flush()
+            out = json.loads(proc.stdout.readline())
+            self.assertEqual(len(out["probabilities"]), 2)
+            self.assertAlmostEqual(sum(out["probabilities"]), 1.0)
+        finally:
+            proc.kill()
+            proc.wait(timeout=5)
+
+
 if __name__ == "__main__":
     unittest.main()
