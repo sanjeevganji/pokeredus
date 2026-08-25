@@ -334,7 +334,10 @@ a.btn-primary, a.btn-secondary, button.btn-primary, button.btn-secondary, button
   stroke-width: 1.2;
   stroke-linejoin: round;
   stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
 }
+
+.turn-graph-grid, .turn-graph-zero { vector-effect: non-scaling-stroke; }
 
 .turn-graph-dot { fill: var(--fg-primary); }
 .turn-graph-dot-now { fill: var(--neon-cyan); }
