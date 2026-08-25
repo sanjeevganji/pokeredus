@@ -148,7 +148,6 @@ export class QuantumPolicyProcess {
   }
 
   close(): void {
-    this.proc?.kill();
     this.failAll(new Error('quantum-policy closed'));
   }
 }
