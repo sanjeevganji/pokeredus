@@ -227,6 +227,7 @@ interface PairCell {
   ourHBefore: number;
   ourHAfter: number;
   turnScore: number;
+  theirVal: number;
 }
 
 interface Branch {
