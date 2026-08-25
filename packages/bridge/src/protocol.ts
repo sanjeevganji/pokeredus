@@ -371,6 +371,11 @@ interface TrackedMon {
   boosts: BoostState;
   pp: Record<string, number>;
   lastMove?: string;
+  revealedMoves: string[];
+  item?: string;
+  ability?: string;
+  level?: number;
+  teraType?: string;
   choiceLock?: string;
   tauntTurns: number;
   fainted: boolean;
