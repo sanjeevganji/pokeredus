@@ -8,22 +8,13 @@ import {
   defaultLiveStatePath,
 } from '../../bridge/src/live-state';
 import { BattleTracker } from '../../bridge/src/protocol';
-import {
-  DEFAULT_WEIGHTS,
-  defaultPoolPath,
-  elasticUpdate,
-  estimateWinrate,
-  evaluateRound,
-  loadPool,
-  loadWeights,
-  playTurn,
-  QuantumPolicyProcess,
-  resetWeights,
-  saveWeights,
-  type BattleObservation,
-  type RoundEvaluation,
-  type ScoreWeights,
-} from '../../engine/src/index';
+import type { BattleObservation, RoundEvaluation } from '../../engine/src/observation';
+import { DEFAULT_WEIGHTS, type ScoreWeights } from '../../engine/src/math';
+import { defaultPoolPath, loadPool } from '../../engine/src/pool';
+import { evaluateRound } from '../../engine/src/evaluate';
+import { QuantumPolicyProcess } from '../../engine/src/policy';
+import { estimateWinrate, playTurn } from '../../engine/src/scenario';
+import { elasticUpdate, loadWeights, resetWeights, saveWeights } from '../../engine/src/weights';
 
 export interface SavedScenario {
   id: string;
