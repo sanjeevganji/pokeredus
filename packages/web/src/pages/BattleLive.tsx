@@ -1,18 +1,24 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
+  deleteSpeciesSet,
   detachGame,
+  formatFromRoom,
   getLiveState,
+  getSpeciesSets,
+  putSpeciesSet,
+  type CanonicalSet,
   type LiveChoice,
   type LiveQuantum,
   type LiveReply,
   type LiveSlot,
   type LiveState,
   type LiveTurn,
+  type SetCatalog,
 } from '../lib/games';
 import { importScenario } from '../lib/scenarios';
 import { ScoreBar } from '../components/ScoreBar';
-import { Bench, FieldBadges, actionLabel, hkoLabel } from '../components/theater';
+import { Bench, FieldBadges, actionLabel, hkoLabel, prettySpecies } from '../components/theater';
 
 export default function BattleLive() {
   const navigate = useNavigate();
