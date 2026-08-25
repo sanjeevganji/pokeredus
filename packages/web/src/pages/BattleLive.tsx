@@ -433,7 +433,7 @@ function SetDrawer({
     getSpeciesSets(format, slot.speciesId).then((c) => {
       if (!alive) return;
       setCatalog(c);
-      const start = c.override ?? c.candidates.find((r) => r.compatible)?.set ?? c.candidates[0]?.set ?? slot.assumedSet;
+      const start = c.override ?? slot.assumedSet ?? c.candidates.find((r) => r.compatible)?.set ?? c.candidates[0]?.set;
       if (start) setForm(formFromSet(start));
     }).catch((err) => {
       if (alive) setServerError(err instanceof Error ? err.message : String(err));
