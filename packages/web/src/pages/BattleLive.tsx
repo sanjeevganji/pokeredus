@@ -375,3 +375,251 @@ function formatEvents(events?: { ts: string; text: string }[]): string {
     return clock ? `${clock}  ${e.text}` : e.text;
   }).join('\n');
 }
+
+type SetForm = {
+  level: string;
+  item: string;
+  ability: string;
+  nature: string;
+  teraType: string;
+  moves: [string, string, string, string];
+};
+
+function formFromSet(set: CanonicalSet): SetForm {
+  return {
+    level: String(set.level ?? ''),
+    item: set.item ?? '',
+    ability: set.ability ?? '',
+    nature: set.nature ?? '',
+    teraType: set.teraType ?? '',
+    moves: [set.moves[0] ?? '', set.moves[1] ?? '', set.moves[2] ?? '', set.moves[3] ?? ''],
+  };
+}
+
+function formErrors(form: SetForm): Record<string, string> {
+  const err: Record<string, string> = {};
+  const level = Number(form.level);
+  if (!Number.isFinite(level) || level < 1 || level > 100) err.level = 'Level must be 1–100.';
+  if (!form.ability.trim()) err.ability = 'Ability is required.';
+  if (!form.nature.trim()) err.nature = 'Nature is required.';
+  const moves = form.moves.map((m) => m.trim()).filter(Boolean);
+  if (moves.length < 1 || moves.length > 4) err.moves = 'Enter 1–4 moves.';
+  return err;
+}
+
+function SetDrawer({
+  slot, format, opener, onClose, onSaved,
+}: {
+  slot: LiveSlot;
+  format: string;
+  opener: HTMLElement;
+  onClose: () => void;
+  onSaved: (msg: string) => void;
+}) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [catalog, setCatalog] = useState<SetCatalog | null>(null);
+  const [form, setForm] = useState<SetForm>(() => formFromSet(slot.assumedSet ?? {
+    species: slot.speciesId, level: slot.level ?? 80, item: slot.item ?? '', ability: slot.ability ?? '',
+    moves: slot.knownMoves ?? [], nature: '', teraType: slot.teraType,
+  }));
+  const [pick, setPick] = useState('');
+  const [touched, setTouched] = useState<Record<string, boolean>>({});
+  const [serverError, setServerError] = useState('');
+  const [busy, setBusy] = useState('');
+  const errors = formErrors(form);
+
+  useEffect(() => {
+    let alive = true;
+    getSpeciesSets(format, slot.speciesId).then((c) => {
+      if (!alive) return;
+      setCatalog(c);
+      const start = c.override ?? c.candidates.find((r) => r.compatible)?.set ?? c.candidates[0]?.set ?? slot.assumedSet;
+      if (start) setForm(formFromSet(start));
+    }).catch((err) => {
+      if (alive) setServerError(err instanceof Error ? err.message : String(err));
+    });
+    return () => { alive = false; };
+  }, [format, slot.speciesId, slot.assumedSet]);
+
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!panel) return;
+    const focusable = () => [...panel.querySelectorAll<HTMLElement>(
+      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+    )].filter((el) => !el.hasAttribute('disabled') && el.tabIndex !== -1);
+    focusable()[0]?.focus();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const els = focusable();
+      if (!els.length) return;
+      const i = els.indexOf(document.activeElement as HTMLElement);
+      if (e.shiftKey && i <= 0) {
+        e.preventDefault();
+        els[els.length - 1]!.focus();
+      } else if (!e.shiftKey && i === els.length - 1) {
+        e.preventDefault();
+        els[0]!.focus();
+      }
+    }
+    panel.addEventListener('keydown', onKey);
+    return () => {
+      panel.removeEventListener('keydown', onKey);
+      opener.focus();
+    };
+  }, [onClose, opener]);
+
+  function blur(field: string) {
+    setTouched((t) => ({ ...t, [field]: true }));
+  }
+
+  function applyCandidate(i: string) {
+    setPick(i);
+    const row = catalog?.candidates[Number(i)];
+    if (row) setForm(formFromSet(row.set));
+  }
+
+  async function save() {
+    const err = formErrors(form);
+    if (Object.keys(err).length) {
+      setTouched({ level: true, ability: true, nature: true, moves: true });
+      return;
+    }
+    setBusy('save');
+    setServerError('');
+    try {
+      const moves = form.moves.map((m) => m.trim()).filter(Boolean);
+      await putSpeciesSet(format, slot.speciesId, {
+        species: slot.assumedSet?.species || catalog?.override?.species || prettySpecies(slot.speciesId),
+        level: Number(form.level),
+        item: form.item,
+        ability: form.ability.trim(),
+        moves,
+        nature: form.nature.trim(),
+        teraType: form.teraType.trim() || undefined,
+      });
+      onSaved(`Saved assumed set for ${prettySpecies(slot.speciesId)}`);
+    } catch (err) {
+      setServerError(err instanceof Error ? err.message : String(err));
+    }
+    setBusy('');
+  }
+
+  async function reset() {
+    setBusy('reset');
+    setServerError('');
+    try {
+      await deleteSpeciesSet(format, slot.speciesId);
+      onSaved(`Reset ${prettySpecies(slot.speciesId)} to public candidate`);
+    } catch (err) {
+      setServerError(err instanceof Error ? err.message : String(err));
+    }
+    setBusy('');
+  }
+
+  const facts = [
+    slot.level != null ? `Lv ${slot.level}` : null,
+    slot.item || null,
+    slot.ability || null,
+    slot.teraType ? `Tera ${slot.teraType}` : null,
+    ...(slot.knownMoves ?? []),
+  ].filter(Boolean) as string[];
+
+  return (
+    <div className="set-drawer-root">
+      <div className="set-drawer-scrim" aria-hidden="true" />
+      <div
+        ref={panelRef}
+        className="set-drawer"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="set-drawer-title"
+      >
+        <header className="set-drawer-head">
+          <h2 id="set-drawer-title">Assumed set · {prettySpecies(slot.speciesId)}</h2>
+          <button type="button" className="set-drawer-x" aria-label="Close" onClick={onClose}>X</button>
+        </header>
+        <p className="muted set-drawer-species">Species is locked to the revealed Pokémon.</p>
+
+        <section className="set-facts">
+          <h3>Revealed</h3>
+          {facts.length ? (
+            <ul>{facts.map((f) => <li key={f}>{f}</li>)}</ul>
+          ) : (
+            <p className="muted">No item, ability, or moves revealed yet.</p>
+          )}
+        </section>
+
+        <label>
+          Public candidate
+          <select value={pick} onChange={(e) => applyCandidate(e.target.value)}>
+            <option value="">Custom / current</option>
+            {(catalog?.candidates ?? []).map((c, i) => (
+              <option key={i} value={String(i)}>
+                {c.set.item || '(no item)'} · {(c.probability * 100).toFixed(0)}% of pool{c.compatible ? '' : ' · incompatible'}
+              </option>
+            ))}
+          </select>
+        </label>
+        <p className="dim">Pool frequency is not confidence. Selecting a candidate fills the form; Save applies it.</p>
+
+        <label>
+          Level
+          <input value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })} onBlur={() => blur('level')} />
+        </label>
+        {touched.level && errors.level && <p className="set-field-error">{errors.level}</p>}
+
+        <label>
+          Item
+          <input value={form.item} onChange={(e) => setForm({ ...form, item: e.target.value })} />
+        </label>
+        <label>
+          Ability
+          <input value={form.ability} onChange={(e) => setForm({ ...form, ability: e.target.value })} onBlur={() => blur('ability')} />
+        </label>
+        {touched.ability && errors.ability && <p className="set-field-error">{errors.ability}</p>}
+        <label>
+          Nature
+          <input value={form.nature} onChange={(e) => setForm({ ...form, nature: e.target.value })} onBlur={() => blur('nature')} />
+        </label>
+        {touched.nature && errors.nature && <p className="set-field-error">{errors.nature}</p>}
+        <label>
+          Tera type
+          <input value={form.teraType} onChange={(e) => setForm({ ...form, teraType: e.target.value })} />
+        </label>
+        <fieldset className="set-moves">
+          <legend>Moves</legend>
+          {form.moves.map((m, i) => (
+            <input
+              key={i}
+              aria-label={`Move ${i + 1}`}
+              value={m}
+              onChange={(e) => {
+                const moves = [...form.moves] as SetForm['moves'];
+                moves[i] = e.target.value;
+                setForm({ ...form, moves });
+              }}
+              onBlur={() => blur('moves')}
+            />
+          ))}
+        </fieldset>
+        {touched.moves && errors.moves && <p className="set-field-error">{errors.moves}</p>}
+        {serverError && <p className="set-field-error" role="alert">{serverError}</p>}
+
+        <div className="set-drawer-actions">
+          <button type="button" className="btn-primary" onClick={save} disabled={Boolean(busy)}>
+            {busy === 'save' ? 'Saving…' : 'Save assumed set'}
+          </button>
+          <button type="button" className="btn-secondary" onClick={reset} disabled={Boolean(busy)}>
+            {busy === 'reset' ? 'Resetting…' : 'Reset to public candidate'}
+          </button>
+          <button type="button" className="btn-secondary" onClick={onClose}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
