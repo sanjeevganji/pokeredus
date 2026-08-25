@@ -65,12 +65,26 @@ describe('impact and choice/round', () => {
     const parts = impactParts(before, after);
     expect(parts.total).toBe(impact(before, after));
     expect(parts.health).toBeCloseTo(0.6);
-    expect(parts.modifier).toBeGreaterThan(0);
+    expect(parts.modifier).toBeCloseTo(0.5 * Math.tanh(0.2));
     expect(parts.health + parts.modifier).toBeCloseTo(parts.total);
     expect(parts.ourHealth).toBeCloseTo(0);
     expect(parts.theirHealth).toBeCloseTo(-0.6);
-    expect(parts.ourModifier).toBeGreaterThan(0);
+    expect(parts.ourModifier).toBeCloseTo(0.5 * Math.tanh(0.2));
     expect(parts.theirModifier).toBeCloseTo(0);
+  });
+
+  it('damage heal and modifier deltas are scaled to 1', () => {
+    const ko = impactParts([mon('ours', 1), mon('theirs', 1)], [mon('ours', 1), mon('theirs', 0)]);
+    expect(ko.theirHealth).toBeCloseTo(-1);
+    expect(ko.health).toBeCloseTo(1);
+    expect(ko.total).toBeCloseTo(1);
+    const boost = impactParts(
+      [mon('ours', 1, 1, 0), mon('theirs', 1)],
+      [mon('ours', 1, 1, 80), mon('theirs', 1)],
+    );
+    expect(boost.ourModifier).toBeCloseTo(0.5);
+    expect(Math.abs(boost.ourModifier)).toBeLessThanOrEqual(1);
+    expect(Math.abs(boost.ourHealth)).toBeLessThanOrEqual(1);
   });
 
   it('hitsToKill is ceil of remaining over expected damage', () => {
