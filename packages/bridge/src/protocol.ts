@@ -663,7 +663,7 @@ export class BattleTracker {
     const legalActions = enumerateFromRequest(this.lastRequest ?? undefined, this.teraUsedOurs);
     return {
       turn: this.turn,
-      format: 'gen9randombattle',
+      format,
       ourSide: this.ourSide,
       ours,
       theirs,
