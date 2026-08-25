@@ -301,9 +301,15 @@ function snapshotField(battle: AnyBattle, prev: FieldSnapshot): FieldSnapshot {
   };
 }
 
+function speciesIdOf(p: AnyPokemon): string {
+  return String(p.species?.id ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 function snapshotSide(mons: AnyPokemon[], prev: SlotSnapshot[], weather: string): SlotSnapshot[] {
+  const used = new Set<AnyPokemon>();
   return prev.map((slot, i) => {
-    const p = mons[i];
+    const p = mons.find((m) => !used.has(m) && speciesIdOf(m) === slot.speciesId) ?? mons[i];
+    if (p) used.add(p);
     if (!p) return { ...slot, modifiers: modifiersFromSlot(slot, weather) };
     const fainted = Boolean(p.fainted) || p.hp <= 0;
     const next: SlotSnapshot = {
