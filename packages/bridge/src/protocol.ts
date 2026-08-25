@@ -388,7 +388,8 @@ export class BattleTracker {
   myMons: Map<string, TrackedMon> = new Map();
   oppMons: Map<string, TrackedMon> = new Map();
   field: TrackerField = trackerEmptyField();
-  teraUsed = false;
+  teraUsedOurs = false;
+  teraUsedTheirs = false;
   lastRequest: RequestJson | null = null;
 
   private monsFor(side: PlayerSide): Map<string, TrackedMon> {
