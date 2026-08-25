@@ -10,29 +10,36 @@ import type {
   SetHypothesis,
   SlotSnapshot,
 } from './observation.js';
-import { actionId } from './observation.js';
+import { actionId, observationTera } from './observation.js';
 import {
   choiceFeatures,
   cta,
-  cts,
   DEFAULT_WEIGHTS,
+  damageScore,
+  effectiveHeal,
   emptyImpactParts,
+  expectedTtk,
+  finiteOrZero,
   hitsToKill,
   impactParts,
   mateFromForced,
+  modifierDelta,
+  modifiersFromSlot,
   observationStateScore,
+  pairTurnScore,
   pokemonValue,
-  roundScore,
   scoredChoice,
-  secondaryDelta,
+  scoreExtrema,
   signedLog1p,
   slotToMonValue,
   softmax,
+  switchScore,
+  weightedMean,
   type ChoiceFeatures,
   type ImpactParts,
   type ScoreWeights,
 } from './math.js';
-import { simulateRound } from './sim.js';
+import { simulateRound, type ActionEffect, type ActionTelemetry, type RoundSimResult } from './sim.js';
 import { enumerateFromRequest, type ShowdownRequest } from './actions.js';
 import type { QuantumPolicyProcess } from './policy.js';
 
@@ -42,7 +49,6 @@ const JOINT_CAP = 32;
 
 export interface EvaluateOptions {
   chanceSeeds?: number;
-  theirTera?: boolean;
   weights?: ScoreWeights;
   refine?: QuantumPolicyProcess;
   policy?: PolicyMode;
@@ -59,12 +65,16 @@ function valuesOf(ours: SlotSnapshot[], theirs: SlotSnapshot[]) {
   ];
 }
 
-export function theirActions(obs: BattleObservation, hyp: CanonicalSet | undefined, tera = false): LegalAction[] {
+export function theirActions(obs: BattleObservation, hyp: CanonicalSet | undefined): LegalAction[] {
   const active = obs.theirs.find((s) => s.active) ?? obs.theirs[0];
   const moves = hyp?.moves ?? active?.knownMoves ?? [];
+  const canTera = !observationTera(obs).theirs && Boolean(hyp?.teraType);
   const out: LegalAction[] = [];
   for (const moveId of moves) {
-    out.push({ id: actionId({ type: 'move', moveId, tera }), type: 'move', moveId, tera });
+    out.push({ id: actionId({ type: 'move', moveId, tera: false }), type: 'move', moveId, tera: false });
+    if (canTera) {
+      out.push({ id: actionId({ type: 'move', moveId, tera: true }), type: 'move', moveId, tera: true });
+    }
   }
   for (const slot of obs.theirs) {
     if (slot.active || slot.fainted || !slot.revealed) continue;
@@ -85,34 +95,112 @@ function activeIndex(slots: SlotSnapshot[]): number {
   return i >= 0 ? i : 0;
 }
 
-function switchStayScores(obs: BattleObservation, action: LegalAction): { stay: number; after: number } {
-  const stay = observationStateScore(obs.ours, obs.theirs);
-  if (action.type !== 'switch' || action.slot === undefined) return { stay, after: stay };
-  const ours = obs.ours.map((s) => ({ ...s, active: false }));
-  const incoming = ours[(action.slot ?? 1) - 1];
-  const outgoing = ours.find((s) => obs.ours[s.slot]?.active) ?? ours.find((s) => s.active);
-  if (!incoming) return { stay, after: stay };
-  for (const s of ours) s.active = s.slot === incoming.slot;
-  if (outgoing) {
-    const tmpHp = incoming.hp;
-    incoming.hp = outgoing.hp;
-    incoming.maxHp = outgoing.maxHp;
-    incoming.fainted = outgoing.fainted;
-    outgoing.hp = tmpHp;
-  }
-  return { stay, after: observationStateScore(ours, obs.theirs) };
+function fracFromEffect(e: ActionEffect): number {
+  if (!(e.maxHp && e.maxHp > 0) || e.hpBefore == null || e.hpAfter == null) return 0;
+  return (e.hpBefore - e.hpAfter) / e.maxHp;
 }
 
-export function withOurTera(obs: BattleObservation): BattleObservation {
-  const base = obs.legalActions.length ? obs.legalActions : enumerateFromRequest(obs.request as ShowdownRequest);
-  const moves = base.filter((a) => a.type === 'move' && !a.tera);
-  const rest = base.filter((a) => a.type !== 'move');
-  const teraMoves = moves.map((a) => ({
-    ...a,
-    tera: true,
-    id: actionId({ type: 'move', moveId: a.moveId, tera: true }),
-  }));
-  return { ...obs, legalActions: [...teraMoves, ...rest] };
+function actorValue(tel: ActionTelemetry, actorOurs: boolean, obs: BattleObservation): { value: number; parts: ImpactParts; success: number } {
+  const success = cta(tel.executed ? 1 : 0, tel.hit ? 1 : 0, tel.aliveAtExecution ? 1 : 0);
+  const foe = actorOurs ? obs.theirs : obs.ours;
+  const self = actorOurs ? obs.ours : obs.theirs;
+  const foeIdx = activeIndex(foe);
+  const selfIdx = activeIndex(self);
+  const foeSide: 'p1' | 'p2' = actorOurs ? (obs.ourSide === 'p1' ? 'p2' : 'p1') : obs.ourSide;
+  const selfSide = actorOurs ? obs.ourSide : (obs.ourSide === 'p1' ? 'p2' : 'p1');
+
+  let dmgToFoe = 0;
+  let healSelf = 0;
+  let healFoe = 0;
+  let selfLost = 0;
+  for (const e of tel.effects) {
+    if (!e.attributed) continue;
+    if (e.kind === 'damage' || e.kind === 'drain') {
+      const frac = Math.max(0, fracFromEffect(e));
+      if (e.side === foeSide) dmgToFoe += frac;
+      if (e.side === selfSide && e.kind === 'damage') selfLost += frac;
+    }
+    if (e.kind === 'recoil' && e.side === selfSide) selfLost += Math.max(0, fracFromEffect(e));
+    if (e.kind === 'heal' || e.kind === 'drain') {
+      if (!(e.maxHp && e.maxHp > 0) || e.hpBefore == null || e.hpAfter == null) continue;
+      const healed = effectiveHeal(e.hpBefore, e.hpAfter, e.maxHp);
+      if (e.side === selfSide) healSelf += healed;
+      if (e.side === foeSide) healFoe += healed;
+    }
+  }
+
+  const ttk = expectedTtk(hpFrac(foe, foeIdx), dmgToFoe);
+  const dmg = tel.hit ? damageScore(success, ttk) : 0;
+  const heal = healSelf - healFoe - selfLost;
+
+  const selfSlot = self[selfIdx];
+  const foeSlot = foe[foeIdx];
+  let mod = 0;
+  if (selfSlot && tel.effects.some((e) => e.attributed && (e.kind === 'boost' || e.kind === 'unboost' || e.kind === 'status') && e.side === selfSide)) {
+    mod += modifierDelta(selfSlot.modifiers, slotAfterEffects(selfSlot, tel.effects, selfSide).modifiers);
+  }
+  if (foeSlot && tel.effects.some((e) => e.attributed && (e.kind === 'boost' || e.kind === 'unboost' || e.kind === 'status') && e.side === foeSide)) {
+    mod -= modifierDelta(foeSlot.modifiers, slotAfterEffects(foeSlot, tel.effects, foeSide).modifiers);
+  }
+
+  const value = finiteOrZero(dmg + heal + mod);
+  const parts = emptyImpactParts();
+  if (actorOurs) {
+    parts.ourHealth = finiteOrZero(heal);
+    parts.theirHealth = finiteOrZero(-dmg);
+    parts.ourModifier = finiteOrZero(mod > 0 ? mod : 0);
+    parts.theirModifier = finiteOrZero(mod < 0 ? mod : 0);
+  } else {
+    parts.ourHealth = finiteOrZero(-heal);
+    parts.theirHealth = finiteOrZero(dmg);
+    parts.ourModifier = finiteOrZero(mod < 0 ? -mod : 0);
+    parts.theirModifier = finiteOrZero(mod > 0 ? -mod : 0);
+  }
+  parts.health = parts.ourHealth - parts.theirHealth;
+  parts.modifier = parts.ourModifier - parts.theirModifier;
+  parts.total = parts.health + parts.modifier;
+  return { value, parts, success };
+}
+
+function slotAfterEffects(slot: SlotSnapshot, effects: ActionEffect[], side: 'p1' | 'p2'): SlotSnapshot {
+  const boosts = { ...slot.boosts };
+  let status = slot.status;
+  for (const e of effects) {
+    if (!e.attributed || e.side !== side) continue;
+    if ((e.kind === 'boost' || e.kind === 'unboost') && e.stat && e.amount) {
+      const k = e.stat as keyof typeof boosts;
+      if (k in boosts) {
+        const delta = e.kind === 'boost' ? e.amount : -e.amount;
+        boosts[k] = Math.max(-6, Math.min(6, (boosts[k] ?? 0) + delta));
+      }
+    }
+    if (e.kind === 'status' && e.status) status = e.status;
+  }
+  const next = { ...slot, boosts, status };
+  next.modifiers = modifiersFromSlot(next);
+  return next;
+}
+
+function scoreBranch(
+  obs: BattleObservation,
+  action: LegalAction,
+  result: RoundSimResult,
+): { pair: number; ourVal: number; theirVal: number; success: number; parts: ImpactParts } {
+  const their = actorValue(result.theirs, false, obs);
+  if (action.type === 'switch') {
+    const after = observationStateScore(result.afterOurs, result.afterTheirs);
+    const before = observationStateScore(obs.ours, obs.theirs);
+    const pair = switchScore(after, before, their.value);
+    return { pair, ourVal: pair, theirVal: their.value, success: 1, parts: emptyImpactParts() };
+  }
+  const our = actorValue(result.ours, true, obs);
+  return {
+    pair: pairTurnScore(our.value, their.value),
+    ourVal: our.value,
+    theirVal: their.value,
+    success: our.success,
+    parts: our.parts,
+  };
 }
 
 interface PairCell {
@@ -125,7 +213,26 @@ interface PairCell {
   ourFaint: number;
   theirHpLost: number;
   ourRemain: number;
-  secondary: number;
+  pWin: number;
+  pLoss: number;
+  theirHBefore: number;
+  theirHAfter: number;
+  ourHBefore: number;
+  ourHAfter: number;
+  turnScore: number;
+}
+
+interface Branch {
+  action: LegalAction;
+  reply: LegalAction;
+  w: number;
+  turnScore: number;
+  post: number;
+  parts: ImpactParts;
+  success: number;
+  ourFaint: number;
+  theirHpLost: number;
+  ourRemain: number;
   pWin: number;
   pLoss: number;
   theirHBefore: number;
@@ -170,19 +277,19 @@ function meanCell(cell: PairCell): PairCell {
     ourFaint: cell.ourFaint * inv,
     theirHpLost: cell.theirHpLost * inv,
     ourRemain: cell.ourRemain * inv,
-    secondary: cell.secondary * inv,
     pWin: cell.pWin * inv,
     pLoss: cell.pLoss * inv,
     theirHBefore: cell.theirHBefore * inv,
     theirHAfter: cell.theirHAfter * inv,
     ourHBefore: cell.ourHBefore * inv,
     ourHAfter: cell.ourHAfter * inv,
+    turnScore: cell.turnScore * inv,
   };
 }
 
 function cellFeatures(cell: PairCell): ChoiceFeatures {
   return choiceFeatures(cell.parts, {
-    secondary: cell.secondary,
+    secondary: 0,
     switchRisk: cell.ourFaint * cell.ourRemain,
     sacrifice: cell.ourFaint * cell.theirHpLost,
   });
@@ -198,14 +305,14 @@ function flipFeatures(f: ChoiceFeatures): ChoiceFeatures {
   };
 }
 
-function mixFeatures(cells: Array<{ w: number; cell: PairCell }>): { features: ChoiceFeatures; parts: ImpactParts; success: number; post: number; htk: { tb: number; ta: number; ob: number; oa: number } } {
+function mixFeatures(cells: Array<{ w: number; cell: PairCell }>): {
+  features: ChoiceFeatures; parts: ImpactParts; success: number; post: number; turn: number;
+  htk: { tb: number; ta: number; ob: number; oa: number };
+} {
   const z = {
     features: { health: 0, modifier: 0, secondary: 0, switchRisk: 0, sacrifice: 0 } as ChoiceFeatures,
     parts: emptyImpactParts(),
-    success: 0,
-    post: 0,
-    tb: 0, ta: 0, ob: 0, oa: 0,
-    w: 0,
+    success: 0, post: 0, turn: 0, tb: 0, ta: 0, ob: 0, oa: 0, w: 0,
   };
   for (const { w, cell } of cells) {
     if (!(w > 0)) continue;
@@ -218,6 +325,7 @@ function mixFeatures(cells: Array<{ w: number; cell: PairCell }>): { features: C
     addParts(z.parts, cell.parts, w);
     z.success += cell.success * w;
     z.post += cell.post * w;
+    z.turn += cell.turnScore * w;
     z.tb += cell.theirHBefore * w;
     z.ta += cell.theirHAfter * w;
     z.ob += cell.ourHBefore * w;
@@ -236,23 +344,35 @@ function mixFeatures(cells: Array<{ w: number; cell: PairCell }>): { features: C
     parts: scaleParts(z.parts, inv),
     success: z.success * inv,
     post: z.post * inv,
+    turn: z.turn * inv,
     htk: { tb: z.tb * inv, ta: z.ta * inv, ob: z.ob * inv, oa: z.oa * inv },
   };
+}
+
+function rangeFromBranches(rows: Branch[]): {
+  minTurn: number; maxTurn: number; minPost: number; maxPost: number; n: number;
+} {
+  const turns = rows.map((b) => b.turnScore);
+  const posts = rows.map((b) => b.post);
+  const t = scoreExtrema(turns);
+  const p = scoreExtrema(posts);
+  return { minTurn: t.min, maxTurn: t.max, minPost: p.min, maxPost: p.max, n: rows.length };
 }
 
 function assemble(
   legal: LegalAction[],
   replies: LegalAction[],
   cells: Map<string, PairCell>,
+  branches: Branch[],
   pOur: number[],
   pTheir: number[],
   weights: ScoreWeights,
-  obs: BattleObservation,
 ): { choices: ChoiceEvaluation[]; replies: ReplyEvaluation[]; postScores: number[]; forcedRows: Array<Array<{ pWin: number; pLoss: number }>>; pairs: PairScore[] } {
   const choices: ChoiceEvaluation[] = [];
   const postScores: number[] = [];
   const forcedRows: Array<Array<{ pWin: number; pLoss: number }>> = [];
   const pairs: PairScore[] = [];
+  const theirIndex = new Map(replies.map((r, j) => [r.id, j]));
 
   for (let i = 0; i < legal.length; i++) {
     const action = legal[i]!;
@@ -260,14 +380,10 @@ function assemble(
       const cell = cells.get(pairKey(action.id, reply.id));
       return cell ? [{ w: pTheir[j] ?? 0, cell }] : [];
     }));
-    let success = mixed.success;
-    if (action.type === 'switch') {
-      const { stay, after } = switchStayScores(obs, action);
-      success = cts(after, stay, Boolean(action.forced));
-    } else {
-      success = Math.min(1, Math.max(0, success));
-    }
-    const raw = scoredChoice(success, mixed.features, weights);
+    const ours = branches.filter((b) => b.action.id === action.id);
+    const range = rangeFromBranches(ours);
+    const success = action.type === 'switch' ? 1 : Math.min(1, Math.max(0, mixed.success));
+    const raw = finiteOrZero(mixed.turn);
     postScores.push(mixed.post);
     choices.push({
       action,
@@ -285,9 +401,16 @@ function assemble(
       choiceScore: raw,
       scaledChoiceScore: signedLog1p(raw),
       meanPostScore: mixed.post,
+      minTurnScore: range.minTurn,
+      maxTurnScore: range.maxTurn,
+      minPostScore: range.minPost,
+      maxPostScore: range.maxPost,
+      sampleCount: range.n,
       features: mixed.features,
       probability: pOur[i],
     });
+    void weights;
+    void scoredChoice;
     forcedRows.push(replies.map((reply) => {
       const cell = cells.get(pairKey(action.id, reply.id));
       return { pWin: cell?.pWin ?? 0, pLoss: cell?.pLoss ?? 0 };
@@ -300,7 +423,9 @@ function assemble(
       return cell ? [{ w: pOur[i] ?? 0, cell }] : [];
     }));
     const flipped = flipFeatures(mixed.features);
-    const raw = scoredChoice(1, flipped, weights);
+    const raw = finiteOrZero(-mixed.turn);
+    const rows = branches.filter((b) => b.reply.id === reply.id);
+    const range = rangeFromBranches(rows);
     return {
       action: reply,
       expectedImpact: mixed.parts.total,
@@ -314,6 +439,12 @@ function assemble(
       theirModifier: mixed.parts.theirModifier,
       features: flipped,
       probability: pTheir[j],
+      minTurnScore: range.minTurn,
+      maxTurnScore: range.maxTurn,
+      meanPostScore: mixed.post,
+      minPostScore: range.minPost,
+      maxPostScore: range.maxPost,
+      sampleCount: range.n,
     };
   });
 
@@ -321,12 +452,32 @@ function assemble(
     for (const reply of replies) {
       const cell = cells.get(pairKey(action.id, reply.id));
       if (!cell) continue;
-      const f = cellFeatures(cell);
-      pairs.push({ ourId: action.id, theirId: reply.id, score: scoredChoice(cell.success, f, weights) });
+      pairs.push({ ourId: action.id, theirId: reply.id, score: cell.turnScore });
     }
   }
+  void theirIndex;
 
   return { choices, replies: replyEvals, postScores, forcedRows, pairs };
+}
+
+function expectedFromPolicy(
+  legal: LegalAction[],
+  replies: LegalAction[],
+  cells: Map<string, PairCell>,
+  pOur: number[],
+  pTheir: number[],
+): number {
+  const values: number[] = [];
+  const weights: number[] = [];
+  for (let i = 0; i < legal.length; i++) {
+    for (let j = 0; j < replies.length; j++) {
+      const cell = cells.get(pairKey(legal[i]!.id, replies[j]!.id));
+      if (!cell) continue;
+      values.push(cell.turnScore);
+      weights.push((pOur[i] ?? 0) * (pTheir[j] ?? 0));
+    }
+  }
+  return weightedMean(values, weights);
 }
 
 async function policyProbs(
@@ -375,14 +526,35 @@ function marginalize(
   };
 }
 
+function capJointPairs(pairs: PairScore[], ourIds: string[], cap: number): { kept: PairScore[]; omitted: number } {
+  if (pairs.length <= cap) return { kept: pairs, omitted: 0 };
+  const used = new Set<string>();
+  const kept: PairScore[] = [];
+  const keyOf = (p: PairScore) => `${p.ourId}\t${p.theirId}`;
+  for (const id of ourIds) {
+    const candidates = pairs.filter((p) => p.ourId === id);
+    if (!candidates.length) continue;
+    const best = candidates.reduce((a, b) => Math.abs(b.score) > Math.abs(a.score) ? b : a);
+    kept.push(best);
+    used.add(keyOf(best));
+  }
+  const rest = pairs.filter((p) => !used.has(keyOf(p))).sort((a, b) => Math.abs(b.score) - Math.abs(a.score));
+  for (const p of rest) {
+    if (kept.length >= cap) break;
+    kept.push(p);
+    used.add(keyOf(p));
+  }
+  return { kept, omitted: pairs.length - kept.length };
+}
+
 async function refineLoop(
   legal: LegalAction[],
   replies: LegalAction[],
   cells: Map<string, PairCell>,
+  branches: Branch[],
   pOur: number[],
   pTheir: number[],
   weights: ScoreWeights,
-  obs: BattleObservation,
   opts: EvaluateOptions,
 ): Promise<{ pOur: number[]; pTheir: number[]; diagnostics?: Record<string, unknown> }> {
   const process = opts.refine;
@@ -392,14 +564,15 @@ async function refineLoop(
   let nextOur = pOur;
   let nextTheir = pTheir;
   for (let n = 0; n < iters; n++) {
-    const assembled = assemble(legal, replies, cells, nextOur, nextTheir, weights, obs);
-    let pairRows = assembled.pairs.slice().sort((a, b) => Math.abs(b.score) - Math.abs(a.score));
-    if (pairRows.length > JOINT_CAP) pairRows = pairRows.slice(0, JOINT_CAP); // ponytail: 32-pair QAOA cap; raise JOINT_CAP if action counts grow
+    const assembled = assemble(legal, replies, cells, branches, nextOur, nextTheir, weights);
+    const sorted = assembled.pairs.slice().sort((a, b) => Math.abs(b.score) - Math.abs(a.score));
+    const capped = capJointPairs(sorted, legal.map((a) => a.id), JOINT_CAP);
+    const pairRows = capped.kept;
     const pairIds = pairRows.map((p) => pairKey(p.ourId, p.theirId));
     const pairScores = pairRows.map((p) => signedLog1p(p.score));
     try {
       const joint = await policyProbs(process, pairIds, pairScores, opts);
-      diag = joint.diagnostics;
+      diag = { ...joint.diagnostics, omittedPairs: capped.omitted };
       const marg = marginalize(pairIds, joint.probs, legal.map((a) => a.id), replies.map((r) => r.id));
       nextOur = marg.pOur;
       nextTheir = marg.pTheir;
@@ -411,12 +584,12 @@ async function refineLoop(
         const theirs = await policyProbs(process, replies.map((r) => r.id), theirScores, opts);
         nextOur = ours.probs;
         nextTheir = theirs.probs;
-        diag = ours.diagnostics;
+        diag = { ...ours.diagnostics, omittedPairs: capped.omitted };
       } catch (err2) {
         if (opts.refineFallback === 'throw') throw err2;
         nextOur = softmax(ourScores);
         nextTheir = softmax(theirScores);
-        diag = { mode: 'softmax', fallback: true };
+        diag = { mode: 'softmax', fallback: true, omittedPairs: capped.omitted };
       }
     }
   }
@@ -424,9 +597,9 @@ async function refineLoop(
 }
 
 export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptions): Promise<RoundEvaluation> {
-  const raw = obs.legalActions.length ? obs.legalActions : enumerateFromRequest(obs.request as ShowdownRequest);
-  const hasNonTeraMove = raw.some((a) => a.type === 'move' && !a.tera);
-  const legal = hasNonTeraMove ? raw.filter((a) => !a.tera) : raw;
+  const tera = observationTera(obs);
+  const raw = obs.legalActions.length ? obs.legalActions : enumerateFromRequest(obs.request as ShowdownRequest, tera.ours);
+  const legal = raw;
   const chanceN = opts?.chanceSeeds ?? CHANCE_SEEDS;
   const weights = opts?.weights ?? DEFAULT_WEIGHTS;
   const theirIdx = activeIndex(obs.theirs);
@@ -436,6 +609,7 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
 
   const pairAcc = new Map<string, PairCell>();
   const replyById = new Map<string, LegalAction>();
+  const branches: Branch[] = [];
 
   for (const action of legal) {
     const hyps: SetHypothesis[] = (obs.theirs.find((s) => s.active)?.hypotheses?.length
@@ -443,7 +617,7 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
       : [{ set: obs.theirs.find((s) => s.active)?.set ?? { species: 'smeargle', level: 100, item: '', ability: 'owntempo', moves: ['splash'], nature: 'hardy' }, count: 1, probability: 1 }]);
 
     for (const hyp of hyps) {
-      const replies = theirActions(obs, hyp.set, Boolean(opts?.theirTera));
+      const replies = theirActions(obs, hyp.set);
       const theirSets = obs.theirs.map((s) => (s.active ? hyp.set : (s.set ?? hyp.set)));
       for (const reply of replies) {
         replyById.set(reply.id, reply);
@@ -454,40 +628,45 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
           const before = valuesOf(obs.ours, obs.theirs);
           const after = valuesOf(result.afterOurs, result.afterTheirs);
           const w = hyp.probability / chanceN;
-          const parts = impactParts(before, after);
-          const success = action.type === 'move'
-            ? cta(result.pExecute, result.pHit, result.aliveAtExecution)
-            : 0;
+          const snapParts = impactParts(before, after);
+          const scored = scoreBranch(obs, action, result);
           const ourAfter = result.afterOurs[ourIdx];
           const ourFaint = ourAfter && (ourAfter.fainted || ourAfter.hp <= 0) ? 1 : 0;
           const theirHpLost = Math.max(0, hpFrac(obs.theirs, theirIdx) - hpFrac(result.afterTheirs, theirIdx));
-          const secondary = secondaryDelta(
-            obs.ours, result.afterOurs, obs.theirs, result.afterTheirs,
-            obs.field, result.afterField, obs.ourSide,
-          );
+          const post = observationStateScore(result.afterOurs, result.afterTheirs);
+          branches.push({
+            action, reply, w, turnScore: scored.pair, post, parts: scored.parts, success: scored.success,
+            ourFaint, theirHpLost, ourRemain,
+            pWin: result.weWin ? 1 : 0, pLoss: result.theyWin ? 1 : 0,
+            theirHBefore: hpFrac(obs.theirs, theirIdx),
+            theirHAfter: hpFrac(result.afterTheirs, theirIdx),
+            ourHBefore: hpFrac(obs.ours, ourIdx),
+            ourHAfter: hpFrac(result.afterOurs, ourIdx),
+          });
           let cell = pairAcc.get(key);
           if (!cell) {
             cell = {
               action, reply, w: 0, parts: emptyImpactParts(), success: 0, post: 0,
-              ourFaint: 0, theirHpLost: 0, ourRemain: 0, secondary: 0,
+              ourFaint: 0, theirHpLost: 0, ourRemain: 0,
               pWin: 0, pLoss: 0, theirHBefore: 0, theirHAfter: 0, ourHBefore: 0, ourHAfter: 0,
+              turnScore: 0,
             };
             pairAcc.set(key, cell);
           }
           cell.w += w;
-          addParts(cell.parts, parts, w);
-          cell.success += success * w;
-          cell.post += observationStateScore(result.afterOurs, result.afterTheirs) * w;
+          addParts(cell.parts, scored.parts.total !== 0 || scored.parts.health !== 0 ? scored.parts : snapParts, w);
+          cell.success += scored.success * w;
+          cell.post += post * w;
           cell.ourFaint += ourFaint * w;
           cell.theirHpLost += theirHpLost * w;
           cell.ourRemain += ourRemain * w;
-          cell.secondary += secondary * w;
           cell.pWin += (result.weWin ? 1 : 0) * w;
           cell.pLoss += (result.theyWin ? 1 : 0) * w;
           cell.theirHBefore += hpFrac(obs.theirs, theirIdx) * w;
           cell.theirHAfter += hpFrac(result.afterTheirs, theirIdx) * w;
           cell.ourHBefore += hpFrac(obs.ours, ourIdx) * w;
           cell.ourHAfter += hpFrac(result.afterOurs, ourIdx) * w;
+          cell.turnScore += scored.pair * w;
         }
       }
     }
@@ -500,16 +679,21 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
   const uniformOur = legal.map(() => (legal.length ? 1 / legal.length : 0));
   const uniformTheir = replies.map(() => (replies.length ? 1 / replies.length : 0));
 
-  let first = assemble(legal, replies, cells, uniformOur, uniformTheir, weights, obs);
+  const first = assemble(legal, replies, cells, branches, uniformOur, uniformTheir, weights);
   const pTheir = softmax(first.replies.map((r) => r.choiceScore));
   const pOurSoft = softmax(first.choices.map((c) => c.scaledChoiceScore));
-  const refined = await refineLoop(legal, replies, cells, pOurSoft, pTheir.length ? pTheir : uniformTheir, weights, obs, opts ?? {});
-  const final = assemble(legal, replies, cells, refined.pOur, refined.pTheir, weights, obs);
+  const refined = await refineLoop(legal, replies, cells, branches, pOurSoft, pTheir.length ? pTheir : uniformTheir, weights, opts ?? {});
+  const final = assemble(legal, replies, cells, branches, refined.pOur, refined.pTheir, weights);
   const mate = mateFromForced(final.forcedRows);
+  const expected = expectedFromPolicy(legal, replies, cells, refined.pOur, refined.pTheir);
+  const roundExt = scoreExtrema(branches.map((b) => b.turnScore));
   return {
     choices: final.choices,
     replies: final.replies,
-    roundScore: roundScore(final.postScores),
+    roundScore: expected,
+    expectedRoundScore: expected,
+    minRoundScore: roundExt.min,
+    maxRoundScore: roundExt.max,
     forcedOutcome: mate.forcedOutcome,
     mateProbability: mate.mateProbability,
     pairs: final.pairs,

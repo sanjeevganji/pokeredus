@@ -131,12 +131,12 @@ function applyHp(battle: AnyBattle, obs: BattleObservation): void {
   mapSide(theirs, obs.theirs);
 }
 
-function requireFn(obj: object | undefined, name: string, label: string): (...args: never[]) => unknown {
+function requireFn(obj: object | undefined, name: string, label: string): (a: string, b?: unknown) => unknown {
   const fn = obj && (obj as Record<string, unknown>)[name];
   if (typeof fn !== 'function') {
     throw new Error(`pinned pokemon-showdown is missing ${label} (needed to restore the observed field)`);
   }
-  return fn as (...args: never[]) => unknown;
+  return fn as (a: string, b?: unknown) => unknown;
 }
 
 function setCondDuration(side: AnySide, id: string, turns: number): void {
