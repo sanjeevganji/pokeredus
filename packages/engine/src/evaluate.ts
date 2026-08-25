@@ -356,6 +356,7 @@ function mixFeatures(cells: Array<{ w: number; cell: PairCell }>): {
     success: z.success * inv,
     post: z.post * inv,
     turn: z.turn * inv,
+    theirVal: z.theirVal * inv,
     htk: { tb: z.tb * inv, ta: z.ta * inv, ob: z.ob * inv, oa: z.oa * inv },
   };
 }
