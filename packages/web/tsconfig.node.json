@@ -8,5 +8,5 @@
     "declaration": true,
     "outDir": "dist-node"
   },
-  "include": ["vite.config.ts", "server/games.ts", "server/lobby-client.ts"]
+  "include": ["vite.config.ts", "server/games.ts", "server/lobby-client.ts", "server/scenarios.ts", "server/scenario-handlers.ts"]
 }
