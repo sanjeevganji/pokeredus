@@ -104,4 +104,68 @@ describe('scenario helpers', () => {
     expect(r.wins + r.losses + r.draws).toBe(2);
     expect(r.n).toBe(2);
   }, 30_000);
+
+  describe('forecastBattle terminal rollouts', () => {
+    it('is deterministic under fixed seed', async () => {
+      const o = obs(garchomp, toxapex);
+      const f1 = await forecastBattle(o, { rolloutsPerChoice: 2, maxTurns: 3, seed: 42, chanceSeeds: 1 });
+      const f2 = await forecastBattle(o, { rolloutsPerChoice: 2, maxTurns: 3, seed: 42, chanceSeeds: 1 });
+      expect(f1.status).toBe('complete');
+      expect(f2.status).toBe('complete');
+      expect(f1.totalSamples).toBe(f2.totalSamples);
+      expect(f1.choices.length).toBe(f2.choices.length);
+      for (let i = 0; i < f1.choices.length; i++) {
+        expect(f1.choices[i]!.expectedTerminalScore).toBeCloseTo(f2.choices[i]!.expectedTerminalScore, 5);
+        expect(f1.choices[i]!.wins).toBe(f2.choices[i]!.wins);
+        expect(f1.choices[i]!.losses).toBe(f2.choices[i]!.losses);
+      }
+    }, 40_000);
+
+    it('allocates samples to all root actions and satisfies score bounds & Wilson intervals', async () => {
+      const o = obs(garchomp, toxapex);
+      const f = await forecastBattle(o, { rolloutsPerChoice: 2, maxTurns: 3, seed: 123, chanceSeeds: 1 });
+      expect(f.status).toBe('complete');
+      expect(f.choices.length).toBeGreaterThan(0);
+      for (const c of f.choices) {
+        expect(c.samples).toBe(2);
+        expect(c.wins + c.losses + c.draws).toBe(c.samples);
+        expect(c.minTerminalScore).toBeLessThanOrEqual(c.expectedTerminalScore);
+        expect(c.expectedTerminalScore).toBeLessThanOrEqual(c.maxTerminalScore);
+        expect(c.winRateLow).toBeLessThanOrEqual(c.winRate);
+        expect(c.winRate).toBeLessThanOrEqual(c.winRateHigh);
+      }
+    }, 40_000);
+
+    it('fails with incomplete-assumptions when unrevealed slot without hypotheses is marked incomplete', async () => {
+      const o = obs(garchomp, toxapex);
+      o.theirs[0]!.setComplete = false;
+      o.theirs[0]!.set = undefined;
+      o.theirs[0]!.hypotheses = [];
+      const f = await forecastBattle(o, { rolloutsPerChoice: 1 });
+      expect(f.status).toBe('incomplete-assumptions');
+      expect(f.assumptionsComplete).toBe(false);
+      expect(f.totalSamples).toBe(0);
+    }, 20_000);
+
+    it('cancelling via AbortSignal preserves partial completed samples', async () => {
+      const o = obs(garchomp, toxapex);
+      const controller = new AbortController();
+      let progressCalls = 0;
+      const forecastPromise = forecastBattle(o, {
+        rolloutsPerChoice: 5,
+        maxTurns: 4,
+        seed: 1,
+        chanceSeeds: 1,
+        signal: controller.signal,
+        onProgress: () => {
+          progressCalls++;
+          controller.abort();
+        },
+      });
+      const f = await forecastPromise;
+      expect(f.status).toBe('cancelled');
+      expect(progressCalls).toBeGreaterThan(0);
+      expect(f.totalSamples).toBeGreaterThan(0);
+    }, 40_000);
+  });
 });
