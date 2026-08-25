@@ -66,8 +66,25 @@ function teamsApiPlugin(): Plugin {
   };
 }
 
+function clientNodeStubs(): Plugin {
+  const stubs: Record<string, string> = {
+    'node:fs': path.resolve(__dirname, 'src/stubs/fs.ts'),
+    'node:crypto': path.resolve(__dirname, 'src/stubs/crypto.ts'),
+    'node:path': path.resolve(__dirname, 'src/stubs/path.ts'),
+  };
+  return {
+    name: 'client-node-stubs',
+    enforce: 'pre',
+    resolveId(id, _importer, opts) {
+      if (opts?.ssr) return null;
+      if (stubs[id]) return stubs[id];
+      return null;
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), teamsApiPlugin(), gamesApiPlugin(root), scenariosApiPlugin(root)],
+  plugins: [react(), clientNodeStubs(), teamsApiPlugin(), gamesApiPlugin(root), scenariosApiPlugin(root)],
   resolve: {
     alias: {
       '@pokeredus/pack/schema': path.resolve(__dirname, '../pack/src/schema.ts'),
@@ -76,9 +93,6 @@ export default defineConfig({
       '@pokeredus/core': path.resolve(__dirname, '../core/src/index.ts'),
       '@pokeredus/engine': path.resolve(__dirname, '../engine/src/index.ts'),
       '@pokeredus/calc': path.resolve(__dirname, '../calc/src/index.ts'),
-      'node:fs': path.resolve(__dirname, 'src/stubs/fs.ts'),
-      'node:crypto': path.resolve(__dirname, 'src/stubs/crypto.ts'),
-      'node:path': path.resolve(__dirname, 'src/stubs/path.ts'),
     },
   },
   server: {
