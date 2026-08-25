@@ -336,19 +336,14 @@ async function policyProbs(
   opts: EvaluateOptions,
 ): Promise<{ probs: number[]; diagnostics: Record<string, unknown> }> {
   if (!actions.length) return { probs: [], diagnostics: { mode: 'empty' } };
-  try {
-    const res = await process.decide({
-      actions,
-      scores,
-      mode: opts.policy ?? 'quantum',
-      seed: opts.seed,
-      shots: opts.shots ?? null,
-    });
-    return { probs: res.probabilities, diagnostics: res.diagnostics ?? {} };
-  } catch (err) {
-    if (opts.refineFallback === 'throw') throw err;
-    return { probs: softmax(scores), diagnostics: { mode: 'softmax', fallback: true } };
-  }
+  const res = await process.decide({
+    actions,
+    scores,
+    mode: opts.policy ?? 'quantum',
+    seed: opts.seed,
+    shots: opts.shots ?? null,
+  });
+  return { probs: res.probabilities, diagnostics: res.diagnostics ?? {} };
 }
 
 function marginalize(
