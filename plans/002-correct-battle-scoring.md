@@ -1,6 +1,6 @@
 # 002 — Correct battle scoring, ranges, and Tera legality
 
-**Status:** TODO  
+**Status:** DONE  
 **Commit:** `a400fd1`  
 **Effort:** L  
 **Risk:** High — this changes the values that drive the live policy  
