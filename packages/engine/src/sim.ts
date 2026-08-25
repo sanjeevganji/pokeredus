@@ -455,9 +455,11 @@ function parseRoundLog(raw: string[], ourSide: PlayerSide): { ours: ActionTeleme
     if (cmd === '-damage' || cmd === '-heal' || cmd === '-sethp') {
       const ident = parts[2] ?? '';
       const side = sideOf(ident);
-      const { hp, maxHp } = parseHp(parts[3] ?? '');
-      const prev = lastHp[ident] ?? hp;
-      lastHp[ident] = hp;
+      const parsed = parseHp(parts[3] ?? '');
+      const maxHp = parsed.maxHp || lastMax[ident] || 0;
+      const prev = lastHp[ident] ?? (parsed.hp || maxHp);
+      if (maxHp > 0) lastMax[ident] = maxHp;
+      lastHp[ident] = parsed.hp;
       const from = fromTag(line);
       const residual = residualFrom(from);
       let kind: EffectKind = cmd === '-heal' ? 'heal' : 'damage';
