@@ -13,7 +13,6 @@ import {
   modifiersFromSlot,
   normalizeTerrain,
   normalizeWeather,
-  observationTera,
   placeholderSlot,
   type BattleObservation,
   type SetHypothesis,

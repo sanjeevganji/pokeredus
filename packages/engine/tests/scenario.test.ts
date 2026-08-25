@@ -66,7 +66,8 @@ function obs(ours: CanonicalSet, theirs: CanonicalSet): BattleObservation {
     ],
     field: emptyField(),
     legalActions: ours.moves.map((moveId) => ({ id: `move:${moveId}`, type: 'move' as const, moveId })),
-    teraUsed: false,
+    teraUsedOurs: false,
+    teraUsedTheirs: false,
   };
 }
 

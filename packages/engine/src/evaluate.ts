@@ -33,6 +33,7 @@ import {
   softmax,
   switchScore,
   weightedMean,
+  scoreExtrema,
   type ChoiceFeatures,
   type ImpactParts,
   type ScoreWeights,
