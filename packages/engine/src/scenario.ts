@@ -4,20 +4,65 @@ import { sampleAction, type QuantumPolicyProcess } from './policy.js';
 import { evaluateRound, theirActions, type EvaluateOptions } from './evaluate.js';
 import { simulateRound } from './sim.js';
 
-export function legalFromSlots(ours: SlotSnapshot[]): LegalAction[] {
+export function legalFromSlots(ours: SlotSnapshot[], teraUsed = false): LegalAction[] {
   const active = ours.find((s) => s.active) ?? ours[0];
-  const moves = (active?.knownMoves ?? []).map((moveId) => ({
-    id: actionId({ type: 'move', moveId }),
-    type: 'move' as const,
-    moveId,
-  }));
-  const switches = ours
-    .filter((s) => !s.active && !s.fainted && s.revealed)
-    .map((s) => ({
-      id: actionId({ type: 'switch', slot: s.slot + 1 }),
-      type: 'switch' as const,
-      slot: s.slot + 1,
-    }));
+  const canTera = !teraUsed && Boolean(active?.teraType) && !active?.terastallized;
+  const isChoiceLocked = Boolean(active?.choiceLock);
+  const isTrapped = Boolean(active?.trapped);
+
+  const moves: LegalAction[] = [];
+  if (active?.moveSlots && active.moveSlots.length > 0) {
+    for (const ms of active.moveSlots) {
+      if (ms.disabled || ms.pp <= 0) continue;
+      if (isChoiceLocked && ms.id !== active.choiceLock) continue;
+      moves.push({
+        id: actionId({ type: 'move', moveId: ms.id, tera: false }),
+        type: 'move',
+        moveId: ms.id,
+        tera: false,
+      });
+      if (canTera) {
+        moves.push({
+          id: actionId({ type: 'move', moveId: ms.id, tera: true }),
+          type: 'move',
+          moveId: ms.id,
+          tera: true,
+        });
+      }
+    }
+  } else if (active?.knownMoves) {
+    for (const moveId of active.knownMoves) {
+      if (isChoiceLocked && moveId !== active.choiceLock) continue;
+      moves.push({
+        id: actionId({ type: 'move', moveId, tera: false }),
+        type: 'move',
+        moveId,
+        tera: false,
+      });
+      if (canTera) {
+        moves.push({
+          id: actionId({ type: 'move', moveId, tera: true }),
+          type: 'move',
+          moveId,
+          tera: true,
+        });
+      }
+    }
+  }
+
+  const switches: LegalAction[] = [];
+  if (!isTrapped) {
+    for (const s of ours) {
+      if (!s.active && !s.fainted && s.revealed && s.hp > 0) {
+        switches.push({
+          id: actionId({ type: 'switch', slot: s.slot + 1 }),
+          type: 'switch',
+          slot: s.slot + 1,
+        });
+      }
+    }
+  }
+
   if (moves.length) return [...moves, ...switches];
   if (switches.length) return switches;
   return [{ id: 'move:splash', type: 'move', moveId: 'splash' }];
