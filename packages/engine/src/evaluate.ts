@@ -369,8 +369,8 @@ function marginalize(
     const i = ourIndex.get(ourId);
     const j = theirIndex.get(theirId);
     const p = joint[k] ?? 0;
-    if (i != null) pOur[i] += p;
-    if (j != null) pTheir[j] += p;
+    if (i !== undefined) pOur[i] = (pOur[i] ?? 0) + p;
+    if (j !== undefined) pTheir[j] = (pTheir[j] ?? 0) + p;
   }
   const so = pOur.reduce((a, b) => a + b, 0);
   const st = pTheir.reduce((a, b) => a + b, 0);
