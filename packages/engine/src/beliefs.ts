@@ -45,7 +45,6 @@ export function hypothesesForSpecies(pool: RandomSetPool, species: string): SetH
 
 export function updateBeliefs(prior: SetHypothesis[], facts: RevealedFacts): SetHypothesis[] {
   const kept = prior.filter((h) => compatible(h.set, facts));
-  dbg({runId:'post-fix',hypothesisId:'B',location:'beliefs.ts:updateBeliefs',message:'filter result',data:{species:facts.species,factItem:facts.item,factMoves:facts.moves,priorLen:prior.length,keptLen:kept.length,topItem:prior[0]?.set.item,topProb:prior[0]?.probability,priorItems:prior.map((h)=>h.set.item)}});
   if (!kept.length) {
     throw new Error(`no compatible Random Battle sets remain for ${facts.species}`);
   }
