@@ -278,6 +278,16 @@ export class GameHub {
     return this.snapshot();
   }
 
+  readLiveState(): unknown {
+    const fp = this.liveStatePath();
+    if (!fs.existsSync(fp)) return { status: 'idle' };
+    try {
+      return JSON.parse(fs.readFileSync(fp, 'utf8'));
+    } catch {
+      return { status: 'idle' };
+    }
+  }
+
   readLiveObservation(): BattleObservation | undefined {
     const fp = defaultLiveObservationPath(this.liveStatePath());
     if (!fs.existsSync(fp)) return undefined;
