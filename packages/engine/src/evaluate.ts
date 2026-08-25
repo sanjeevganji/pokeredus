@@ -450,7 +450,6 @@ function assemble(
       pairs.push({ ourId: action.id, theirId: reply.id, score: cell.turnScore });
     }
   }
-  void theirIndex;
 
   return { choices, replies: replyEvals, postScores, forcedRows, pairs };
 }
