@@ -73,7 +73,7 @@ export function theirActions(obs: BattleObservation, hyp: CanonicalSet | undefin
 
   const out: LegalAction[] = [];
   for (const moveId of moves) {
-    if (isChoiceLocked && moveId !== active.choiceLock) continue;
+    if (isChoiceLocked && active && moveId !== active.choiceLock) continue;
     out.push({ id: actionId({ type: 'move', moveId, tera: false }), type: 'move', moveId, tera: false });
     if (canTera) {
       out.push({ id: actionId({ type: 'move', moveId, tera: true }), type: 'move', moveId, tera: true });
