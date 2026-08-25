@@ -5,7 +5,6 @@ import {
   sampleAction,
   appendDecisionLog,
   QuantumPolicyProcess,
-  withOurTera,
   loadWeights,
   type RoundEvaluation,
 } from '@pokeredus/engine';
