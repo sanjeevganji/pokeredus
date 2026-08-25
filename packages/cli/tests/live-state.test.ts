@@ -42,7 +42,8 @@ function obs(): BattleObservation {
     }],
     field: { ...emptyField(), weather: 'rain' },
     legalActions: [{ id: 'move:earthquake', type: 'move', moveId: 'earthquake' }],
-    teraUsed: false,
+    teraUsedOurs: false,
+    teraUsedTheirs: false,
   };
 }
 

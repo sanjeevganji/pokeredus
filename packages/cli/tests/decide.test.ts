@@ -43,7 +43,8 @@ function obs(): BattleObservation {
     }],
     field: emptyField(),
     legalActions: [{ id: 'move:earthquake', type: 'move', moveId: 'earthquake' }],
-    teraUsed: false,
+    teraUsedOurs: false,
+    teraUsedTheirs: false,
   };
 }
 
