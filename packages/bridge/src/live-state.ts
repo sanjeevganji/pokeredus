@@ -342,6 +342,7 @@ function hudSlots(mons: BattleTracker['myMons'], weather = ''): LiveSlot[] {
         hypotheses: [],
         modifiers: [],
       }, weather),
+      setComplete: false,
     };
   }));
 }
