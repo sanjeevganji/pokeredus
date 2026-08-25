@@ -99,7 +99,12 @@ function fracFromEffect(e: ActionEffect): number {
   return (e.hpBefore - e.hpAfter) / e.maxHp;
 }
 
-function actorValue(tel: ActionTelemetry, actorOurs: boolean, obs: BattleObservation): { value: number; parts: ImpactParts; success: number } {
+function actorValue(
+  tel: ActionTelemetry,
+  actorOurs: boolean,
+  obs: BattleObservation,
+  afterFoe: SlotSnapshot[],
+): { value: number; parts: ImpactParts; success: number } {
   const success = cta(tel.executed ? 1 : 0, tel.hit ? 1 : 0, tel.aliveAtExecution ? 1 : 0);
   const foe = actorOurs ? obs.theirs : obs.ours;
   const self = actorOurs ? obs.ours : obs.theirs;
@@ -126,6 +131,9 @@ function actorValue(tel: ActionTelemetry, actorOurs: boolean, obs: BattleObserva
       if (e.side === selfSide) healSelf += healed;
       if (e.side === foeSide) healFoe += healed;
     }
+  }
+  if (tel.hit && dmgToFoe <= 0) {
+    dmgToFoe = Math.max(0, hpFrac(foe, foeIdx) - hpFrac(afterFoe, foeIdx));
   }
 
   const ttk = expectedTtk(hpFrac(foe, foeIdx), dmgToFoe);
