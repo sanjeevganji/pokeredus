@@ -62,6 +62,8 @@ export interface LegalAction {
   forced?: boolean;
 }
 
+export type SetSource = 'revealed' | 'manual' | 'public' | 'incomplete';
+
 export interface SlotSnapshot {
   slot: number;
   speciesId: string;
@@ -75,8 +77,13 @@ export interface SlotSnapshot {
   item?: string;
   ability?: string;
   teraType?: string;
+  level?: number;
   knownMoves: string[];
   set?: CanonicalSet;
+  setSource?: SetSource;
+  candidateProbability?: number;
+  setComplete?: boolean;
+  setWarning?: string;
   hypotheses: SetHypothesis[];
   modifiers: Modifier[];
 }
