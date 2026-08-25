@@ -171,7 +171,11 @@ export interface PairScore {
 export interface RoundEvaluation {
   choices: ChoiceEvaluation[];
   replies: ReplyEvaluation[];
+  /** Alias of expectedRoundScore until live snapshots migrate (plan 005). */
   roundScore: number;
+  expectedRoundScore: number;
+  minRoundScore: number;
+  maxRoundScore: number;
   forcedOutcome: ForcedOutcome;
   mateProbability: number;
   pairs?: PairScore[];
