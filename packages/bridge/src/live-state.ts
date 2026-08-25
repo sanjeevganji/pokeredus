@@ -347,6 +347,48 @@ function hudSlots(mons: BattleTracker['myMons'], weather = ''): LiveSlot[] {
   }));
 }
 
+function liveSlotFromSnapshot(s: SlotSnapshot, weather: string): LiveSlot {
+  if (!s.revealed) {
+    return {
+      speciesId: '',
+      hp: s.hp,
+      maxHp: s.maxHp || 100,
+      status: '',
+      fainted: false,
+      active: false,
+      revealed: false,
+      boosts: emptyBoosts(),
+      modifiers: [],
+      setComplete: false,
+    };
+  }
+  return {
+    speciesId: s.speciesId,
+    hp: s.hp,
+    maxHp: s.maxHp || 100,
+    status: s.status,
+    fainted: s.fainted,
+    active: s.active,
+    revealed: true,
+    boosts: { ...s.boosts },
+    modifiers: s.modifiers.length ? s.modifiers.map((m) => ({ ...m })) : modifiersFromSlot(s, weather),
+    item: s.item,
+    ability: s.ability,
+    teraType: s.teraType,
+    level: s.level,
+    knownMoves: s.knownMoves,
+    setSource: s.setSource,
+    assumedSet: s.set,
+    candidateProbability: s.candidateProbability,
+    setComplete: Boolean(s.setComplete),
+    setWarning: s.setWarning,
+  };
+}
+
+function slotWarnings(obs: BattleObservation): string[] {
+  return [...obs.ours, ...obs.theirs].flatMap((s) => (s.setWarning ? [s.setWarning] : []));
+}
+
 function blankSlot(): LiveSlot {
   return {
     speciesId: '',
@@ -358,6 +400,7 @@ function blankSlot(): LiveSlot {
     revealed: false,
     boosts: emptyBoosts(),
     modifiers: [],
+    setComplete: false,
   };
 }
 
