@@ -504,13 +504,7 @@ export class BattleTracker {
       case 'fieldend': {
         const on = ev.type === 'fieldstart';
         const eff = ev.effect.toLowerCase();
-        if (eff.includes('reflect')) {
-          if (ev.side === 'p1') this.field.reflect_a = on ? 5 : 0; else this.field.reflect_b = on ? 5 : 0;
-        } else if (eff.includes('light screen')) {
-          if (ev.side === 'p1') this.field.lightscreen_a = on ? 5 : 0; else this.field.lightscreen_b = on ? 5 : 0;
-        } else if (eff.includes('trick room')) {
-          this.field.trickroom = on;
-        }
+        if (eff.includes('trick room')) this.field.trickroom = on;
         break;
       }
 
@@ -523,6 +517,43 @@ export class BattleTracker {
         else if (eff.includes('spikes') && !eff.includes('toxic')) haz.spikes = on ? Math.min(3, haz.spikes + 1) : 0;
         else if (eff.includes('toxic spikes')) haz.toxicspikes = on ? Math.min(2, haz.toxicspikes + 1) : 0;
         else if (eff.includes('sticky web')) haz.stickyweb = on ? true : false;
+        else if (eff.includes('reflect')) {
+          if (ev.side === 'p1') this.field.reflect_a = on ? 5 : 0; else this.field.reflect_b = on ? 5 : 0;
+        } else if (eff.includes('light screen')) {
+          if (ev.side === 'p1') this.field.lightscreen_a = on ? 5 : 0; else this.field.lightscreen_b = on ? 5 : 0;
+        }
+        break;
+      }
+
+      case '-item': {
+        const mon = this.findMon(ev.side, ev.identity);
+        if (mon && ev.item) mon.item = ev.item;
+        break;
+      }
+      case '-enditem': {
+        const mon = this.findMon(ev.side, ev.identity);
+        if (mon && ev.item && !mon.item) mon.item = ev.item;
+        break;
+      }
+      case '-ability': {
+        const mon = this.findMon(ev.side, ev.identity);
+        if (mon && ev.ability) mon.ability = ev.ability;
+        break;
+      }
+      case '-terastallize': {
+        const mon = this.findMon(ev.side, ev.identity);
+        if (mon) mon.teraType = ev.teraType;
+        if (ev.side === this.ourSide) this.teraUsedOurs = true;
+        else this.teraUsedTheirs = true;
+        break;
+      }
+      case 'detailschange': {
+        const parsed = parseDetails(ev.details);
+        const mon = this.findMon(ev.side, ev.identity, ev.speciesId);
+        if (mon) {
+          if (parsed.teraType) mon.teraType = parsed.teraType;
+          if (parsed.level) mon.level = parsed.level;
+        }
         break;
       }
 
