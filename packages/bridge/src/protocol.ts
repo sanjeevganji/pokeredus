@@ -10,12 +10,19 @@
 // ponytail: singles only (one active slot per side).
 
 import {
+  compatible,
+  getSetOverride,
+  loadSetOverrides,
   modifiersFromSlot,
   normalizeTerrain,
   normalizeWeather,
   placeholderSlot,
+  setIsComplete,
   type BattleObservation,
+  type CanonicalSet,
   type SetHypothesis,
+  type SetOverridesStore,
+  type SetSource,
   type SlotSnapshot,
 } from '@pokeredus/engine';
 import { enumerateFromRequest } from '@pokeredus/engine';
