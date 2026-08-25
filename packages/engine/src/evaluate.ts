@@ -407,8 +407,6 @@ function assemble(
       features: mixed.features,
       probability: pOur[i],
     });
-    void weights;
-    void scoredChoice;
     forcedRows.push(replies.map((reply) => {
       const cell = cells.get(pairKey(action.id, reply.id));
       return { pWin: cell?.pWin ?? 0, pLoss: cell?.pLoss ?? 0 };
