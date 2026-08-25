@@ -440,6 +440,10 @@ function parseRoundLog(raw: string[], ourSide: PlayerSide): { ours: ActionTeleme
     }
     if (cmd === 'switch' || cmd === 'drag') {
       noteActor(sideOf(parts[2] ?? ''));
+      const ident = parts[2] ?? '';
+      const parsed = parseHp(parts[4] ?? parts[3] ?? '');
+      if (parsed.maxHp > 0) lastMax[ident] = parsed.maxHp;
+      lastHp[ident] = parsed.hp;
       continue;
     }
     if (cmd === 'cant') {
