@@ -676,6 +676,7 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
           cell.ourHBefore += hpFrac(obs.ours, ourIdx) * w;
           cell.ourHAfter += hpFrac(result.afterOurs, ourIdx) * w;
           cell.turnScore += scored.pair * w;
+          cell.theirVal += scored.theirVal * w;
         }
       }
     }
