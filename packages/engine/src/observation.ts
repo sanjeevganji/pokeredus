@@ -154,6 +154,12 @@ export interface ReplyEvaluation {
   theirModifier?: number;
   features?: ChoiceFeaturesView;
   probability?: number;
+  minTurnScore?: number;
+  maxTurnScore?: number;
+  meanPostScore?: number;
+  minPostScore?: number;
+  maxPostScore?: number;
+  sampleCount?: number;
 }
 
 export interface PairScore {
