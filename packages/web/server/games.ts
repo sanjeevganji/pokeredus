@@ -278,14 +278,30 @@ export class GameHub {
     return this.snapshot();
   }
 
-  readLiveState(): unknown {
-    const fp = this.liveStatePath();
-    if (!fs.existsSync(fp)) return { status: 'idle' };
+  readLiveObservation(): BattleObservation | undefined {
+    const fp = defaultLiveObservationPath(this.liveStatePath());
+    if (!fs.existsSync(fp)) return undefined;
     try {
-      return JSON.parse(fs.readFileSync(fp, 'utf8'));
+      return JSON.parse(fs.readFileSync(fp, 'utf8')) as BattleObservation;
     } catch {
-      return { status: 'idle' };
+      return undefined;
     }
+  }
+
+  factsForSpecies(species: string): RevealedFacts | undefined {
+    const obs = this.readLiveObservation();
+    if (!obs) return undefined;
+    const spec = speciesKey(species);
+    const slot = [...obs.ours, ...obs.theirs].find((s) => s.revealed && speciesKey(s.speciesId) === spec);
+    if (!slot) return undefined;
+    return {
+      species: spec,
+      moves: slot.knownMoves ?? [],
+      item: slot.item,
+      ability: slot.ability,
+      level: slot.level,
+      teraType: slot.teraType,
+    };
   }
 
   private closeLobby(): void {
