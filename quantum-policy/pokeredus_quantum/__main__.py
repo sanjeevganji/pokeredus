@@ -18,11 +18,17 @@ def main() -> None:
         line = line.strip()
         if not line:
             continue
+        req_id = None
         try:
             payload = json.loads(line)
+            req_id = payload.get("id") if isinstance(payload, dict) else None
             out = decide(payload)
+            if req_id is not None:
+                out["id"] = req_id
         except Exception as exc:
             out = {"error": str(exc), "probabilities": []}
+            if req_id is not None:
+                out["id"] = req_id
         sys.stdout.write(json.dumps(out) + "\n")
         sys.stdout.flush()
 
