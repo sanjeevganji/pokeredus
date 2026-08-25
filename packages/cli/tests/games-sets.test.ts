@@ -71,7 +71,7 @@ describe('parseSetsRoute', () => {
       format: 'gen9randombattle',
       species: 'garchomp',
     });
-    expect(parseSetsRoute('/api/games/sets/gen9randombattle/../secret')).toEqual({
+    expect(parseSetsRoute('/api/games/sets/gen9randombattle/' + encodeURIComponent('../secret'))).toEqual({
       format: 'gen9randombattle',
       species: 'secret',
     });
