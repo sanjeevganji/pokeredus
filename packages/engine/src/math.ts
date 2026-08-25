@@ -357,7 +357,7 @@ export function stageMultiplier(stages: number): number {
   return 2 / (2 - stages);
 }
 
-export function modifiersFromSlot(slot: SlotSnapshot, fieldWeather = ''): Modifier[] {
+export function modifiersFromSlot(slot: SlotSnapshot, _fieldWeather = ''): Modifier[] {
   const mods: Modifier[] = [];
   for (const [stat, stages] of Object.entries(slot.boosts)) {
     if (stat === 'accuracy' || stat === 'evasion') continue;
