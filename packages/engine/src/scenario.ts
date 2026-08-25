@@ -157,7 +157,7 @@ export async function playTurn(
   const rng = opts?.rng ?? Math.random;
   const opp = pickReply(ev, rng);
   const result = simulateRound(view, human.action, opp, [1, 2, 3, 4]);
-  const nextView = applySimResult(view, result.afterOurs, result.afterTheirs);
+  const nextView = applySimResult(view, result.afterOurs, result.afterTheirs, result.afterField, human.action, opp);
   const next = facing === 'theirs' ? flipObservation(nextView) : nextView;
   return {
     observation: next,
