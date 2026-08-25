@@ -105,3 +105,101 @@ describe('BattleTracker — transcript → observation', () => {
     expect(obs.teraUsedTheirs).toBe(false);
   });
 });
+
+const dice: CanonicalSet = {
+  species: 'Garchomp',
+  level: 78,
+  item: 'loadeddice',
+  ability: 'roughskin',
+  moves: ['earthquake', 'swordsdance', 'scaleshot', 'firefang'],
+  nature: 'Jolly',
+};
+const scarf: CanonicalSet = {
+  species: 'Garchomp',
+  level: 78,
+  item: 'choicescarf',
+  ability: 'roughskin',
+  moves: ['earthquake', 'outrage', 'stoneedge', 'firefang'],
+  nature: 'Jolly',
+};
+const miniPool: RandomSetPool = {
+  format: 'gen9randombattle',
+  version: 1,
+  samples: 10,
+  seed: 1,
+  species: {
+    garchomp: [
+      { set: dice, count: 7 },
+      { set: scarf, count: 3 },
+    ],
+  },
+};
+
+describe('BattleTracker — assumed set overrides', () => {
+  it('lets a compatible manual override win over the public top candidate', () => {
+    const tracker = new BattleTracker();
+    tracker.applyLine('|switch|p2a: Garchomp|Garchomp, L78, M|100/100');
+    tracker.applyLine('|move|p2a: Garchomp|Earthquake|p1a: Toxapex');
+    const obs = tracker.toObservation(miniPool, [], {
+      version: 1,
+      overrides: { gen9randombattle: { garchomp: scarf } },
+    });
+    const foe = obs.theirs.find((s) => s.speciesId === 'garchomp');
+    expect(foe?.set?.item).toBe('choicescarf');
+    expect(foe?.setSource).toBe('manual');
+    expect(foe?.setComplete).toBe(true);
+    expect(foe?.hypotheses[0]?.set.item).toBe('loadeddice');
+  });
+
+  it('rejects a conflicting override for that observation and keeps the public candidate', () => {
+    const tracker = new BattleTracker();
+    tracker.applyLine('|switch|p2a: Garchomp|Garchomp, L78, M|100/100');
+    tracker.applyLine('|move|p2a: Garchomp|Swords Dance|p2a: Garchomp');
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const obs = tracker.toObservation(miniPool, [], {
+      version: 1,
+      overrides: { gen9randombattle: { garchomp: scarf } },
+    });
+    const foe = obs.theirs.find((s) => s.speciesId === 'garchomp');
+    expect(foe?.set?.item).toBe('loadeddice');
+    expect(foe?.setSource).toBe('public');
+    expect(foe?.setWarning).toMatch(/conflicts with revealed facts/);
+    expect(err).toHaveBeenCalled();
+    err.mockRestore();
+  });
+
+  it('keeps the public top candidate when no override is stored', () => {
+    const tracker = new BattleTracker();
+    tracker.applyLine('|switch|p2a: Garchomp|Garchomp, L78, M|100/100');
+    const obs = tracker.toObservation(miniPool, []);
+    const foe = obs.theirs.find((s) => s.speciesId === 'garchomp');
+    expect(foe?.set?.item).toBe('loadeddice');
+    expect(foe?.setSource).toBe('public');
+    expect(foe?.candidateProbability).toBeCloseTo(0.7);
+  });
+
+  it('marks our request team incomplete instead of filling Smeargle', () => {
+    const tracker = new BattleTracker();
+    tracker.apply({
+      type: 'request',
+      json: {
+        side: {
+          id: 'p1',
+          name: 'me',
+          pokemon: [
+            { ident: 'p1: Garchomp', details: 'Garchomp, L80', condition: '100/100', active: true, moves: [], baseAbility: 'Rough Skin', item: 'Leftovers' },
+          ],
+        },
+        active: [{ moves: [{ move: 'Earthquake', id: 'earthquake', pp: 10, maxpp: 16, disabled: false }] }],
+      },
+    });
+    const obs = tracker.toObservation(miniPool, []);
+    const us = obs.ours.find((s) => s.speciesId === 'garchomp');
+    expect(us?.speciesId).toBe('garchomp');
+    expect(us?.setComplete).toBe(false);
+    expect(us?.setSource).toBe('incomplete');
+    expect(us?.set?.species).not.toBe('smeargle');
+    expect(obs.ours.filter((s) => !s.revealed).every((s) => s.setComplete === false)).toBe(true);
+  });
+});
+
