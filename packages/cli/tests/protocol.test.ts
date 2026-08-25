@@ -1,9 +1,9 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { readFileSync } from 'node:fs';
 import { BattleTracker, resolveSetId } from '@pokeredus/bridge';
 import { KnowledgePackSchema } from '@pokeredus/pack/schema';
 import { PackIndex } from '@pokeredus/pack';
-import { loadPool } from '@pokeredus/engine';
+import { loadPool, type CanonicalSet, type RandomSetPool } from '@pokeredus/engine';
 import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 
