@@ -115,29 +115,42 @@ python tools/pr.py pool
 
 ## Formulas
 
-For each Pokémon, `h = hp/maxHp`, `L` is the alive flag, and `M` is the mean of
-`log(effect multiplier) × expected remaining turns` over active modifiers.
+Scores use our perspective. Positive is favorable to us. Each simulated
+branch attributes effects to the submitted action that caused them.
+Recoil and drain may affect both sides. Residuals (Leftovers, weather
+chip, status damage) are unattributed and excluded from selected-action
+score.
 
 ```
-value      = L × clamp(h + 0.5×tanh(M), 0, 1)
-stateScore = Σ value(ours) − Σ value(theirs)     ∈ [-6, +6]
-CTA(move)  = P(executes) × P(hit | executed) × alive-at-execution   ∈ [0, 1]
-CTS(switch)= sigmoid((stateScore(after switch) − stateScore(stay)) / max(|stay|, ε))
-             forced switches have CTS = 1
-impact     = Σ_revealed (Δh + 0.5·Δtanh(M))  (our perspective; each term ∈ [-1, +1])
-choiceScore(c) = success(c) × E[impact]
-roundScore = uniform mean of simulated post-round stateScore over our legal choices
+CTA(move)       = P(executes) × P(hit | executes) × P(alive at resolve)   ∈ [0, 1]
+damageScore     = CTA / expectedTTK
+expectedTTK     = max(1, ceil(currentHP / damage)) on hitting branches
+healScore       = restoredHP / maxHP   (no overheal)
+modifierValue   = 0.5 × tanh(mean(log(multiplier) × remainingTurns))
+pairTurnScore   = ourAttributed − theirAttributed
+switchScore     = stateScore(after) − stateScore(before) − theirAttributed
+                  forced switches have success = 1
+expectedRoundScore = Σ joint-policy(i,j) × pairTurnScore(i,j)
 ```
 
-`forcedOutcome` is `win | loss | none`. For the next round only, forced-win
-probability is `max_our_choice min_opponent_reply P(opponent terminal)`; forced
-loss is defined symmetrically. Signed `log1p` is used only when scaling scores
-for the policy / learning log; raw values stay in the output.
+A guaranteed faster OHKO from current HP has CTA=1, TTK=1, damageScore=+1.
+A 2HKO with CTA=1 scores 0.5. Weather is a Showdown field effect, not a
+blanket 1.5 modifier on every Pokémon. Duration uses Showdown remaining
+turns when exposed; otherwise the estimates in `MODIFIER_TURNS`.
+
+`stateScore` is still `Σ value(ours) − Σ value(theirs)` ∈ [-6, +6] with
+`value = L × clamp(h + 0.5×tanh(M), 0, 1)`.
+
+`forcedOutcome` is `win | loss | none`. Signed `log1p` is used only when
+scaling scores for the policy / display; raw values stay in engine output.
+`probability` is a policy weight, not confidence.
 
 The official `pokemon-showdown` simulator is the rules engine for speed,
 priority, Trick Room, switches, accuracy, healing, status, boosts, field
 effects, and chance branches. Battles are cloned with `Battle.toJSON` /
-`Battle.fromJSON` for counterfactual branches.
+`Battle.fromJSON` for counterfactual branches. The observed weather,
+terrain, Trick Room, hazards, and screens are restored through Showdown
+field APIs before each counterfactual round.
 
 ## Quantum policy
 
