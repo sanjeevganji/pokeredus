@@ -370,7 +370,6 @@ function assemble(
   const postScores: number[] = [];
   const forcedRows: Array<Array<{ pWin: number; pLoss: number }>> = [];
   const pairs: PairScore[] = [];
-  const theirIndex = new Map(replies.map((r, j) => [r.id, j]));
 
   for (let i = 0; i < legal.length; i++) {
     const action = legal[i]!;
