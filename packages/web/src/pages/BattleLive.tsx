@@ -139,6 +139,15 @@ export default function BattleLive() {
         <summary>Protocol log</summary>
         <pre className="event-log">{formatEvents(live.events)}</pre>
       </details>
+      {drawer && (
+        <SetDrawer
+          slot={drawer.slot}
+          format={formatFromRoom(live.room)}
+          opener={drawer.opener}
+          onClose={() => setDrawer(null)}
+          onSaved={(msg) => { setSaveMsg(msg); setDrawer(null); }}
+        />
+      )}
     </div>
   );
 }
