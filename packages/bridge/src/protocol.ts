@@ -694,10 +694,7 @@ export class BattleTracker {
     for (const s of ours) s.modifiers = modifiersFromSlot(s, weather);
     for (const s of theirs) s.modifiers = modifiersFromSlot(s, weather);
 
-    const legalActions = enumerateFromRequest(this.lastRequest ?? undefined).filter((a) => !a.tera);
-    // #region agent log
-    agentLog('C', 'protocol.ts:toObservation', 'obs slots', { ourSide: this.ourSide, ours: ours.map((s) => ({ species: s.speciesId, active: s.active, slot: s.slot, revealed: s.revealed })), theirs: theirs.map((s) => ({ species: s.speciesId, active: s.active, slot: s.slot, revealed: s.revealed })), legal: legalActions.map((a) => a.id), teraLegal: legalActions.filter((a) => a.tera).length, mapSize: this.myMons.size });
-    // #endregion
+    const legalActions = enumerateFromRequest(this.lastRequest ?? undefined, this.teraUsedOurs);
     return {
       turn: this.turn,
       format: 'gen9randombattle',
@@ -717,7 +714,8 @@ export class BattleTracker {
       },
       request: this.lastRequest ?? undefined,
       legalActions,
-      teraUsed: this.teraUsed,
+      teraUsedOurs: this.teraUsedOurs,
+      teraUsedTheirs: this.teraUsedTheirs,
     };
   }
 }
