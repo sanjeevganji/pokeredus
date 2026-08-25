@@ -99,4 +99,30 @@ describe('decideAndAct', () => {
     expect(result.sent).toBe(true);
     expect(client.sent[0]).toContain('earthquake');
   });
+
+  it('sends terastallize when a tera action is sampled', async () => {
+    const client = new MockClient();
+    const result = await decideAndAct(client, obs(), {
+      dryRun: false,
+      process: new MockPolicy() as unknown as QuantumPolicyProcess,
+      rng: () => 0,
+      evaluate: () => ({
+        choices: [{
+          action: { id: 'move:earthquake:tera', type: 'move', moveId: 'earthquake', tera: true },
+          success: 1, cta: 1, expectedImpact: 1, expectedHealthDelta: 1, expectedModifierDelta: 0,
+          ourHealth: 0, theirHealth: -1, ourModifier: 0, theirModifier: 0,
+          hitsToKill: 1, choiceScore: 1, scaledChoiceScore: 1, meanPostScore: 0,
+          minTurnScore: 1, maxTurnScore: 1, minPostScore: 0, maxPostScore: 0, sampleCount: 1,
+          features: { health: 1, modifier: 0, secondary: 0, switchRisk: 0, sacrifice: 0 },
+        }],
+        roundScore: 0, expectedRoundScore: 0, minRoundScore: 0, maxRoundScore: 0,
+        replies: [],
+        forcedOutcome: 'none',
+        mateProbability: 0,
+      }),
+    });
+    expect(result.sent).toBe(true);
+    expect(client.sent[0]).toContain('earthquake');
+    expect(client.sent[0]).toContain('terastallize');
+  });
 });
