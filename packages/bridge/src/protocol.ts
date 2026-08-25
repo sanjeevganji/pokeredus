@@ -485,7 +485,10 @@ export class BattleTracker {
 
       case 'move': {
         const mon = this.findMon(ev.side, ev.identity);
-        if (mon) mon.lastMove = ev.moveId;
+        if (mon) {
+          mon.lastMove = ev.moveId;
+          if (ev.moveId && !mon.revealedMoves.includes(ev.moveId)) mon.revealedMoves.push(ev.moveId);
+        }
         break;
       }
 
