@@ -56,8 +56,16 @@ export async function decideAndAct(
     refineFallback: 'throw',
   }));
   const evaluation = await Promise.resolve(evaluate(obs));
-  const teraOurs = opts.evaluate ? undefined : await evaluateRound(withOurTera(obs), { weights: loadWeights() });
-  const teraTheirs = opts.evaluate ? undefined : await evaluateRound(obs, { theirTera: true, weights: loadWeights() });
+  const teraOurs: RoundEvaluation | undefined = opts.evaluate ? undefined : {
+    ...evaluation,
+    choices: evaluation.choices.filter((c) => c.action.tera),
+    replies: evaluation.replies,
+  };
+  const teraTheirs: RoundEvaluation | undefined = opts.evaluate ? undefined : {
+    ...evaluation,
+    choices: evaluation.choices,
+    replies: evaluation.replies.filter((r) => r.action.tera),
+  };
   const ids = evaluation.choices.map((c) => c.action.id);
   if (!ids.length) {
     console.warn('[pokeredus] no legal actions this turn');
