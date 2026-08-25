@@ -47,7 +47,7 @@ export class QuantumPolicyProcess {
       this.readyResolve = resolve;
       this.readyReject = reject;
       this.readyTimer = setTimeout(() => {
-        this.failReady(new Error(`quantum-policy failed to start within ${START_TIMEOUT_MS}ms`));
+        this.failAll(new Error(`quantum-policy failed to start within ${START_TIMEOUT_MS}ms`));
       }, START_TIMEOUT_MS);
     });
     this.ready.catch(() => undefined);
