@@ -83,12 +83,10 @@ describe('set-overrides store', () => {
     const file = tmp();
     saveSetOverride('gen9randombattle', 'garchomp', garchomp, file);
     const before = fs.readFileSync(file, 'utf8');
-    vi.spyOn(fs, 'renameSync').mockImplementation(() => {
-      throw new Error('rename failed');
-    });
-    expect(() => saveSetOverride('gen9randombattle', 'garchomp', { ...garchomp, item: 'Life Orb' }, file))
-      .toThrow(/rename failed/);
+    fs.mkdirSync(`${file}.bak`);
+    expect(() => saveSetOverride('gen9randombattle', 'garchomp', { ...garchomp, item: 'Life Orb' }, file)).toThrow();
     expect(fs.readFileSync(file, 'utf8')).toBe(before);
+    fs.rmdirSync(`${file}.bak`);
   });
 
   it('does not use route text as a filename', () => {
