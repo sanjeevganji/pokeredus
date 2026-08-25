@@ -97,7 +97,24 @@ function BoostPills({ slot }: { slot: LiveSlot }) {
   );
 }
 
-function SlotRow({ slot, accent }: { slot: LiveSlot; accent: 'cyan' | 'pink' }) {
+function provenanceLabel(slot: LiveSlot): string {
+  if (!slot.revealed) return '';
+  if (!slot.setComplete || slot.setSource === 'incomplete') return 'Incomplete assumptions';
+  if (slot.setSource === 'manual') return 'Assumed · manual';
+  if (slot.setSource === 'public') {
+    const pct = slot.candidateProbability != null ? ` · ${(slot.candidateProbability * 100).toFixed(0)}% of pool` : '';
+    return `Assumed · public candidate${pct}`;
+  }
+  return 'Assumed';
+}
+
+function SlotRow({
+  slot, accent, onEditSet,
+}: {
+  slot: LiveSlot;
+  accent: 'cyan' | 'pink';
+  onEditSet?: (slot: LiveSlot, opener: HTMLElement) => void;
+}) {
   const revealed = slot.revealed;
   const max = Math.max(slot.maxHp || 0, 1);
   const ratio = slot.fainted || !revealed ? 0 : Math.max(0, Math.min(1, slot.hp / max));
@@ -111,6 +128,15 @@ function SlotRow({ slot, accent }: { slot: LiveSlot; accent: 'cyan' | 'pink' }) 
         <div className="slot-meta">
           <span>{slot.active ? '● ' : ''}{name}</span>
           {revealed && slot.status ? <span className="status-pill">{slot.status}</span> : null}
+          {revealed && onEditSet ? (
+            <button
+              type="button"
+              className={`set-prov${slot.setWarning ? ' set-prov-warn' : ''}`}
+              onClick={(e) => onEditSet(slot, e.currentTarget)}
+            >
+              {provenanceLabel(slot)}
+            </button>
+          ) : null}
           <BoostPills slot={slot} />
         </div>
         <div
@@ -124,13 +150,14 @@ function SlotRow({ slot, accent }: { slot: LiveSlot; accent: 'cyan' | 'pink' }) 
           <div className="hp-fill" style={{ width: `${ratio * 100}%`, background: color }} />
         </div>
         <span className="dim slot-hp">{hpLabel}</span>
+        {slot.setWarning ? <span className="set-warn">{slot.setWarning}</span> : null}
       </div>
     </li>
   );
 }
 
 export function Bench({
-  title, slots, field, accent, area, tera, compact,
+  title, slots, field, accent, area, tera, compact, onEditSet,
 }: {
   title: string;
   slots: LiveSlot[];
@@ -139,11 +166,12 @@ export function Bench({
   area?: string;
   tera?: boolean;
   compact?: boolean;
+  onEditSet?: (slot: LiveSlot, opener: HTMLElement) => void;
 }) {
   const six = [...slots];
   while (six.length < 6) {
     six.push({
-      speciesId: '', hp: 0, maxHp: 100, status: '', fainted: false, active: false, revealed: false,
+      speciesId: '', hp: 0, maxHp: 100, status: '', fainted: false, active: false, revealed: false, setComplete: false,
     });
   }
   const shown = six.slice(0, 6);
@@ -157,11 +185,24 @@ export function Bench({
       {compact ? (
         <>
           <ul className="bench-list">
-            <SlotRow slot={lead} accent={accent} />
+            <SlotRow slot={lead} accent={accent} onEditSet={onEditSet} />
           </ul>
           <div className="bench-rest">
             {rest.map((s, i) => {
               const name = s.revealed && s.speciesId ? prettySpecies(s.speciesId) : 'Unknown';
+              if (s.revealed && onEditSet) {
+                return (
+                  <button
+                    key={i}
+                    type="button"
+                    className={`bench-name set-prov${s.fainted ? ' slot-fainted' : ''}${s.setWarning ? ' set-prov-warn' : ''}`}
+                    onClick={(e) => onEditSet(s, e.currentTarget)}
+                  >
+                    {name}
+                    <span className="set-prov-mini">{provenanceLabel(s)}</span>
+                  </button>
+                );
+              }
               return (
                 <span
                   key={i}
@@ -175,7 +216,7 @@ export function Bench({
         </>
       ) : (
         <ul className="bench-list">
-          {shown.map((s, i) => <SlotRow key={i} slot={s} accent={accent} />)}
+          {shown.map((s, i) => <SlotRow key={i} slot={s} accent={accent} onEditSet={onEditSet} />)}
         </ul>
       )}
     </section>
