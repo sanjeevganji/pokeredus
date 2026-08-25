@@ -2,7 +2,7 @@ import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest';
-import { handleSetsApi, parseSetsRoute } from '../../web/server/games.ts';
+import { handleSetsApi, parseSetsRoute } from '../../web/server/games.js';
 import type { RandomSetPool } from '@pokeredus/engine';
 import { saveSetOverride } from '@pokeredus/engine';
 

@@ -67,7 +67,7 @@ export function parseLobbyLine(raw: string): LobbyEvent | null {
         data && typeof data === 'object' && 'rooms' in data && data.rooms
           ? data.rooms
           : (data as Record<string, RoomListEntry>);
-      return { type: 'roomlist', rooms: rooms && typeof rooms === 'object' ? rooms : {} };
+      return { type: 'roomlist', rooms: rooms && typeof rooms === 'object' ? rooms as Record<string, RoomListEntry> : {} };
     } catch {
       return null;
     }
