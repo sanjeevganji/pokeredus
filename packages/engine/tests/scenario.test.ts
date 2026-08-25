@@ -5,6 +5,7 @@ import {
   estimateWinrate,
   evaluateRound,
   flipObservation,
+  forecastBattle,
   playTurn,
   type BattleObservation,
   type CanonicalSet,
