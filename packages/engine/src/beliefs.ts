@@ -1,14 +1,3 @@
-import { appendFileSync } from 'node:fs';
-import type { CanonicalSet, RevealedFacts, SetHypothesis } from './observation.js';
-import type { RandomSetPool } from './pool.js';
-
-function dbg(payload: Record<string, unknown>): void {
-  // #region agent log
-  fetch('http://127.0.0.1:7417/ingest/44062777-1cbd-4eb4-93e8-ab744e7750f5',{method:'POST',headers:{'Content-Type':'application/json','X-Debug-Session-Id':'1551b4'},body:JSON.stringify({sessionId:'1551b4',...payload,timestamp:Date.now()})}).catch(()=>{});
-  try { appendFileSync('d:/PokeRedus/debug-1551b4.log', JSON.stringify({sessionId:'1551b4',...payload,timestamp:Date.now()}) + '\n'); } catch { /* ignore */ }
-  // #endregion
-}
-
 export function canonicalizeSet(set: CanonicalSet): string {
   const moves = [...set.moves].map((m) => m.toLowerCase()).sort().join(',');
   return [
