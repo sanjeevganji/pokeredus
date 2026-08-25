@@ -320,11 +320,6 @@ a.btn-primary, a.btn-secondary, button.btn-primary, button.btn-secondary, button
   stroke-width: 0.6;
 }
 
-.turn-graph-label {
-  fill: var(--fg-secondary);
-  font-size: 5px;
-}
-
 .turn-graph-fill-up { fill: var(--neon-cyan); opacity: 0.18; }
 .turn-graph-fill-dn { fill: var(--neon-pink); opacity: 0.18; }
 
