@@ -62,8 +62,8 @@ export function ScoreBar({
       className="choice-track bipolar"
       role="meter"
       aria-label={label}
-      aria-valuemin={-CHOICE_BAR_DOMAIN}
-      aria-valuemax={CHOICE_BAR_DOMAIN}
+      aria-valuemin={-domain}
+      aria-valuemax={domain}
       aria-valuenow={Number(score.toFixed(3))}
     >
       <div className="bipolar-mid" />
