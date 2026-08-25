@@ -689,9 +689,143 @@ export class BattleTracker {
 export function battleStateFromEvents(
   events: BattleEvent[],
   pool: RandomSetPool,
-  ourSets: import('@pokeredus/engine').CanonicalSet[] = [],
+  ourSets: CanonicalSet[] = [],
+  overrides?: SetOverridesStore | string,
 ): BattleObservation {
   const t = new BattleTracker();
   for (const ev of events) t.apply(ev);
-  return t.toObservation(pool, ourSets);
+  return t.toObservation(pool, ourSets, overrides);
+}
+
+function resolveOverrides(overrides?: SetOverridesStore | string): SetOverridesStore {
+  if (typeof overrides === 'string') return loadSetOverrides(overrides);
+  return overrides ?? { version: 1, overrides: {} };
+}
+
+function setFromTracked(m: TrackedMon): CanonicalSet {
+  const moves = m.revealedMoves.length ? [...m.revealedMoves] : Object.keys(m.pp);
+  return {
+    species: m.speciesId,
+    level: m.level && m.level >= 1 && m.level <= 100 ? m.level : 0,
+    item: m.item ?? '',
+    ability: m.ability ?? '',
+    moves,
+    nature: '',
+    teraType: m.teraType,
+  };
+}
+
+function ourSlotFromMon(
+  i: number,
+  m: TrackedMon,
+  fromFlag: CanonicalSet | undefined,
+  store: SetOverridesStore,
+  format: string,
+): SlotSnapshot {
+  const override = getSetOverride(store, format, m.speciesId);
+  let set = fromFlag;
+  let setSource: SetSource = 'revealed';
+  if (set && setIsComplete(set)) {
+    setSource = 'revealed';
+  } else if (override && setIsComplete(override)) {
+    set = override;
+    setSource = 'manual';
+  } else {
+    set = setFromTracked(m);
+    setSource = setIsComplete(set) ? 'revealed' : 'incomplete';
+  }
+  const complete = setIsComplete(set);
+  return {
+    slot: i,
+    speciesId: m.speciesId,
+    revealed: true,
+    hp: m.hp,
+    maxHp: m.maxHp || 100,
+    status: m.status,
+    boosts: { ...m.boosts },
+    fainted: m.fainted,
+    active: m.active,
+    item: m.item,
+    ability: m.ability,
+    teraType: m.teraType,
+    level: m.level,
+    knownMoves: Object.keys(m.pp).length ? Object.keys(m.pp) : (m.revealedMoves ?? []),
+    set: complete || set.species ? set : undefined,
+    setSource,
+    setComplete: complete,
+    hypotheses: [],
+    modifiers: [],
+  };
+}
+
+function theirSlotFromMon(
+  i: number,
+  m: TrackedMon,
+  pool: RandomSetPool,
+  store: SetOverridesStore,
+  format: string,
+): SlotSnapshot {
+  const facts = {
+    species: m.speciesId,
+    moves: m.revealedMoves.length ? m.revealedMoves : (m.lastMove ? [m.lastMove] : []),
+    item: m.item,
+    ability: m.ability,
+    level: m.level,
+    teraType: m.teraType,
+  };
+  let hypotheses: SetHypothesis[] = [];
+  try {
+    hypotheses = initialBelief(pool, facts);
+  } catch (err) {
+    console.error(`[pokeredus] ${err instanceof Error ? err.message : err}`);
+  }
+  const override = getSetOverride(store, format, m.speciesId);
+  let set = hypotheses[0]?.set;
+  let setSource: SetSource = set ? 'public' : 'incomplete';
+  let candidateProbability = hypotheses[0]?.probability;
+  let setWarning: string | undefined;
+  if (override) {
+    if (compatible(override, facts)) {
+      set = override;
+      setSource = 'manual';
+      const match = hypotheses.find((h) =>
+        compatible(h.set, {
+          species: facts.species,
+          moves: override.moves,
+          item: override.item,
+          ability: override.ability,
+          level: override.level,
+          teraType: override.teraType,
+        }),
+      );
+      candidateProbability = match?.probability;
+    } else {
+      setWarning = `Assumed set for ${m.speciesId} conflicts with revealed facts; using public candidate`;
+      console.error(`[pokeredus] ${setWarning}`);
+    }
+  }
+  const complete = setIsComplete(set);
+  return {
+    slot: i,
+    speciesId: m.speciesId,
+    revealed: true,
+    hp: m.hp,
+    maxHp: m.maxHp || 100,
+    status: m.status,
+    boosts: { ...m.boosts },
+    fainted: m.fainted,
+    active: m.active,
+    knownMoves: facts.moves,
+    item: m.item,
+    ability: m.ability,
+    teraType: m.teraType,
+    level: m.level,
+    hypotheses,
+    set,
+    setSource: complete ? setSource : 'incomplete',
+    candidateProbability,
+    setComplete: complete,
+    setWarning,
+    modifiers: [],
+  };
 }
