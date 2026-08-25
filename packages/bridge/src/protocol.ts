@@ -618,40 +618,31 @@ export class BattleTracker {
   }
 
   /** Build the immutable observation the engine consumes. */
-  toObservation(pool: RandomSetPool, ourSets: import('@pokeredus/engine').CanonicalSet[]): BattleObservation {
+  toObservation(
+    pool: RandomSetPool,
+    ourSets: CanonicalSet[],
+    overrides?: SetOverridesStore | string,
+  ): BattleObservation {
+    const store = resolveOverrides(overrides);
+    const format = 'gen9randombattle';
     const ours: SlotSnapshot[] = [];
     const myList = [...this.myMons.values()];
     for (let i = 0; i < 6; i++) {
       const m = myList[i];
-      const set = ourSets[i];
+      const fromFlag = ourSets[i];
       if (!m) {
         const slot = placeholderSlot(i);
-        if (set) {
-          slot.speciesId = set.species;
-          slot.set = set;
+        if (fromFlag && setIsComplete(fromFlag)) {
+          slot.speciesId = fromFlag.species;
+          slot.set = fromFlag;
           slot.revealed = true;
+          slot.setComplete = true;
+          slot.setSource = 'revealed';
         }
         ours.push(slot);
         continue;
       }
-      ours.push({
-        slot: i,
-        speciesId: m.speciesId,
-        revealed: true,
-        hp: m.hp,
-        maxHp: m.maxHp || 100,
-        status: m.status,
-        boosts: { ...m.boosts },
-        fainted: m.fainted,
-        active: m.active,
-        item: m.item,
-        ability: m.ability,
-        teraType: m.teraType,
-        knownMoves: Object.keys(m.pp),
-        set,
-        hypotheses: [],
-        modifiers: [],
-      });
+      ours.push(ourSlotFromMon(i, m, fromFlag, store, format));
     }
 
     const theirs: SlotSnapshot[] = [];
@@ -662,38 +653,7 @@ export class BattleTracker {
         theirs.push(placeholderSlot(i));
         continue;
       }
-      const facts = {
-        species: m.speciesId,
-        moves: m.revealedMoves.length ? m.revealedMoves : (m.lastMove ? [m.lastMove] : []),
-        item: m.item,
-        ability: m.ability,
-        level: m.level,
-        teraType: m.teraType,
-      };
-      let hypotheses: SetHypothesis[] = [];
-      try {
-        hypotheses = initialBelief(pool, facts);
-      } catch (err) {
-        console.error(`[pokeredus] ${err instanceof Error ? err.message : err}`);
-      }
-      theirs.push({
-        slot: i,
-        speciesId: m.speciesId,
-        revealed: true,
-        hp: m.hp,
-        maxHp: m.maxHp || 100,
-        status: m.status,
-        boosts: { ...m.boosts },
-        fainted: m.fainted,
-        active: m.active,
-        knownMoves: facts.moves,
-        item: m.item,
-        ability: m.ability,
-        teraType: m.teraType,
-        hypotheses,
-        set: hypotheses[0]?.set,
-        modifiers: [],
-      });
+      theirs.push(theirSlotFromMon(i, m, pool, store, format));
     }
 
     const weather = this.field.weather;
