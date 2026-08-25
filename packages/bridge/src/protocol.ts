@@ -734,7 +734,8 @@ function ourSlotFromMon(
     set = setFromTracked(m);
     setSource = setIsComplete(set) ? 'revealed' : 'incomplete';
   }
-  const complete = setIsComplete(set);
+  const used = set ?? setFromTracked(m);
+  const complete = setIsComplete(used);
   return {
     slot: i,
     speciesId: m.speciesId,
@@ -750,7 +751,7 @@ function ourSlotFromMon(
     teraType: m.teraType,
     level: m.level,
     knownMoves: Object.keys(m.pp).length ? Object.keys(m.pp) : (m.revealedMoves ?? []),
-    set: complete || used.species ? used : undefined,
+    set: used,
     setSource,
     setComplete: complete,
     hypotheses: [],
