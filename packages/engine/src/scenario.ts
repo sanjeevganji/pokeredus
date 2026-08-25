@@ -1,8 +1,46 @@
 import type { BattleObservation, LegalAction, RoundEvaluation, SlotSnapshot } from './observation.js';
 import { actionId, observationTera } from './observation.js';
 import { sampleAction, type QuantumPolicyProcess } from './policy.js';
-import { evaluateRound, theirActions, type EvaluateOptions } from './evaluate.js';
+import { evaluateRound, theirActions, evaluateJointStatePolicy, type EvaluateOptions, type JointPolicyResult } from './evaluate.js';
 import { simulateRound } from './sim.js';
+import { signedLog1p, wilsonScoreInterval, createSeededRng } from './math.js';
+
+export interface ForecastOptions extends EvaluateOptions {
+  rolloutsPerChoice?: number;
+  maxTurns?: number;
+  timeBudgetMs?: number;
+  seed?: number;
+  signal?: AbortSignal;
+  onProgress?: (partial: BattleForecast) => void;
+  cache?: Map<string, JointPolicyResult>;
+}
+
+export interface ChoiceForecast {
+  actionId: string;
+  samples: number;
+  wins: number;
+  losses: number;
+  draws: number;
+  capped: number;
+  expectedTerminalScore: number;
+  minTerminalScore: number;
+  maxTerminalScore: number;
+  winRate: number;
+  winRateLow: number;
+  winRateHigh: number;
+  policyWeight?: number;
+}
+
+export interface BattleForecast {
+  turn: number;
+  status: 'running' | 'complete' | 'partial' | 'cancelled' | 'incomplete-assumptions' | 'error';
+  choices: ChoiceForecast[];
+  totalSamples: number;
+  elapsedMs: number;
+  assumptionsComplete: boolean;
+  diagnostics?: Record<string, unknown>;
+  error?: string;
+}
 
 export function legalFromSlots(ours: SlotSnapshot[], teraUsed = false): LegalAction[] {
   const active = ours.find((s) => s.active) ?? ours[0];
