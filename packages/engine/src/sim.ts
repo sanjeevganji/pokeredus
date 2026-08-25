@@ -473,8 +473,8 @@ function parseRoundLog(raw: string[], ourSide: PlayerSide): { ours: ActionTeleme
         kind: residual && kind === 'damage' ? 'residual' : kind,
         side,
         attributed,
-        hpBefore: cmd === '-heal' ? prev : (cmd === '-damage' ? Math.max(prev, hp) : prev),
-        hpAfter: hp,
+        hpBefore: cmd === '-heal' ? prev : (cmd === '-damage' ? Math.max(prev, parsed.hp) : prev),
+        hpAfter: parsed.hp,
         maxHp,
         from,
       };
