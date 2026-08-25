@@ -247,6 +247,7 @@ interface Branch {
   theirHAfter: number;
   ourHBefore: number;
   ourHAfter: number;
+  theirVal: number;
 }
 
 function pairKey(ourId: string, theirId: string): string {
