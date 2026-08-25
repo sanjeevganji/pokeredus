@@ -2,13 +2,29 @@
 // The live CLI overwrites this JSON; the GUI polls it. No sockets.
 import * as fs from 'node:fs';
 import * as path from 'node:path';
-import type { BattleObservation, Boosts, CanonicalSet, FieldSnapshot, SetSource, SlotSnapshot } from '@pokeredus/engine';
-import { emptyBoosts, modifiersFromSlot } from '@pokeredus/engine';
+import type {
+  BattleForecast,
+  BattleObservation,
+  Boosts,
+  CanonicalSet,
+  ChoiceFeaturesView,
+  FieldSnapshot,
+  ScoreWeights,
+  SetSource,
+  SlotSnapshot,
+} from '@pokeredus/engine';
+import {
+  emptyBoosts,
+  loadWeights,
+  modifiersFromSlot,
+  observationStateScore,
+} from '@pokeredus/engine';
 import type { DecideResult } from './decide.js';
 import type { BattleEvent, BattleTracker } from './protocol.js';
 
 export const MAX_LIVE_EVENTS = 40;
-export const MAX_LIVE_TURNS = 16;
+export const MAX_LIVE_TURNS = 64;
+export const MAX_LIVE_POINTS = 64;
 export const LIVE_SLOT_COUNT = 6;
 
 export type LiveStatus =
@@ -56,7 +72,28 @@ export interface LiveChoice {
   theirModifier: number;
   hitsToKill: number | null;
   choiceScore: number;
+  scaledChoiceScore?: number;
+  meanPostScore?: number;
+  minTurnScore?: number;
+  maxTurnScore?: number;
+  minPostScore?: number;
+  maxPostScore?: number;
+  sampleCount?: number;
+  features?: ChoiceFeaturesView;
   probability?: number;
+  policyWeight?: number;
+  hamiltonianInput?: number;
+  expectedTerminalScore?: number;
+  minTerminalScore?: number;
+  maxTerminalScore?: number;
+  winRate?: number;
+  winRateLow?: number;
+  winRateHigh?: number;
+  wins?: number;
+  losses?: number;
+  draws?: number;
+  capped?: number;
+  samples?: number;
 }
 
 export interface LiveReply {
@@ -66,12 +103,20 @@ export interface LiveReply {
   hitsToKillUs: number | null;
   choiceScore?: number;
   probability?: number;
+  policyWeight?: number;
   expectedHealthDelta?: number;
   expectedModifierDelta?: number;
   ourHealth?: number;
   theirHealth?: number;
   ourModifier?: number;
   theirModifier?: number;
+  features?: ChoiceFeaturesView;
+  minTurnScore?: number;
+  maxTurnScore?: number;
+  meanPostScore?: number;
+  minPostScore?: number;
+  maxPostScore?: number;
+  sampleCount?: number;
 }
 
 export interface LiveQuantum {
@@ -79,10 +124,33 @@ export interface LiveQuantum {
   nQubits?: number;
   shots?: number;
   exact?: boolean;
+  params?: number[];
+  cost?: number;
+}
+
+export interface LiveScorePoint {
+  sequence: number;
+  turn: number;
+  actionId: string;
+  actionKind: 'move' | 'switch';
+  tera: boolean;
+  status: 'forecast' | 'settled' | 'unresolved';
+  expectedDelta: number;
+  minDelta: number;
+  maxDelta: number;
+  realizedDelta?: number;
+  cumulativeTotal: number;
+  expectedTotal: number;
+  minTotal: number;
+  maxTotal: number;
+  samples: number;
 }
 
 export interface LiveEval {
   roundScore: number;
+  expectedRoundScore?: number;
+  minRoundScore?: number;
+  maxRoundScore?: number;
   forcedOutcome: string;
   mateProbability: number;
   sampledAction: string;
@@ -91,6 +159,8 @@ export interface LiveEval {
   teraChoices?: LiveChoice[];
   teraReplies?: LiveReply[];
   quantum?: LiveQuantum;
+  forecast?: BattleForecast;
+  scoreWeights?: ScoreWeights;
 }
 
 export interface LiveTurn {
@@ -126,6 +196,7 @@ export interface LiveEvent {
 }
 
 export interface LiveState {
+  schemaVersion?: number;
   ts: string;
   status: LiveStatus;
   room: string;
@@ -137,6 +208,7 @@ export interface LiveState {
   ours: LiveSlot[];
   theirs: LiveSlot[];
   eval?: LiveEval;
+  points?: LiveScorePoint[];
   turns: LiveTurn[];
   events: LiveEvent[];
   error?: string;
@@ -195,10 +267,12 @@ export function slotsFromObservation(obs: BattleObservation, side: 'ours' | 'the
 export class LiveStateWriter {
   readonly path: string;
   state: LiveState;
+  lastObs?: BattleObservation;
 
   constructor(opts: { path?: string; room: string; dryRun: boolean; policy: string }) {
     this.path = opts.path || defaultLiveStatePath();
     this.state = {
+      schemaVersion: 2,
       ts: nowIso(),
       status: 'connecting',
       room: opts.room,
@@ -210,6 +284,7 @@ export class LiveStateWriter {
       theirs: padSlots([]),
       events: [],
       turns: [],
+      points: [],
     };
   }
 
@@ -243,6 +318,29 @@ export class LiveStateWriter {
   }
 
   fromObservation(obs: BattleObservation): void {
+    // Settle any prior forecast point on receiving the new observation
+    const points = [...(this.state.points ?? [])];
+    const pending = points.find((p) => p.status === 'forecast');
+    if (pending) {
+      if (this.lastObs) {
+        const afterScore = observationStateScore(obs.ours, obs.theirs);
+        const beforeScore = observationStateScore(this.lastObs.ours, this.lastObs.theirs);
+        const realizedDelta = afterScore - beforeScore;
+        pending.status = 'settled';
+        pending.realizedDelta = realizedDelta;
+        pending.cumulativeTotal = pending.cumulativeTotal + realizedDelta;
+      } else {
+        pending.status = 'unresolved';
+      }
+    }
+    this.lastObs = obs;
+
+    const turns: LiveTurn[] = points.map((p) => ({
+      turn: p.turn,
+      roundScore: p.status === 'settled' && p.realizedDelta != null ? p.realizedDelta : p.expectedDelta,
+      sampledAction: p.actionId,
+    })).slice(-MAX_LIVE_TURNS);
+
     this.state = {
       ...this.state,
       ts: nowIso(),
@@ -251,6 +349,8 @@ export class LiveStateWriter {
       ours: slotsFromObservation(obs, 'ours'),
       theirs: slotsFromObservation(obs, 'theirs'),
       warnings: slotWarnings(obs),
+      points,
+      turns,
     };
     this.flush();
     this.writeObservation(obs);
@@ -258,35 +358,109 @@ export class LiveStateWriter {
 
   fromDecision(result: DecideResult): void {
     const probabilities = result.probabilities;
-    const turns: LiveTurn[] = [
-      ...(this.state.turns ?? []),
-      {
-        turn: this.state.turn,
-        roundScore: result.evaluation.roundScore,
-        sampledAction: result.sampledId,
-      },
-    ].slice(-MAX_LIVE_TURNS);
+    const choices = toLiveChoices(result.evaluation, probabilities);
+    const sampled = result.evaluation.choices.find((c) => c.action.id === result.sampledId)
+      ?? result.evaluation.choices[0];
+
+    const points = [...(this.state.points ?? [])];
+    // Find the base cumulative total from the latest settled point (or 0 at attach)
+    let baseTotal = 0;
+    for (let i = points.length - 1; i >= 0; i--) {
+      if (points[i]!.status === 'settled') {
+        baseTotal = points[i]!.cumulativeTotal;
+        break;
+      }
+    }
+
+    const expectedDelta = sampled?.choiceScore ?? result.evaluation.expectedRoundScore ?? result.evaluation.roundScore;
+    const minDelta = sampled?.minTurnScore ?? result.evaluation.minRoundScore ?? expectedDelta;
+    const maxDelta = sampled?.maxTurnScore ?? result.evaluation.maxRoundScore ?? expectedDelta;
+    const samples = sampled?.sampleCount ?? 1;
+    const actionKind: 'move' | 'switch' = (sampled?.action.type as 'move' | 'switch')
+      ?? (result.sampledId.startsWith('switch:') ? 'switch' : 'move');
+    const tera = Boolean(sampled?.action.tera || result.sampledId.endsWith(':tera'));
+
+    const newPoint: LiveScorePoint = {
+      sequence: points.length + 1,
+      turn: this.state.turn,
+      actionId: result.sampledId,
+      actionKind,
+      tera,
+      status: 'forecast',
+      expectedDelta,
+      minDelta,
+      maxDelta,
+      cumulativeTotal: baseTotal,
+      expectedTotal: baseTotal + expectedDelta,
+      minTotal: baseTotal + minDelta,
+      maxTotal: baseTotal + maxDelta,
+      samples,
+    };
+
+    points.push(newPoint);
+    const cappedPoints = points.slice(-MAX_LIVE_POINTS);
+
+    const turns: LiveTurn[] = cappedPoints.map((p) => ({
+      turn: p.turn,
+      roundScore: p.status === 'settled' && p.realizedDelta != null ? p.realizedDelta : p.expectedDelta,
+      sampledAction: p.actionId,
+    })).slice(-MAX_LIVE_TURNS);
+
+    let weights: ScoreWeights;
+    try {
+      weights = loadWeights();
+    } catch {
+      weights = { health: 1, modifier: 1, secondary: 1, switchRisk: 1, sacrifice: 1 };
+    }
+
     this.state = {
       ...this.state,
       ts: nowIso(),
       status: 'waiting',
+      points: cappedPoints,
       turns,
       eval: {
         roundScore: result.evaluation.roundScore,
+        expectedRoundScore: result.evaluation.expectedRoundScore,
+        minRoundScore: result.evaluation.minRoundScore,
+        maxRoundScore: result.evaluation.maxRoundScore,
         forcedOutcome: result.evaluation.forcedOutcome,
         mateProbability: result.evaluation.mateProbability,
         sampledAction: result.sampledId,
-        choices: toLiveChoices(result.evaluation, probabilities),
+        choices,
         replies: toLiveReplies(result.evaluation.replies ?? []),
         teraChoices: result.teraOurs ? toLiveChoices(result.teraOurs) : undefined,
         teraReplies: result.teraTheirs ? toLiveReplies(result.teraTheirs.replies ?? []) : undefined,
         quantum: quantumFromDiag(result.diagnostics),
+        scoreWeights: weights,
       },
     };
     this.flush();
     this.pushEvent(
       `eval roundScore=${result.evaluation.roundScore.toFixed(3)} sampled ${result.sampledId}`,
     );
+  }
+
+  patchForecast(forecast: BattleForecast): void {
+    if (!this.state.eval || forecast.turn !== this.state.turn) return;
+    this.state.eval.forecast = forecast;
+    for (const choice of this.state.eval.choices) {
+      const cf = forecast.choices.find((c) => c.actionId === choice.id);
+      if (cf) {
+        choice.winRate = cf.winRate;
+        choice.winRateLow = cf.winRateLow;
+        choice.winRateHigh = cf.winRateHigh;
+        choice.wins = cf.wins;
+        choice.losses = cf.losses;
+        choice.draws = cf.draws;
+        choice.capped = cf.capped;
+        choice.expectedTerminalScore = cf.expectedTerminalScore;
+        choice.minTerminalScore = cf.minTerminalScore;
+        choice.maxTerminalScore = cf.maxTerminalScore;
+        choice.samples = cf.samples;
+      }
+    }
+    this.flush();
   }
 
   writeObservation(obs: BattleObservation): void {
@@ -411,22 +585,35 @@ export function padSlots(slots: LiveSlot[]): LiveSlot[] {
 }
 
 function toLiveChoices(ev: DecideResult['evaluation'], probabilities?: number[]): LiveChoice[] {
-  return ev.choices.map((c, i) => ({
-    id: c.action.id,
-    type: c.action.type,
-    cta: c.cta,
-    cts: c.cts,
-    expectedImpact: c.expectedImpact,
-    expectedHealthDelta: c.expectedHealthDelta ?? 0,
-    expectedModifierDelta: c.expectedModifierDelta ?? 0,
-    ourHealth: c.ourHealth ?? 0,
-    theirHealth: c.theirHealth ?? 0,
-    ourModifier: c.ourModifier ?? 0,
-    theirModifier: c.theirModifier ?? 0,
-    hitsToKill: c.hitsToKill ?? null,
-    choiceScore: c.choiceScore,
-    probability: probabilities?.[i] ?? c.probability,
-  }));
+  return ev.choices.map((c, i) => {
+    const p = probabilities?.[i] ?? c.probability;
+    return {
+      id: c.action.id,
+      type: c.action.type,
+      cta: c.cta,
+      cts: c.cts,
+      expectedImpact: c.expectedImpact,
+      expectedHealthDelta: c.expectedHealthDelta ?? 0,
+      expectedModifierDelta: c.expectedModifierDelta ?? 0,
+      ourHealth: c.ourHealth ?? 0,
+      theirHealth: c.theirHealth ?? 0,
+      ourModifier: c.ourModifier ?? 0,
+      theirModifier: c.theirModifier ?? 0,
+      hitsToKill: c.hitsToKill ?? null,
+      choiceScore: c.choiceScore,
+      scaledChoiceScore: c.scaledChoiceScore,
+      meanPostScore: c.meanPostScore,
+      minTurnScore: c.minTurnScore,
+      maxTurnScore: c.maxTurnScore,
+      minPostScore: c.minPostScore,
+      maxPostScore: c.maxPostScore,
+      sampleCount: c.sampleCount,
+      features: c.features,
+      probability: p,
+      policyWeight: p,
+      hamiltonianInput: c.scaledChoiceScore,
+    };
+  });
 }
 
 function toLiveReplies(replies: NonNullable<DecideResult['evaluation']['replies']>): LiveReply[] {
@@ -437,12 +624,20 @@ function toLiveReplies(replies: NonNullable<DecideResult['evaluation']['replies'
     hitsToKillUs: r.hitsToKillUs,
     choiceScore: r.choiceScore,
     probability: r.probability,
+    policyWeight: r.probability,
     expectedHealthDelta: r.expectedHealthDelta,
     expectedModifierDelta: r.expectedModifierDelta,
     ourHealth: r.ourHealth,
     theirHealth: r.theirHealth,
     ourModifier: r.ourModifier,
     theirModifier: r.theirModifier,
+    features: r.features,
+    minTurnScore: r.minTurnScore,
+    maxTurnScore: r.maxTurnScore,
+    meanPostScore: r.meanPostScore,
+    minPostScore: r.minPostScore,
+    maxPostScore: r.maxPostScore,
+    sampleCount: r.sampleCount,
   }));
 }
 
@@ -505,10 +700,16 @@ function quantumFromDiag(diag?: Record<string, unknown>): LiveQuantum | undefine
   const nQubits = diag.n_qubits;
   const shots = diag.shots;
   const exact = diag.exact;
+  const params = Array.isArray(diag.params)
+    ? diag.params.filter((x): x is number => typeof x === 'number')
+    : undefined;
+  const cost = typeof diag.cost === 'number' ? diag.cost : undefined;
   return {
     mode: String(diag.mode ?? 'unknown'),
     nQubits: typeof nQubits === 'number' ? nQubits : undefined,
     shots: shots == null ? undefined : Number(shots),
     exact: typeof exact === 'boolean' ? exact : undefined,
+    params,
+    cost,
   };
 }
