@@ -246,6 +246,33 @@ export function parseLine(raw: string): BattleEvent | null {
     case '-sideend':
       return { type: 'sideend', side: sideFromPlayer(parts[2] ?? ''), effect: parts[3] ?? '' };
 
+    case '-item': {
+      const identity = parts[2] ?? '';
+      const { side, slot } = splitIdentity(identity);
+      return { type: '-item', side, slot, identity, item: toId(parts[3] ?? '') };
+    }
+    case '-ability': {
+      const identity = parts[2] ?? '';
+      const { side, slot } = splitIdentity(identity);
+      return { type: '-ability', side, slot, identity, ability: toId(parts[3] ?? '') };
+    }
+    case '-enditem': {
+      const identity = parts[2] ?? '';
+      const { side, slot } = splitIdentity(identity);
+      return { type: '-enditem', side, slot, identity, item: toId(parts[3] ?? '') };
+    }
+    case '-terastallize': {
+      const identity = parts[2] ?? '';
+      const { side, slot } = splitIdentity(identity);
+      return { type: '-terastallize', side, slot, identity, teraType: parts[3] ?? '' };
+    }
+    case 'detailschange': {
+      const identity = parts[2] ?? '';
+      const details = parts[3] ?? '';
+      const { side, slot } = splitIdentity(identity);
+      return { type: 'detailschange', side, slot, identity, speciesId: speciesIdFromDetails(details), details };
+    }
+
     case 'win':
       return { type: 'win', winner: parts[2] ?? '' };
 
