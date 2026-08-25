@@ -115,6 +115,10 @@ export class GameHub {
     return process.env.POKELINK_STATE || path.join(this.root, 'live-state.json');
   }
 
+  setOverridesPath(): string {
+    return process.env.POKEREDUS_SET_OVERRIDES || path.join(this.root, 'set-overrides.json');
+  }
+
   loadSettings(): LauncherSettings {
     const defaults: LauncherSettings = {
       policy: 'quantum',
