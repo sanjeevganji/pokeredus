@@ -266,7 +266,6 @@ function ChoiceList({
   tera?: boolean;
   onTera?: (on: boolean) => void;
 }) {
-  const maxAbs = Math.max(...rows.map((r) => Math.abs(r.score)), 0.01);
   return (
     <section className={`card choice-list compact${area ? ` theater-${area}` : ''}${tera ? ' tera-mode' : ''}`}>
       <div className="choice-head-row">
