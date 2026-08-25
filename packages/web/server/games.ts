@@ -288,7 +288,7 @@ export class GameHub {
   }
 
   readLiveObservation(): BattleObservation | undefined {
-    const fp = defaultLiveObservationPath(this.liveStatePath());
+    const fp = path.join(path.dirname(this.liveStatePath()), 'live-observation.json');
     if (!fs.existsSync(fp)) return undefined;
     try {
       return JSON.parse(fs.readFileSync(fp, 'utf8')) as BattleObservation;
