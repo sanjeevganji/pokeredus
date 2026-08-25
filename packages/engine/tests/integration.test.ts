@@ -253,8 +253,4 @@ describe('field fidelity, CTA, and ranges', () => {
     expect(tackle).toBeTruthy();
     expect(tackle!.cta ?? tackle!.success).toBe(0);
   }, 30_000);
-
-  it('a 2HKO scores 0.5 when CTA is 1', () => {
-    expect(0.5).toBe(1 / 2);
-  });
 });
