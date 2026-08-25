@@ -86,11 +86,8 @@ export function emptyImpactParts(): ImpactParts {
   };
 }
 
-export function impactParts(
-  before: MonValue[],
-  after: MonValue[],
-  expectedValueTurns = EXPECTED_VALUE_TURNS,
-): ImpactParts {
+/** HP-fraction and 0.5·Δtanh(M) deltas, each in [-1, 1], matching pokemonValue units. */
+export function impactParts(before: MonValue[], after: MonValue[]): ImpactParts {
   const n = Math.min(before.length, after.length);
   let ourHealth = 0;
   let theirHealth = 0;
@@ -100,8 +97,8 @@ export function impactParts(
     const b = before[i]!;
     const a = after[i]!;
     if (!b.revealed && !a.revealed) continue;
-    const dh = a.h - b.h;
-    const dM = (a.M - b.M) * expectedValueTurns;
+    const dh = clamp(a.h - b.h, -1, 1);
+    const dM = clamp(0.5 * (Math.tanh(a.M) - Math.tanh(b.M)), -1, 1);
     if (b.side === 'ours') {
       ourHealth += dh;
       ourModifier += dM;
@@ -115,12 +112,8 @@ export function impactParts(
   return { health, modifier, total: health + modifier, ourHealth, theirHealth, ourModifier, theirModifier };
 }
 
-export function impact(
-  before: MonValue[],
-  after: MonValue[],
-  expectedValueTurns = EXPECTED_VALUE_TURNS,
-): number {
-  return impactParts(before, after, expectedValueTurns).total;
+export function impact(before: MonValue[], after: MonValue[]): number {
+  return impactParts(before, after).total;
 }
 
 /** Hits to KO from expected HP fraction lost. Null when no damage. */

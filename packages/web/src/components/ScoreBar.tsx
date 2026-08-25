@@ -5,65 +5,89 @@ export interface ScoreParts {
   theirModifier: number;
 }
 
-const SEGMENTS: Array<{ key: keyof ScoreParts; color: string; label: string }> = [
-  { key: 'ourHealth', color: 'var(--neon-cyan)', label: 'our HP' },
-  { key: 'ourModifier', color: 'var(--neon-yellow)', label: 'our mods' },
-  { key: 'theirHealth', color: 'var(--neon-pink)', label: 'their HP' },
-  { key: 'theirModifier', color: 'var(--neon-purple)', label: 'their mods' },
+/** |value| of 1 fills origin → edge. Parts are HP/mod deltas already in [-1, 1]. */
+export const CHOICE_BAR_DOMAIN = 1;
+
+const SEGMENTS: Array<{ key: keyof ScoreParts; color: string; label: string; flip: boolean }> = [
+  { key: 'ourHealth', color: 'var(--neon-cyan)', label: 'our HP', flip: false },
+  { key: 'ourModifier', color: 'var(--neon-yellow)', label: 'our mods', flip: false },
+  { key: 'theirHealth', color: 'var(--neon-pink)', label: 'their HP', flip: true },
+  { key: 'theirModifier', color: 'var(--neon-purple)', label: 'their mods', flip: true },
 ];
+
+type BarSeg = { key: string; value: number; color: string; label: string };
+
+/** Our-POV signed parts, scaled so their net equals `score` (turn/choice score). */
+export function scaledChoiceSegments(score: number, parts?: Partial<ScoreParts>): BarSeg[] {
+  const raw: BarSeg[] = SEGMENTS.map((seg) => {
+    const v = parts?.[seg.key] ?? 0;
+    return { key: seg.key, value: seg.flip ? -v : v, color: seg.color, label: seg.label };
+  });
+  const net = raw.reduce((s, x) => s + x.value, 0);
+  if (Math.abs(net) <= 1e-9) {
+    if (Math.abs(score) <= 1e-9) return [];
+    return [{
+      key: 'score',
+      value: score,
+      color: score >= 0 ? 'var(--neon-cyan)' : 'var(--neon-pink)',
+      label: 'turn score',
+    }];
+  }
+  const k = score / net;
+  return raw
+    .map((s) => ({ ...s, value: s.value * k }))
+    .filter((s) => Math.abs(s.value) > 1e-9);
+}
 
 export function ScoreBar({
   score,
-  maxAbs,
   parts,
   label,
 }: {
   score: number;
-  maxAbs: number;
   parts?: Partial<ScoreParts>;
   label: string;
 }) {
-  const span = Math.max(maxAbs, 0.01);
-  const width = (Math.abs(score) / span) * 100;
-  const pos = score >= 0;
-  const mag = {
-    ourHealth: Math.abs(parts?.ourHealth ?? 0),
-    ourModifier: Math.abs(parts?.ourModifier ?? 0),
-    theirHealth: Math.abs(parts?.theirHealth ?? 0),
-    theirModifier: Math.abs(parts?.theirModifier ?? 0),
-  };
-  const sum = mag.ourHealth + mag.ourModifier + mag.theirHealth + mag.theirModifier;
+  const segs = scaledChoiceSegments(score, parts);
+  const pos = segs.filter((s) => s.value > 0);
+  const neg = segs.filter((s) => s.value < 0);
+  const pct = (v: number) => (Math.abs(v) / CHOICE_BAR_DOMAIN) * 50;
+  const posPct = Math.min(50, pos.reduce((s, x) => s + pct(x.value), 0));
+  const negPct = Math.min(50, neg.reduce((s, x) => s + pct(x.value), 0));
   return (
     <div
-      className="choice-track score-stack"
+      className="choice-track bipolar"
       role="meter"
       aria-label={label}
-      aria-valuemin={-span}
-      aria-valuemax={span}
+      aria-valuemin={-CHOICE_BAR_DOMAIN}
+      aria-valuemax={CHOICE_BAR_DOMAIN}
       aria-valuenow={Number(score.toFixed(3))}
     >
-      <div
-        className="score-stack-inner"
-        style={{
-          width: `${width}%`,
-          marginLeft: pos ? 0 : `${100 - width}%`,
-        }}
-      >
-        {sum > 0 ? SEGMENTS.map((seg) => {
-          const pct = (mag[seg.key] / sum) * 100;
-          if (pct <= 0) return null;
-          return (
+      <div className="bipolar-mid" />
+      {negPct > 0 && (
+        <div className="bipolar-arm bipolar-neg" style={{ width: `${negPct}%` }}>
+          {neg.map((s) => (
             <div
-              key={seg.key}
+              key={s.key}
               className="score-seg"
-              title={`${seg.label} ${parts?.[seg.key]?.toFixed(2) ?? 0}`}
-              style={{ width: `${pct}%`, background: seg.color }}
+              title={`${s.label} ${s.value.toFixed(2)}`}
+              style={{ flex: Math.abs(s.value), background: s.color }}
             />
-          );
-        }) : (
-          <div className="score-seg" style={{ width: '100%', background: pos ? 'var(--neon-cyan)' : 'var(--neon-pink)' }} />
-        )}
-      </div>
+          ))}
+        </div>
+      )}
+      {posPct > 0 && (
+        <div className="bipolar-arm bipolar-pos" style={{ width: `${posPct}%` }}>
+          {pos.map((s) => (
+            <div
+              key={s.key}
+              className="score-seg"
+              title={`${s.label} ${s.value.toFixed(2)}`}
+              style={{ flex: Math.abs(s.value), background: s.color }}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 }
