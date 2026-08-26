@@ -109,6 +109,7 @@ async function main(): Promise<void> {
       console.error('score requires --replay <transcript.txt>');
       process.exit(1);
     }
+    const pool = loadPool(flags['pool'] ?? defaultPoolPath());
     await withPolicy(async (proc) => {
       const tracker = new BattleTracker();
       const log = { send() {} };
