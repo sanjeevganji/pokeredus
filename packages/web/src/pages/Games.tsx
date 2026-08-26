@@ -81,7 +81,6 @@ export default function Games() {
       const next = await attachGame(id, { dryRun: snap.settings.dry_run });
       apply(next);
       if (!next.error && next.attached) {
-        setJoinOpen(false);
         navigate('/games/live');
       }
     } catch (e) {
