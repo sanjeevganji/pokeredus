@@ -3,6 +3,7 @@ import type { BattleObservation, CanonicalSet, FieldSnapshot, LegalAction, Playe
 import { normalizeTerrain, normalizeWeather, placeholderSet, showdownTerrain, showdownWeather } from './observation.js';
 import { modifiersFromSlot } from './math.js';
 import { simChoice } from './actions.js';
+import { pickMoves } from './randbats.js';
 
 const require = createRequire(import.meta.url);
 
