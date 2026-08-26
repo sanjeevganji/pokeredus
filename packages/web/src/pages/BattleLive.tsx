@@ -48,6 +48,15 @@ export default function BattleLive() {
     setDrawer({ slot, opener });
   }, []);
 
+  const assumeSet = useCallback(async (slot: LiveSlot, set: CanonicalSet) => {
+    if (!slot.revealed || !slot.speciesId) return;
+    try {
+      await putSpeciesSet(formatFromRoom(live.room), slot.speciesId, set);
+    } catch (err) {
+      setSaveMsg(err instanceof Error ? err.message : String(err));
+    }
+  }, [live.room]);
+
   const poll = useCallback(async () => {
     if (inFlightRef.current || document.hidden) return;
     inFlightRef.current = true;
