@@ -108,7 +108,7 @@ export class GameHub {
   private credUser = '';
   private credPass = '';
   private credUrl = '';
-  private authWaiters: Array<() => void> = [];
+  private connectLock?: Promise<void>;
 
   constructor(private readonly root: string) {}
 
