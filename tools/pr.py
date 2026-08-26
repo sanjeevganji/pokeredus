@@ -422,7 +422,6 @@ JOBS = {
     "fetch": action_fetch,
     "sprites": action_sprites,
     "pytest": action_pytest,
-    "pool": action_pool,
     "pack_ts": action_pack_ts,
     "pack_ts_mini": lambda: action_pack_ts(True),
     "render": action_render,
