@@ -61,6 +61,16 @@ function intInRange(v: unknown, field: string, lo: number, hi: number): number {
   return v;
 }
 
+function parseStringList(raw: unknown, field: string): string[] | undefined {
+  if (raw == null) return undefined;
+  if (!Array.isArray(raw)) throw new Error(`${field} must be an array of strings`);
+  const out = raw.map((m, i) => {
+    if (typeof m !== 'string' || !m.trim()) throw new Error(`${field}[${i}] must be a non-empty string`);
+    return m.trim();
+  });
+  return out.length ? out : undefined;
+}
+
 function parseSpread(
   raw: unknown,
   field: 'evs' | 'ivs',
