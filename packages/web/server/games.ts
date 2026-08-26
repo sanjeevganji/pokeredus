@@ -22,7 +22,7 @@ import {
 } from '../../engine/src/set-overrides';
 
 const DEFAULT_FORMAT = 'gen9randombattle';
-const AUTH_MS = 8000;
+const AUTH_MS = 12000;
 const ROOMLIST_MS = 2500;
 
 export interface LauncherSettings {
