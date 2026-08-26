@@ -46,5 +46,8 @@ describe('parseLobbyLine', () => {
     });
     expect(parseLobbyLine('|turn|3')).toBeNull();
     expect(parseLobbyLine('|request|{"side":{}}')).toBeNull();
+    expect(parseLobbyLine('|nametaken|alice|Wrong password.')).toEqual({
+      type: 'nametaken', name: 'alice', reason: 'Wrong password.',
+    });
   });
 });
