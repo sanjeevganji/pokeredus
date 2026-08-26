@@ -203,6 +203,7 @@ export default function BattleLive() {
               accent="pink"
               compact
               onEditSet={openSet}
+              onAssumeSet={assumeSet}
             />
             <TheirReplyList
               area="theirc"
