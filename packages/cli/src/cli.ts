@@ -90,18 +90,8 @@ async function main(): Promise<void> {
     return;
   }
 
-  if (cmd === 'generate-pool') {
-    const samples = flags['samples'] ? Number(flags['samples']) : 64;
-    const seed = flags['seed'] ? Number(flags['seed']) : 1;
-    const outPath = flags['out'] ?? defaultPoolPath();
-    const pool = generateRandomSetPool({ samples, seed, outPath });
-    console.log(`generate-pool: ${pool.samples} teams, ${Object.keys(pool.species).length} species → ${outPath}`);
-    return;
-  }
-
   const packPath = flags['pack'] ?? 'knowledge-pack-v1.json';
   const dryRun = Boolean(bools['dry-run'] || flags['dry-run'] !== undefined);
-  const pool = loadPool(flags['pool'] ?? defaultPoolPath());
   const ourSets = ourSetsFromFlag(flags['our-sets']);
   const logPath = flags['decision-log'];
   const seed = flags['seed'] ? Number(flags['seed']) : undefined;
