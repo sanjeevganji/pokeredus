@@ -196,6 +196,7 @@ export default function Games() {
         <LoginModal
           busy={busy === 'login'}
           defaultUser={snap.login.user}
+          error={err}
           onClose={() => setLoginOpen(false)}
           onSave={async (user, pass) => {
             setBusy('login');
