@@ -12,6 +12,15 @@ describe('normalizeBattleRoom', () => {
     expect(normalizeBattleRoom('gen9randombattle-9')).toBe('battle-gen9randombattle-9');
     expect(normalizeBattleRoom('9')).toBe('battle-gen9randombattle-9');
   });
+
+  it('extracts a room from a Showdown play or replay URL', () => {
+    expect(normalizeBattleRoom('https://play.pokemonshowdown.com/battle-gen9randombattle-9'))
+      .toBe('battle-gen9randombattle-9');
+    expect(normalizeBattleRoom('https://replay.pokemonshowdown.com/gen9randombattle-9'))
+      .toBe('battle-gen9randombattle-9');
+    expect(normalizeBattleRoom('play.pokemonshowdown.com/battle-gen9randombattle-9?t=1'))
+      .toBe('battle-gen9randombattle-9');
+  });
 });
 
 describe('parseLobbyLine', () => {
