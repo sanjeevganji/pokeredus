@@ -736,12 +736,16 @@ function ourSlotFromMon(
   const override = getSetOverride(store, format, m.speciesId);
   let set = fromFlag;
   let setSource: SetSource = 'revealed';
-  if (override && setIsComplete(override) && compatible(override, facts)) {
-    set = override;
-    setSource = 'manual';
-  } else if (set && setIsComplete(set)) {
-    setSource = 'revealed';
-  } else {
+  let setWarning: string | undefined;
+  if (override && setIsComplete(override)) {
+    if (compatible(override, facts)) {
+      set = override;
+      setSource = 'manual';
+    } else {
+      setWarning = `Assumed set for ${m.speciesId} conflicts with revealed facts; using revealed set`;
+    }
+  }
+  if (!(set && setIsComplete(set))) {
     set = setFromTracked(m);
     setSource = setIsComplete(set) ? 'revealed' : 'incomplete';
   }
