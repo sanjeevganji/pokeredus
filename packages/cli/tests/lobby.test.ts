@@ -62,3 +62,26 @@ describe('parseLobbyLine', () => {
     });
   });
 });
+
+describe('battle meta', () => {
+  it('reads player names and turn from battle lines', () => {
+    expect(parseBattleMetaLine('|player|p1|alice|265')).toEqual({ p1: 'alice' });
+    expect(parseBattleMetaLine('|player|p2|bob')).toEqual({ p2: 'bob' });
+    expect(parseBattleMetaLine('|turn|12')).toEqual({ turn: 12 });
+    expect(parseBattleMetaLine('|title|alice vs. bob')).toEqual({
+      title: 'alice vs. bob', p1: 'alice', p2: 'bob',
+    });
+  });
+
+  it('overlays names and turn onto a search listing', () => {
+    const [game] = gamesFromSearch({ 'battle-gen9randombattle-1': '[Gen 9] Random Battle' });
+    expect(applyBattleMeta(game!, { p1: 'alice', p2: 'bob', turn: 4 })).toEqual({
+      room: 'battle-gen9randombattle-1',
+      title: 'alice vs bob',
+      p1: 'alice',
+      p2: 'bob',
+      turn: 4,
+      mine: true,
+    });
+  });
+});
