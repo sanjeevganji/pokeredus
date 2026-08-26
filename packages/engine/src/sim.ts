@@ -76,12 +76,14 @@ export function loadShowdown(): PSModule {
   return psMod;
 }
 
-function toPackedSet(set: CanonicalSet): Record<string, unknown> {
+function toPackedSet(set: CanonicalSet, knownMoves: string[] = []): Record<string, unknown> {
+  const pool = set.movePool?.length ? set.movePool : set.moves;
+  const moves = pickMoves(pool, knownMoves.length ? knownMoves : set.moves);
   return {
     species: set.species,
     item: set.item || undefined,
     ability: set.ability || undefined,
-    moves: set.moves.length ? set.moves : ['splash'],
+    moves: moves.length ? moves : ['splash'],
     nature: set.nature || 'Hardy',
     level: set.level || 100,
     gender: set.gender,
