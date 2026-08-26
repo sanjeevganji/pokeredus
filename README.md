@@ -16,7 +16,7 @@ CLI mode. If the quantum process fails, no battle action is sent.
 | --- | --- |
 | `packages/engine` | Observation, set beliefs, official Showdown one-round sim, CTA/CTS math |
 | `packages/bridge` | Showdown protocol tracker, async decide-and-act, dry-run |
-| `packages/cli` | `export-pack`, `generate-pool`, `score`, `live` |
+| `packages/cli` | `export-pack`, `score`, `live` |
 | `packages/core` | Knowledge graph, pairwise matchups, attribute views |
 | `packages/calc` | Damage calculator used by the KG |
 | `packages/web` | Team builder, matchup graph, and Games (detect / attach Showdown battles) |
