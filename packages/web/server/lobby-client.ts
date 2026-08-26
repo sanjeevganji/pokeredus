@@ -1,20 +1,22 @@
 // Lobby-only Showdown socket for the Vite games API.
 // Kept separate from ShowdownClient so vite.config does not load @pokeredus/engine.
-import { WebSocket } from 'ws';
+import type { WebSocket } from 'ws';
 import { getAssertion, guestName } from '../../bridge/src/auth';
 import { parseLobbyLine, type LobbyEvent } from '../../bridge/src/lobby';
+import { closeShowdownWebSocket, connectShowdownWebSocket } from '../../bridge/src/socket';
 
 type LobbyHandler = (ev: LobbyEvent) => void;
 
 export class LobbyClient {
-  readonly url: string;
+  url: string;
   private user?: string;
   private pass?: string;
   private ws?: WebSocket;
   private lobbyHandlers: LobbyHandler[] = [];
+  authError?: string;
 
   constructor(opts: { url?: string; user?: string; pass?: string } = {}) {
-    this.url = opts.url ?? 'wss://sim3.psim.us/showdown/websocket';
+    this.url = opts.url ?? '';
     this.user = opts.user;
     this.pass = opts.pass;
   }
@@ -26,19 +28,19 @@ export class LobbyClient {
     };
   }
 
-  connect(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const ws = new WebSocket(this.url);
-      this.ws = ws;
-      ws.on('open', () => resolve());
-      ws.on('message', (data: Buffer | ArrayBuffer | string) => {
-        const text = typeof data === 'string' ? data : data.toString();
-        this.onMessage(text);
-      });
-      ws.on('error', (err) => console.error('[games] ws error:', err));
-      ws.on('close', () => console.log('[games] ws closed'));
-      ws.on('unexpected-response', (_req, res) => reject(new Error(`ws unexpected response ${res.statusCode}`)));
+  async connect(): Promise<void> {
+    const { ws, url } = await connectShowdownWebSocket(this.url);
+    this.url = url;
+    this.ws = ws;
+    ws.on('message', (data: Buffer | ArrayBuffer | string) => {
+      const text = typeof data === 'string' ? data : data.toString();
+      this.onMessage(text);
     });
+    ws.on('error', (err) => {
+      if (err.message.includes('closed before the connection was established')) return;
+      console.error('[games] ws error:', err);
+    });
+    ws.on('close', () => console.log('[games] ws closed'));
   }
 
   send(msg: string): void {
@@ -50,7 +52,8 @@ export class LobbyClient {
   }
 
   close(): void {
-    this.ws?.close();
+    closeShowdownWebSocket(this.ws);
+    this.ws = undefined;
   }
 
   private onMessage(data: string): void {
@@ -74,8 +77,10 @@ export class LobbyClient {
         const assertion = await getAssertion(this.user, this.pass, challstr);
         this.send(`|/trn ${this.user},0,${assertion}`);
       } catch (e) {
-        console.error('[games] auth failed, falling back to guest:', e);
-        this.send(`|/trn ${guestName()},0,`);
+        const msg = e instanceof Error ? e.message : String(e);
+        this.authError = msg;
+        console.error('[games] Showdown login failed:', e);
+        for (const h of this.lobbyHandlers) h({ type: 'popup', text: msg });
       }
     } else {
       this.send(`|/trn ${guestName()},0,`);

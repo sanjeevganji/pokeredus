@@ -61,7 +61,7 @@ export class ShowdownClient {
   /** Open the socket. Resolves once the connection is established. */
   async connect(): Promise<void> {
     const { ws, url } = await connectShowdownWebSocket(this.url);
-    (this as { url: string }).url = url;
+    this.url = url;
     this.ws = ws;
     ws.on('message', (data: Buffer | ArrayBuffer | string) => {
       const text = typeof data === 'string' ? data : data.toString();
