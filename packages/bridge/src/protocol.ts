@@ -643,7 +643,7 @@ export class BattleTracker {
         ours.push(slot);
         continue;
       }
-      ours.push(ourSlotFromMon(i, m, fromFlag, store, format));
+      ours.push(ourSlotFromMon(i, m, fromFlag, store, format, pool));
     }
 
     const theirs: SlotSnapshot[] = [];
