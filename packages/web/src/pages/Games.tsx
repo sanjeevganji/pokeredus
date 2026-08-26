@@ -408,38 +408,3 @@ function JoinSearch(props: {
     </form>
   );
 }
-
-function JoinModal(props: {
-  busy: boolean;
-  onClose: () => void;
-  onJoin: (room: string) => void;
-}) {
-  const [room, setRoom] = useState('');
-  return (
-    <Modal title="Join battle" onClose={props.onClose}>
-      <form
-        className="drawer-form"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (room.trim() && !props.busy) props.onJoin(room.trim());
-        }}
-      >
-        <div className="form-field">
-          <label htmlFor="ps-room">Battle id</label>
-          <input
-            id="ps-room"
-            value={room}
-            onChange={(e) => setRoom(e.target.value)}
-            placeholder="gen9randombattle-… or battle-gen9randombattle-…"
-          />
-        </div>
-        <div className="drawer-actions">
-          <button type="button" className="btn-secondary" onClick={props.onClose}>Cancel</button>
-          <button type="submit" className="btn-primary" disabled={!room.trim() || props.busy}>
-            {props.busy ? 'Attaching…' : 'Attach'}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
