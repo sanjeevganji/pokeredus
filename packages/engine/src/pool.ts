@@ -2,6 +2,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { CanonicalSet } from './observation.js';
+import { isRandbatsJson, randbatsToPool } from './randbats.js';
 
 export interface PoolRow {
   set: CanonicalSet;
@@ -16,7 +17,7 @@ export interface RandomSetPool {
   species: Record<string, PoolRow[]>;
 }
 
-const DEFAULT_REL = ['data', 'gen9randombattle-pool.v1.json'];
+const DEFAULT_REL = ['data', 'gen9randombattle.json'];
 
 export function defaultPoolPath(): string {
   const here = path.dirname(fileURLToPath(import.meta.url));
@@ -24,12 +25,13 @@ export function defaultPoolPath(): string {
 }
 
 export function loadPool(poolPath = defaultPoolPath()): RandomSetPool {
-  const raw = fs.readFileSync(poolPath, 'utf8');
-  const parsed = JSON.parse(raw) as RandomSetPool;
-  if (!parsed?.species || typeof parsed.species !== 'object') {
+  const parsed = JSON.parse(fs.readFileSync(poolPath, 'utf8')) as unknown;
+  if (isRandbatsJson(parsed)) return randbatsToPool(parsed);
+  const pool = parsed as RandomSetPool;
+  if (!pool?.species || typeof pool.species !== 'object') {
     throw new Error(`invalid random-set pool: ${poolPath}`);
   }
-  return parsed;
+  return pool;
 }
 
 export function speciesKey(species: string): string {
