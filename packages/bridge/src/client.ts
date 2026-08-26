@@ -8,10 +8,11 @@
 //
 // It deliberately does NOT hold game state or make decisions — that belongs to
 // `BattleTracker` + `decide.ts`. The client is pure connectivity + parsing.
-import { WebSocket } from 'ws';
+import type { WebSocket } from 'ws';
 import { parseLine, type BattleEvent } from './protocol.js';
 import { getAssertion, guestName } from './auth.js';
 import { parseLobbyLine, type LobbyEvent } from './lobby.js';
+import { closeShowdownWebSocket, connectShowdownWebSocket } from './socket.js';
 
 export interface ShowdownClientOptions {
   url?: string;
