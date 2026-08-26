@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import type { LiveField, LiveSlot } from '../lib/games';
+import type { CanonicalSet, LiveField, LiveSlot } from '../lib/games';
 
 const STAT_LABEL: Record<string, string> = {
   atk: 'Atk', def: 'Def', spa: 'SpA', spd: 'SpD', spe: 'Spe', accuracy: 'Acc', evasion: 'Eva',
