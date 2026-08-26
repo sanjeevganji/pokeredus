@@ -18,6 +18,7 @@ import {
   normalizeWeather,
   placeholderSlot,
   setIsComplete,
+  setOptionsFromPool,
   type BattleObservation,
   type CanonicalSet,
   type SetHypothesis,
