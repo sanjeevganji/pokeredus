@@ -23,7 +23,6 @@ export function compatible(set: CanonicalSet, facts: RevealedFacts): boolean {
   if (facts.ability && set.ability.toLowerCase().replace(/[^a-z0-9]/g, '') !== facts.ability.toLowerCase().replace(/[^a-z0-9]/g, '')) {
     return false;
   }
-  if (facts.level !== undefined && set.level !== facts.level) return false;
   if (facts.teraType) {
     const allowed = set.teraTypes?.length
       ? set.teraTypes
