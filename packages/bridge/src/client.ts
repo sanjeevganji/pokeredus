@@ -86,7 +86,8 @@ export class ShowdownClient {
 
   /** Close the session. */
   close(): void {
-    this.ws?.close();
+    closeShowdownWebSocket(this.ws);
+    this.ws = undefined;
   }
 
   private onMessage(data: string): void {
