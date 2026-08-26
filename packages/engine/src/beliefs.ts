@@ -24,8 +24,13 @@ export function compatible(set: CanonicalSet, facts: RevealedFacts): boolean {
     return false;
   }
   if (facts.level !== undefined && set.level !== facts.level) return false;
-  if (facts.teraType && (set.teraType || '').toLowerCase() !== facts.teraType.toLowerCase()) return false;
-  const setMoves = new Set(set.moves.map((m) => m.toLowerCase().replace(/[^a-z0-9]/g, '')));
+  if (facts.teraType) {
+    const allowed = set.teraTypes?.length
+      ? set.teraTypes
+      : (set.teraType ? [set.teraType] : []);
+    if (allowed.length && !allowed.some((t) => t.toLowerCase() === facts.teraType!.toLowerCase())) return false;
+  }
+  const setMoves = new Set((set.movePool ?? set.moves).map((m) => m.toLowerCase().replace(/[^a-z0-9]/g, '')));
   for (const move of facts.moves) {
     const id = move.toLowerCase().replace(/[^a-z0-9]/g, '');
     if (!setMoves.has(id)) return false;
