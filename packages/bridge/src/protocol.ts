@@ -825,6 +825,7 @@ function theirSlotFromMon(
     teraType: m.teraType,
     level: m.level,
     hypotheses,
+    setOptions,
     set,
     setSource: complete ? setSource : 'incomplete',
     candidateProbability,
