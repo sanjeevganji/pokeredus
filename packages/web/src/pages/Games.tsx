@@ -233,6 +233,19 @@ function initials(name: string): string {
   return letters.toUpperCase();
 }
 
+function gameHeading(g: DetectedGame): string {
+  if (g.p1 || g.p2) return `${g.p1 ?? '?'} vs ${g.p2 ?? '?'}`;
+  return g.title;
+}
+
+function gameDetail(g: DetectedGame): string {
+  const bits: string[] = [];
+  if (g.turn != null) bits.push(`turn ${g.turn}`);
+  if (g.minElo) bits.push(`elo ${g.minElo}`);
+  bits.push(g.room.replace(/^battle-/, ''));
+  return bits.join('  ·  ');
+}
+
 function GameList(props: {
   title: string;
   empty: string;
@@ -251,8 +264,8 @@ function GameList(props: {
           return (
             <li key={g.room} className="game-row">
               <div>
-                <div>{g.title}</div>
-                <div className="dim">{g.room}{g.minElo ? `  ·  elo ${g.minElo}` : ''}</div>
+                <div>{gameHeading(g)}</div>
+                <div className="dim">{gameDetail(g)}</div>
               </div>
               {on
                 ? <button type="button" onClick={props.onDetach}>Detach</button>
