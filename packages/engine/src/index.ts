@@ -10,6 +10,7 @@ export * from './log.js';
 export * from './weights.js';
 export * from './scenario.js';
 export * from './generate-pool.js';
+export * from './randbats.js';
 export * from './set-overrides.js';
 export {
   computeDamage,
