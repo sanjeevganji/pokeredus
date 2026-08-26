@@ -145,6 +145,7 @@ export class GameHub {
 
   snapshot(): GamesSnapshot {
     const s = this.loadSettings();
+    const savedUser = s.user.trim();
     return {
       connected: Boolean(this.client),
       user: this.userName,
@@ -155,12 +156,25 @@ export class GameHub {
       attached: this.attached,
       error: this.error,
       settings: {
-        user: this.credUser || s.user,
+        user: savedUser,
         url: this.credUrl || s.url,
         policy: s.policy === 'softmax' ? 'softmax' : 'quantum',
         dry_run: Boolean(s.dry_run),
       },
+      login: {
+        saved: Boolean(savedUser),
+        user: savedUser,
+        hasPass: Boolean(s.pass),
+        verified: Boolean(this.client) && this.named && Boolean(savedUser),
+      },
     };
+  }
+
+  private writeSettings(patch: Partial<LauncherSettings>): LauncherSettings {
+    const next = { ...this.loadSettings(), ...patch };
+    fs.mkdirSync(path.dirname(this.settingsPath()), { recursive: true });
+    fs.writeFileSync(this.settingsPath(), `${JSON.stringify(next, null, 2)}\n`);
+    return next;
   }
 
   async detect(opts: { user?: string; pass?: string; url?: string; format?: string } = {}): Promise<GamesSnapshot> {
