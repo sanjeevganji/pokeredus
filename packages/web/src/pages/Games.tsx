@@ -376,6 +376,39 @@ function LoginModal(props: {
   );
 }
 
+function JoinSearch(props: {
+  busy: boolean;
+  onJoin: (room: string) => void;
+}) {
+  const [room, setRoom] = useState('');
+  const id = useId();
+  return (
+    <form
+      className="form-field"
+      style={{ margin: 0 }}
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (room.trim() && !props.busy) props.onJoin(room.trim());
+      }}
+    >
+      <label htmlFor={id}>Battle id or URL</label>
+      <div className="join-search">
+        <input
+          id={id}
+          value={room}
+          onChange={(e) => setRoom(e.target.value)}
+          placeholder="gen9randombattle-123 or play.pokemonshowdown.com/battle-…"
+          autoComplete="off"
+          spellCheck={false}
+        />
+        <button type="submit" className="btn-primary" disabled={!room.trim() || props.busy}>
+          {props.busy ? 'Opening…' : 'Open'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function JoinModal(props: {
   busy: boolean;
   onClose: () => void;
