@@ -18,7 +18,7 @@ ROOT = Path(__file__).resolve().parent.parent
 SETTINGS_PATH = Path(__file__).resolve().parent / "launch-settings.json"
 CLI_TS = ROOT / "packages" / "cli" / "src" / "cli.ts"
 PACK_MINI = ROOT / "pokeredus" / "data" / "knowledge-pack" / "knowledge-pack-mini.json"
-POOL_OUT = ROOT / "packages" / "engine" / "data" / "gen9randombattle-pool.v1.json"
+POOL_OUT = ROOT / "packages" / "engine" / "data" / "gen9randombattle.json"
 REPLAY = ROOT / "packages" / "cli" / "tests" / "fixtures" / "transcript.txt"
 LIVE_STATE = ROOT / "live-state.json"
 
