@@ -58,6 +58,13 @@ export interface LiveSlot {
   setWarning?: string;
 }
 
+export interface SetOption {
+  role: string;
+  teraTypes: string[];
+  compatible: boolean;
+  set: CanonicalSet;
+}
+
 export interface LiveChoice {
   id: string;
   type: string;
