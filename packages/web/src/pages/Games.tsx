@@ -335,6 +335,7 @@ function Modal(props: { title: string; onClose: () => void; children: ReactNode 
 function LoginModal(props: {
   busy: boolean;
   defaultUser: string;
+  error: string;
   onClose: () => void;
   onSave: (user: string, pass: string) => Promise<void>;
 }) {
