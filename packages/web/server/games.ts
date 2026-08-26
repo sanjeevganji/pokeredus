@@ -7,6 +7,7 @@ import path from 'node:path';
 import type { Plugin } from 'vite';
 import { LobbyClient } from './lobby-client';
 import {
+  applyBattleMeta,
   gamesFromRoomlist,
   gamesFromSearch,
   normalizeBattleRoom,
