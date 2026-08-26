@@ -155,6 +155,8 @@ async function main(): Promise<void> {
       policy,
     });
     hud.patch({ status: 'connecting' });
+    const pool = loadPool(flags['pool'] ?? defaultPoolPath());
+    const overridesPath = defaultSetOverridesPath();
     await withPolicy(async (proc) => {
       const client = new ShowdownClient({
         url: flags['url'],
