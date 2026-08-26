@@ -400,7 +400,7 @@ export class LiveStateWriter {
     };
 
     const last = points[points.length - 1];
-    if (last && last.status === 'forecast' && last.turn === this.state.turn) {
+    if (opts?.rescore && last && last.status === 'forecast' && last.turn === this.state.turn) {
       newPoint.sequence = last.sequence;
       points[points.length - 1] = newPoint;
     } else if (!opts?.rescore) {
