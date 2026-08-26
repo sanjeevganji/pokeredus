@@ -88,8 +88,8 @@ npm run train
 | `web` | Vite web UI (team builder + Games) |
 | `pokelink` / `live` | Web UI + Showdown live (quantum or settings policy) |
 | `quantum` / `softmax` | Live forcing QAOA or the softmax benchmark |
-| `train` | Generate Random Battle pool + export pack + rebuild matchup graph |
-| `pool` / `pack` / `graph` | Standalone model/data updates |
+| `train` | Export knowledge pack + rebuild matchup graph |
+| `pack` / `graph` | Standalone pack and graph updates |
 | `score` | Replay a transcript into the decision log |
 | `quantum-test` | `python -m unittest discover -s quantum-policy/tests` |
 | `test` | npm test + typecheck + build + pytest + quantum tests |
