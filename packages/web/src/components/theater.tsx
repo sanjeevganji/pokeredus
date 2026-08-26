@@ -254,7 +254,7 @@ export function Bench({
       {compact ? (
         <>
           <ul className="bench-list">
-            <SlotRow slot={lead} accent={accent} onEditSet={onEditSet} />
+            <SlotRow slot={lead} accent={accent} onEditSet={onEditSet} onAssumeSet={onAssumeSet} />
           </ul>
           <div className="bench-rest">
             {rest.map((s, i) => {
