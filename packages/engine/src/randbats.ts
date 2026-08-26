@@ -7,6 +7,10 @@ export const DEFAULT_EV = 85;
 
 const STATS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as const;
 
+function speciesKey(species: string): string {
+  return species.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
 export interface RandbatsRole {
   name: string;
   abilities: string[];
