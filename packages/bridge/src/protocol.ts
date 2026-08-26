@@ -786,6 +786,7 @@ function theirSlotFromMon(
     level: m.level,
     teraType: m.teraType,
   };
+  const setOptions = setOptionsFromPool(pool, m.speciesId, facts);
   let hypotheses: SetHypothesis[] = [];
   try {
     hypotheses = initialBelief(pool, facts);
