@@ -184,6 +184,7 @@ export default function BattleLive() {
               accent="cyan"
               compact
               onEditSet={openSet}
+              onAssumeSet={assumeSet}
             />
             <OurChoiceList
               area="ourc"
