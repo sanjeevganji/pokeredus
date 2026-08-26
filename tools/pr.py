@@ -383,13 +383,12 @@ MENUS: dict[str, list[dict[str, Any]]] = {
         {"label": "Back", "kind": "back"},
     ],
     "train": [
-        {"label": "Generate Random Battle pool", "kind": "run", "jobs": "pool"},
         {"label": "Export knowledge pack (TS)", "kind": "run", "jobs": "pack_ts"},
         {"label": "Export knowledge pack (Python KG)", "kind": "run", "jobs": "pack_py"},
         {"label": "Rebuild matchup graph", "kind": "run", "jobs": "graph"},
         {"label": "Fetch Showdown moves + stats", "kind": "run", "jobs": "fetch"},
         {"label": "Score replay -> decision log", "kind": "run", "jobs": "score"},
-        {"label": "Run all of the above (pool + pack + graph)", "kind": "run", "jobs": "train"},
+        {"label": "Run all of the above (pack + graph)", "kind": "run", "jobs": "train"},
         {"label": "Back", "kind": "back"},
     ],
     "quantum": [
