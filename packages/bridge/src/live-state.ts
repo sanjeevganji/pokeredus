@@ -399,7 +399,13 @@ export class LiveStateWriter {
       samples,
     };
 
-    points.push(newPoint);
+    const last = points[points.length - 1];
+    if (last && last.status === 'forecast' && last.turn === this.state.turn) {
+      newPoint.sequence = last.sequence;
+      points[points.length - 1] = newPoint;
+    } else if (!opts?.rescore) {
+      points.push(newPoint);
+    }
     const cappedPoints = points.slice(-MAX_LIVE_POINTS);
 
     const turns: LiveTurn[] = cappedPoints.map((p) => ({

@@ -170,10 +170,10 @@ async function main(): Promise<void> {
       let decideBusy = false;
       let decideQueued = false;
 
-      const observe = () => {
+      const observe = (settle: boolean) => {
         try {
           const obs = tracker.toObservation(pool, ourSets, loadSetOverrides(overridesPath));
-          hud.fromObservation(obs);
+          hud.fromObservation(obs, { settle });
           return obs;
         } catch (err) {
           console.error('[pokeredus] observation failed:', err);
@@ -184,14 +184,14 @@ async function main(): Promise<void> {
 
       const runDecide = (send: boolean) => {
         if (!tracker.lastRequest?.active?.length) {
-          observe();
+          observe(false);
           return;
         }
         if (decideBusy) {
           decideQueued = true;
           return;
         }
-        const obs = observe();
+        const obs = observe(send);
         if (!obs) return;
         decideBusy = true;
         const gen = ++decideGen;
@@ -205,7 +205,7 @@ async function main(): Promise<void> {
           shots,
           logPath: send ? logPath : undefined,
         }).then((result) => {
-          if (gen === decideGen) hud.fromDecision(result);
+          if (gen === decideGen) hud.fromDecision(result, { rescore: !send });
         }).catch((err) => {
           console.error(err);
           if (gen === decideGen) hud.patch({ status: 'error', error: err instanceof Error ? err.message : String(err) });
