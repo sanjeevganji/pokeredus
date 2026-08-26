@@ -2,7 +2,7 @@
 // Kept separate from ShowdownClient so vite.config does not load @pokeredus/engine.
 import type { WebSocket } from 'ws';
 import { getAssertion, guestName } from '../../bridge/src/auth';
-import { parseLobbyLine, type LobbyEvent } from '../../bridge/src/lobby';
+import { parseBattleMetaLine, parseLobbyLine, type LobbyEvent } from '../../bridge/src/lobby';
 import { closeShowdownWebSocket, connectShowdownWebSocket } from '../../bridge/src/socket';
 
 type LobbyHandler = (ev: LobbyEvent) => void;
