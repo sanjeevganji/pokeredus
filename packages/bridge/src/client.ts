@@ -38,7 +38,7 @@ export class ShowdownClient {
   private lobbyHandlers: LobbyHandler[] = [];
 
   constructor(opts: ShowdownClientOptions = {}) {
-    this.url = opts.url ?? 'wss://sim3.psim.us/showdown/websocket';
+    this.url = opts.url ?? '';
     this.user = opts.user;
     this.pass = opts.pass;
     this.battleRoom = opts.battleRoom;

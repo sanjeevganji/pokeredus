@@ -76,6 +76,9 @@ export function parseLobbyLine(raw: string): LobbyEvent | null {
   if (cmd === 'popup') {
     return { type: 'popup', text: parts.slice(2).join('|') };
   }
+  if (cmd === 'nametaken') {
+    return { type: 'nametaken', name: parts[2] ?? '', reason: parts.slice(3).join('|') };
+  }
   return null;
 }
 
