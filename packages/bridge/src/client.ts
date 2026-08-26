@@ -117,8 +117,9 @@ export class ShowdownClient {
         const assertion = await getAssertion(this.user, this.pass, challstr);
         this.send(`|/trn ${this.user},0,${assertion}`);
       } catch (e) {
-        console.error('[pokeredus] auth failed, falling back to guest:', e);
-        this.send(`|/trn ${guestName()},0,`);
+        console.error('[pokeredus] Showdown login failed:', e);
+        this.close();
+        throw e;
       }
     } else {
       this.send(`|/trn ${guestName()},0,`);
