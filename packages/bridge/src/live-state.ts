@@ -358,7 +358,7 @@ export class LiveStateWriter {
     this.writeObservation(obs);
   }
 
-  fromDecision(result: DecideResult): void {
+  fromDecision(result: DecideResult, opts?: { rescore?: boolean }): void {
     const probabilities = result.probabilities;
     const choices = toLiveChoices(result.evaluation, probabilities);
     const sampled = result.evaluation.choices.find((c) => c.action.id === result.sampledId)
