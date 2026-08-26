@@ -27,7 +27,7 @@ type EventHandler = (ev: BattleEvent) => void;
 type LobbyHandler = (ev: LobbyEvent) => void;
 
 export class ShowdownClient {
-  readonly url: string;
+  url: string;
   private user?: string;
   private pass?: string;
   private battleRoom?: string;
