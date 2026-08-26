@@ -57,15 +57,29 @@ export class LobbyClient {
   }
 
   private onMessage(data: string): void {
+    let room = '';
     for (const raw of data.split('\n')) {
       const line = raw.trim();
-      if (!line || line.startsWith('>')) continue;
+      if (!line) continue;
+      if (line.startsWith('>')) {
+        room = line.slice(1).trim();
+        continue;
+      }
       if (line.startsWith('|challstr|')) {
         void this.handleChallstr(line);
         continue;
       }
       const lobby = parseLobbyLine(line);
-      if (lobby) for (const h of this.lobbyHandlers) h(lobby);
+      if (lobby) {
+        for (const h of this.lobbyHandlers) h(lobby);
+        continue;
+      }
+      if (!room.startsWith('battle-')) continue;
+      const meta = parseBattleMetaLine(line);
+      if (meta) {
+        const ev: LobbyEvent = { type: 'battlemeta', room, ...meta };
+        for (const h of this.lobbyHandlers) h(ev);
+      }
     }
   }
 

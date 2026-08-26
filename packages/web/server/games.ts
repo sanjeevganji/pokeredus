@@ -25,6 +25,7 @@ import {
 const DEFAULT_FORMAT = 'gen9randombattle';
 const AUTH_MS = 12000;
 const ROOMLIST_MS = 2500;
+const LISTED_LIMIT = 5;
 
 export interface LauncherSettings {
   policy: string;
