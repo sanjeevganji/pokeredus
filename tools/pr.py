@@ -349,7 +349,7 @@ MENUS: dict[str, list[dict[str, Any]]] = {
         {"label": "PokeLink", "kind": "submenu", "to": "pokelink",
          "help": "Replay score and pack tools; live battles attach from the web UI"},
         {"label": "Train / update models", "kind": "submenu", "to": "train",
-         "help": "Pool, knowledge pack, matchup graph, Showdown data"},
+         "help": "Knowledge pack, matchup graph, Showdown data"},
         {"label": "Quantum", "kind": "submenu", "to": "quantum",
          "help": "PennyLane QAOA install, tests, live quantum vs softmax"},
         {"label": "Maintain", "kind": "submenu", "to": "maintain",
