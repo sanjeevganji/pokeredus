@@ -6,16 +6,25 @@ export interface DetectedGame {
   title: string;
   p1?: string;
   p2?: string;
+  turn?: number;
   minElo?: number;
   mine: boolean;
 }
+
+export type BattleMeta = {
+  p1?: string;
+  p2?: string;
+  turn?: number;
+  title?: string;
+};
 
 export type LobbyEvent =
   | { type: 'updateuser'; name: string; named: boolean }
   | { type: 'updatesearch'; searching: string[]; games: Record<string, string> }
   | { type: 'roomlist'; rooms: Record<string, RoomListEntry> }
   | { type: 'popup'; text: string }
-  | { type: 'nametaken'; name: string; reason: string };
+  | { type: 'nametaken'; name: string; reason: string }
+  | ({ type: 'battlemeta'; room: string } & BattleMeta);
 
 export interface RoomListEntry {
   p1?: string;
