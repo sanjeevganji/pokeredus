@@ -1025,7 +1025,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   .drawer-panel {
     width: 100vw;
   }
-  .form-row, .move-grid {
+  .form-row, .move-grid, .slot-picks {
     grid-template-columns: 1fr;
   }
   button, .btn-primary, .btn-secondary, .btn-danger, .set-prov, .choice-toggle-btn {
