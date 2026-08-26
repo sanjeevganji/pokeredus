@@ -233,6 +233,7 @@ async function main(): Promise<void> {
       await new Promise<void>((resolve) => {
         process.on('SIGINT', () => {
           console.log('\n[pokeredus] shutting down.');
+          stopWatch();
           hud.patch({ status: 'idle' });
           client.close();
           proc.close();
