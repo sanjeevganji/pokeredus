@@ -10,6 +10,7 @@ import type {
   ChoiceFeaturesView,
   FieldSnapshot,
   ScoreWeights,
+  SetOption,
   SetSource,
   SlotSnapshot,
 } from '@pokeredus/engine';
