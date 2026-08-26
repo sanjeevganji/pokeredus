@@ -153,7 +153,7 @@ function SlotRow({
 
   function pickTera(nextTera: string) {
     if (!onAssumeSet) return;
-    const base = selected?.set ?? slot.assumedSet;
+    const base = slot.assumedSet ?? selected?.set;
     if (!base) return;
     onAssumeSet(slot, { ...base, teraType: nextTera || undefined });
   }
