@@ -561,6 +561,7 @@ function liveSlotFromSnapshot(s: SlotSnapshot, weather: string): LiveSlot {
     knownMoves: s.knownMoves,
     setSource: s.setSource,
     assumedSet: s.set,
+    setOptions: s.setOptions,
     candidateProbability: s.candidateProbability,
     setComplete: Boolean(s.setComplete),
     setWarning: s.setWarning,
