@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useRef, useState, type ReactNode } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import {
   attachGame,
@@ -8,6 +8,9 @@ import {
   disconnectGames,
   getGames,
   getLiveState,
+  logoutGames,
+  patchGameSettings,
+  saveLogin,
   searchGames,
   type DetectedGame,
   type GamesSnapshot,
@@ -23,35 +26,25 @@ const empty: GamesSnapshot = {
   listed: [],
   attached: null,
   settings: { user: '', url: '', policy: 'quantum', dry_run: true },
+  login: { saved: false, user: '', hasPass: false, verified: false },
 };
 
 export default function Games() {
   const navigate = useNavigate();
   const [snap, setSnap] = useState<GamesSnapshot>(empty);
   const [live, setLive] = useState<LiveState>({ status: 'idle' });
-  const [user, setUser] = useState('');
-  const [pass, setPass] = useState('');
-  const [url, setUrl] = useState('');
-  const [room, setRoom] = useState('');
-  const [dryRun, setDryRun] = useState(true);
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
+  const [loginOpen, setLoginOpen] = useState(false);
+  const [joinOpen, setJoinOpen] = useState(false);
 
   const apply = (next: GamesSnapshot) => {
-    setSnap(next);
-    if (next.error) setErr(next.error);
-    else setErr('');
+    setSnap({ ...empty, ...next, login: next.login ?? empty.login, settings: next.settings ?? empty.settings });
+    setErr(next.error || '');
   };
 
   useEffect(() => {
-    getGames()
-      .then((g) => {
-        apply(g);
-        setUser(g.settings.user);
-        setUrl(g.settings.url);
-        setDryRun(g.settings.dry_run);
-      })
-      .catch((e) => setErr(String(e)));
+    getGames().then(apply).catch((e) => setErr(String(e)));
   }, []);
 
   useEffect(() => {
@@ -82,19 +75,16 @@ export default function Games() {
     }
   }, []);
 
-  const detect = () => run('detect', () => detectGames({
-    user: user || undefined,
-    pass: pass || undefined,
-    url: url || undefined,
-  }));
-
   const goLive = async (id: string) => {
     setBusy('attach');
     setErr('');
     try {
-      const next = await attachGame(id, { dryRun });
+      const next = await attachGame(id, { dryRun: snap.settings.dry_run });
       apply(next);
-      if (!next.error && next.attached) navigate('/games/live');
+      if (!next.error && next.attached) {
+        setJoinOpen(false);
+        navigate('/games/live');
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : String(e));
     } finally {
@@ -103,56 +93,90 @@ export default function Games() {
   };
 
   const liveOn = Boolean(snap.attached) || (live.status && live.status !== 'idle');
+  const saved = snap.login.saved;
 
   return (
     <div>
       <h1 className="neon-title" style={{ fontSize: '1.8rem' }}>Games</h1>
-      <p className="muted">Detect Showdown battles for this account and attach PokeLink from this UI.</p>
+      <p className="muted">Saved Showdown login, detect battles, or join by id.</p>
 
-      <div className="panel" style={{ marginTop: 16 }}>
-        <h3 style={{ marginTop: 0, color: 'var(--neon-cyan)' }}>Showdown</h3>
-        <div className="game-form">
-          <label>User
-            <input value={user} onChange={(e) => setUser(e.target.value)} placeholder="guest if empty" />
-          </label>
-          <label>Password
-            <input type="password" value={pass} onChange={(e) => setPass(e.target.value)} />
-          </label>
-          <label>Websocket URL
-            <input value={url} onChange={(e) => setUrl(e.target.value)} placeholder="default sim3" />
-          </label>
-        </div>
-        <div className="row-actions">
-          <button type="button" onClick={detect} disabled={Boolean(busy)}>
-            {busy === 'detect' ? 'Detecting…' : 'Connect & detect'}
-          </button>
-          <button type="button" onClick={() => run('search', () => searchGames())} disabled={!snap.connected || Boolean(busy)}>
-            Search Random Battle
-          </button>
-          <button type="button" onClick={() => run('cancel', () => cancelSearch())} disabled={!snap.connected || Boolean(busy)}>
-            Cancel search
-          </button>
-          <label className="muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <input type="checkbox" checked={dryRun} onChange={(e) => setDryRun(e.target.checked)} />
-            dry-run (log, do not send)
-          </label>
-          <button type="button" onClick={() => run('disconnect', () => disconnectGames())} disabled={!snap.connected && !snap.attached}>
-            Disconnect
-          </button>
-          {liveOn && (
-            <Link to="/games/live" className="btn-primary">Open battle</Link>
-          )}
-        </div>
-        <p className="muted" style={{ marginBottom: 0 }}>
-          {statusLine(snap, busy)}
-        </p>
-        {err && <p style={{ color: 'var(--neon-red)', marginBottom: 0 }}>{err}</p>}
-      </div>
+      <section className="panel account-card" style={{ marginTop: 16 }}>
+        {saved ? (
+          <>
+            <div className="account-row">
+              <span className="account-avatar" aria-hidden="true">{initials(snap.login.user)}</span>
+              <div>
+                <div className="account-name">{snap.login.user}</div>
+                <div className="account-meta">
+                  <span className={`status-pill ${badgeClass(snap)}`}>{badgeLabel(snap, busy)}</span>
+                  {!snap.login.hasPass && <span className="muted">No saved password</span>}
+                </div>
+              </div>
+            </div>
+            <div className="row-actions">
+              <button type="button" className="btn-primary" onClick={() => run('detect', () => detectGames())} disabled={Boolean(busy)}>
+                {busy === 'detect' ? 'Detecting…' : 'Detect games'}
+              </button>
+              <button type="button" onClick={() => setJoinOpen(true)} disabled={Boolean(busy)}>
+                Join battle
+              </button>
+              <button type="button" onClick={() => run('search', () => searchGames())} disabled={!snap.connected || Boolean(busy)}>
+                Search Random Battle
+              </button>
+              <button type="button" onClick={() => run('cancel', () => cancelSearch())} disabled={!snap.connected || Boolean(busy)}>
+                Cancel search
+              </button>
+              {liveOn && <Link to="/games/live" className="btn-primary">Open battle</Link>}
+            </div>
+            <div className="row-actions account-tools">
+              <label className="send-toggle">
+                <input
+                  type="checkbox"
+                  checked={!snap.settings.dry_run}
+                  onChange={(e) => {
+                    const send = e.target.checked;
+                    void run('settings', () => patchGameSettings({ dryRun: !send }));
+                  }}
+                />
+                Send chosen moves
+              </label>
+              <button type="button" className="btn-secondary" onClick={() => setLoginOpen(true)} disabled={Boolean(busy)}>
+                Change login
+              </button>
+              <button type="button" onClick={() => run('disconnect', () => disconnectGames())} disabled={!snap.connected && !snap.attached}>
+                Disconnect
+              </button>
+              <button type="button" className="btn-danger" onClick={() => run('logout', () => logoutGames())} disabled={Boolean(busy)}>
+                Forget login
+              </button>
+            </div>
+            <p className="muted" style={{ marginBottom: 0 }}>
+              {snap.settings.dry_run
+                ? 'Moves are logged only. Turn on send when you want the engine to choose on Showdown.'
+                : 'The engine will send sampled moves to Showdown when attached.'}
+            </p>
+          </>
+        ) : (
+          <div className="account-empty">
+            <p className="account-name" style={{ margin: 0 }}>No Showdown login saved</p>
+            <p className="muted">Verify your account with the Showdown server, then detect games or join by battle id.</p>
+            <div className="row-actions">
+              <button type="button" className="btn-primary" onClick={() => setLoginOpen(true)}>
+                Save login
+              </button>
+              <button type="button" onClick={() => setJoinOpen(true)}>Join battle as guest</button>
+            </div>
+          </div>
+        )}
+        {err && <p className="field-err" role="alert" style={{ marginBottom: 0 }}>{err}</p>}
+      </section>
 
       <div className="grid-2" style={{ marginTop: 16 }}>
         <GameList
           title="Your games"
-          empty={snap.connected ? 'No games on this account. Search, or start one on Pokémon Showdown and detect again.' : 'Connect to detect your games.'}
+          empty={snap.connected
+            ? 'No games on this account. Search, join by id, or start one on Pokémon Showdown and detect again.'
+            : 'Detect games after saving a login.'}
           games={snap.mine}
           attached={snap.attached?.room}
           onAttach={goLive}
@@ -160,7 +184,7 @@ export default function Games() {
         />
         <GameList
           title="Public Random Battles"
-          empty={snap.connected ? 'No public battles listed.' : 'Connect to list public rooms.'}
+          empty={snap.connected ? 'No public battles listed.' : 'Detect games to list public rooms.'}
           games={snap.listed}
           attached={snap.attached?.room}
           onAttach={goLive}
@@ -168,39 +192,55 @@ export default function Games() {
         />
       </div>
 
-      <div className="panel" style={{ marginTop: 16 }}>
-        <h3 style={{ marginTop: 0, color: 'var(--neon-cyan)' }}>Attach by id</h3>
-        <div className="row-actions">
-          <input
-            value={room}
-            onChange={(e) => setRoom(e.target.value)}
-            placeholder="gen9randombattle-… or battle-gen9randombattle-…"
-            style={{ flex: 1, minWidth: 220 }}
-          />
-          <button type="button" onClick={() => goLive(room)} disabled={!room.trim() || Boolean(busy)}>
-            Attach
-          </button>
-          <button type="button" onClick={() => run('detach', () => detachGame())} disabled={!snap.attached}>
-            Detach
-          </button>
-        </div>
-      </div>
+      {loginOpen && (
+        <LoginModal
+          busy={busy === 'login'}
+          defaultUser={snap.login.user}
+          onClose={() => setLoginOpen(false)}
+          onSave={async (user, pass) => {
+            setBusy('login');
+            setErr('');
+            try {
+              const next = await saveLogin(user, pass);
+              apply(next);
+              if (!next.error && next.login.verified) setLoginOpen(false);
+            } catch (e) {
+              setErr(e instanceof Error ? e.message : String(e));
+            } finally {
+              setBusy('');
+            }
+          }}
+        />
+      )}
+      {joinOpen && (
+        <JoinModal
+          busy={busy === 'attach'}
+          onClose={() => setJoinOpen(false)}
+          onJoin={(id) => void goLive(id)}
+        />
+      )}
     </div>
   );
 }
 
-function statusLine(snap: GamesSnapshot, busy: string): string {
-  if (busy) return busy;
-  const bits = [];
-  if (snap.connected) bits.push(`${snap.named ? 'named' : 'guest'} ${snap.user || '(connecting)'}`);
-  else bits.push('not connected');
-  if (snap.searching.length) bits.push(`searching ${snap.searching.join(', ')}`);
-  if (snap.attached) {
-    bits.push(`attached ${snap.attached.room}`);
-    bits.push(snap.attached.dryRun ? 'dry-run' : 'send');
-    bits.push(snap.attached.policy);
-  }
-  return bits.join('  ·  ');
+function badgeLabel(snap: GamesSnapshot, busy: string): string {
+  if (busy === 'detect' || busy === 'login') return 'checking';
+  if (snap.login.verified) return 'verified';
+  if (snap.connected && snap.named) return 'named';
+  if (snap.connected) return 'guest';
+  return 'offline';
+}
+
+function badgeClass(snap: GamesSnapshot): string {
+  if (snap.login.verified) return 'status-connected';
+  if (snap.connected) return 'status-waiting';
+  return 'status-ended';
+}
+
+function initials(name: string): string {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  const letters = (parts[0]?.[0] ?? '?') + (parts[1]?.[0] ?? parts[0]?.[1] ?? '');
+  return letters.toUpperCase();
 }
 
 function GameList(props: {
@@ -235,3 +275,133 @@ function GameList(props: {
   );
 }
 
+function Modal(props: { title: string; onClose: () => void; children: ReactNode }) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  const titleId = useId();
+  useEffect(() => {
+    const opener = document.activeElement as HTMLElement | null;
+    const panel = panelRef.current;
+    if (!panel) return;
+    const focusable = () =>
+      [...panel.querySelectorAll<HTMLElement>(
+        'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
+      )].filter((el) => !el.hasAttribute('disabled') && el.tabIndex !== -1);
+    (focusable().find((el) => el.tagName === 'INPUT') ?? focusable()[0])?.focus();
+    function onKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        e.preventDefault();
+        props.onClose();
+        return;
+      }
+      if (e.key !== 'Tab') return;
+      const els = focusable();
+      if (!els.length) return;
+      const i = els.indexOf(document.activeElement as HTMLElement);
+      if (e.shiftKey && i <= 0) {
+        e.preventDefault();
+        els[els.length - 1]!.focus();
+      } else if (!e.shiftKey && i === els.length - 1) {
+        e.preventDefault();
+        els[0]!.focus();
+      }
+    }
+    panel.addEventListener('keydown', onKey);
+    return () => {
+      panel.removeEventListener('keydown', onKey);
+      opener?.focus();
+    };
+  }, [props]);
+  return (
+    <div className="modal-overlay" onClick={props.onClose} role="presentation">
+      <div
+        ref={panelRef}
+        className="modal-panel"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="drawer-head">
+          <h2 id={titleId} className="drawer-title">{props.title}</h2>
+          <button type="button" className="btn-secondary" onClick={props.onClose} aria-label="Close">✕</button>
+        </div>
+        {props.children}
+      </div>
+    </div>
+  );
+}
+
+function LoginModal(props: {
+  busy: boolean;
+  defaultUser: string;
+  onClose: () => void;
+  onSave: (user: string, pass: string) => Promise<void>;
+}) {
+  const [user, setUser] = useState(props.defaultUser);
+  const [pass, setPass] = useState('');
+  const missing = !user.trim() || !pass;
+  return (
+    <Modal title="Showdown login" onClose={props.onClose}>
+      <form
+        className="drawer-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (!missing && !props.busy) void props.onSave(user.trim(), pass);
+        }}
+      >
+        <div className="form-field">
+          <label htmlFor="ps-user">Username</label>
+          <input id="ps-user" autoComplete="username" value={user} onChange={(e) => setUser(e.target.value)} />
+        </div>
+        <div className="form-field">
+          <label htmlFor="ps-pass">Password</label>
+          <input id="ps-pass" type="password" autoComplete="current-password" value={pass} onChange={(e) => setPass(e.target.value)} />
+        </div>
+        <p className="muted" style={{ margin: 0 }}>
+          Saved locally in launch settings. PokeRedus verifies it against the Showdown login server before connecting.
+        </p>
+        <div className="drawer-actions">
+          <button type="button" className="btn-secondary" onClick={props.onClose}>Cancel</button>
+          <button type="submit" className="btn-primary" disabled={missing || props.busy}>
+            {props.busy ? 'Verifying…' : 'Verify and save'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+function JoinModal(props: {
+  busy: boolean;
+  onClose: () => void;
+  onJoin: (room: string) => void;
+}) {
+  const [room, setRoom] = useState('');
+  return (
+    <Modal title="Join battle" onClose={props.onClose}>
+      <form
+        className="drawer-form"
+        onSubmit={(e) => {
+          e.preventDefault();
+          if (room.trim() && !props.busy) props.onJoin(room.trim());
+        }}
+      >
+        <div className="form-field">
+          <label htmlFor="ps-room">Battle id</label>
+          <input
+            id="ps-room"
+            value={room}
+            onChange={(e) => setRoom(e.target.value)}
+            placeholder="gen9randombattle-… or battle-gen9randombattle-…"
+          />
+        </div>
+        <div className="drawer-actions">
+          <button type="button" className="btn-secondary" onClick={props.onClose}>Cancel</button>
+          <button type="submit" className="btn-primary" disabled={!room.trim() || props.busy}>
+            {props.busy ? 'Attaching…' : 'Attach'}
+          </button>
+        </div>
+      </form>
+    </Modal>
+  );
+}

@@ -91,6 +91,123 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   padding: 16px;
 }
 
+.muted {
+  color: var(--fg-secondary);
+}
+
+.dim {
+  color: var(--fg-dim);
+  font-size: 0.8rem;
+}
+
+.row-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.game-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.game-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--fg-dim);
+}
+
+.game-row:last-child { border-bottom: none; }
+
+.account-card {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.account-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.account-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: var(--bg-selected);
+  border: 1px solid var(--neon-cyan);
+  color: var(--neon-cyan);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.account-name {
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.account-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-top: 4px;
+}
+
+.account-tools {
+  margin-top: 0;
+}
+
+.send-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--fg-secondary);
+  min-height: 44px;
+}
+
+.account-empty {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.modal-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+}
+
+.modal-panel {
+  width: min(440px, 100%);
+  background: var(--bg-panel);
+  border: 1px solid var(--fg-dim);
+  border-radius: 8px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
 .card {
   background: var(--bg-card);
   border: 1px solid var(--fg-dim);
