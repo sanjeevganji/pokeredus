@@ -177,17 +177,15 @@ export class GameHub {
     return next;
   }
 
-  async detect(opts: { user?: string; pass?: string; url?: string; format?: string } = {}): Promise<GamesSnapshot> {
+  async detect(opts: { format?: string } = {}): Promise<GamesSnapshot> {
     this.error = undefined;
-    const s = this.loadSettings();
-    const user = opts.user ?? this.credUser ?? s.user;
-    const pass = opts.pass ?? this.credPass ?? s.pass;
-    const url = opts.url ?? this.credUrl ?? s.url;
     const format = opts.format || DEFAULT_FORMAT;
-    if (this.client && (user !== this.credUser || pass !== this.credPass || url !== this.credUrl)) {
-      this.closeLobby();
+    try {
+      await this.ensureConnected({ requireNamed: this.hasSavedLogin() });
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : String(err);
+      return this.snapshot();
     }
-    await this.ensureConnected({ user, pass, url });
     const gotList = new Promise<void>((resolve) => {
       const off = this.client!.onLobby((ev) => {
         if (ev.type === 'roomlist') {
@@ -203,6 +201,45 @@ export class GameHub {
     this.client!.send(`|/cmd roomlist ${format}`);
     await gotList;
     return this.snapshot();
+  }
+
+  async login(user: string, pass: string): Promise<GamesSnapshot> {
+    const name = user.trim();
+    if (!name || !pass) {
+      this.error = 'Need a Showdown username and password.';
+      return this.snapshot();
+    }
+    this.writeSettings({ user: name, pass });
+    this.closeLobby();
+    this.credUser = name;
+    this.credPass = pass;
+    this.error = undefined;
+    try {
+      await this.ensureConnected({ requireNamed: true });
+      return await this.detect();
+    } catch (err) {
+      this.error = err instanceof Error ? err.message : String(err);
+      this.closeLobby();
+      return this.snapshot();
+    }
+  }
+
+  logout(): GamesSnapshot {
+    this.disconnect();
+    this.writeSettings({ user: '', pass: '' });
+    this.credUser = '';
+    this.credPass = '';
+    return this.snapshot();
+  }
+
+  patchSettings(opts: { dryRun?: boolean }): GamesSnapshot {
+    if (typeof opts.dryRun === 'boolean') this.writeSettings({ dry_run: opts.dryRun });
+    return this.snapshot();
+  }
+
+  private hasSavedLogin(): boolean {
+    const s = this.loadSettings();
+    return Boolean((this.credUser || s.user) && (this.credPass || s.pass));
   }
 
   search(format = DEFAULT_FORMAT): GamesSnapshot {
