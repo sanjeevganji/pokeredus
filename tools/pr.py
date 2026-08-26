@@ -378,7 +378,6 @@ MENUS: dict[str, list[dict[str, Any]]] = {
     "pokelink": [
         {"label": "Score replay transcript", "kind": "run", "jobs": "score"},
         {"label": "Render knowledge pack", "kind": "run", "jobs": "render"},
-        {"label": "Generate Random Battle pool", "kind": "run", "jobs": "pool"},
         {"label": "Export knowledge pack (TS)", "kind": "run", "jobs": "pack_ts"},
         {"label": "CLI tests", "kind": "run", "jobs": "cli_test"},
         {"label": "Back", "kind": "back"},
