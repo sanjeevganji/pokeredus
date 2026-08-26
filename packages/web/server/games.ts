@@ -209,17 +209,20 @@ export class GameHub {
       this.error = 'Need a Showdown username and password.';
       return this.snapshot();
     }
-    this.writeSettings({ user: name, pass });
     this.closeLobby();
     this.credUser = name;
     this.credPass = pass;
     this.error = undefined;
     try {
       await this.ensureConnected({ requireNamed: true });
+      this.writeSettings({ user: name, pass });
       return await this.detect();
     } catch (err) {
       this.error = err instanceof Error ? err.message : String(err);
       this.closeLobby();
+      const s = this.loadSettings();
+      this.credUser = s.user;
+      this.credPass = s.pass;
       return this.snapshot();
     }
   }
