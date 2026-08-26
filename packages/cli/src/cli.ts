@@ -215,7 +215,9 @@ async function main(): Promise<void> {
           decideBusy = false;
           if (decideQueued) {
             decideQueued = false;
-            runDecide(false);
+            const nextSend = queuedSend;
+            queuedSend = false;
+            runDecide(nextSend);
           }
         });
       };
