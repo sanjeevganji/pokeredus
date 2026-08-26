@@ -59,22 +59,20 @@ export class ShowdownClient {
   }
 
   /** Open the socket. Resolves once the connection is established. */
-  connect(): Promise<void> {
-    return new Promise((resolve, reject) => {
-      const ws = new WebSocket(this.url);
-      this.ws = ws;
-      ws.on('open', () => {
-        console.log(`[pokeredus] connected to ${this.url}`);
-        resolve();
-      });
-      ws.on('message', (data: Buffer | ArrayBuffer | string) => {
-        const text = typeof data === 'string' ? data : data.toString();
-        this.onMessage(text);
-      });
-      ws.on('error', (err) => console.error('[pokeredus] ws error:', err));
-      ws.on('close', () => console.log('[pokeredus] ws closed'));
-      ws.on('unexpected-response', (_req, res) => reject(new Error(`ws unexpected response ${res.statusCode}`)));
+  async connect(): Promise<void> {
+    const { ws, url } = await connectShowdownWebSocket(this.url);
+    (this as { url: string }).url = url;
+    this.ws = ws;
+    ws.on('message', (data: Buffer | ArrayBuffer | string) => {
+      const text = typeof data === 'string' ? data : data.toString();
+      this.onMessage(text);
     });
+    ws.on('error', (err) => {
+      if (err.message.includes('closed before the connection was established')) return;
+      console.error('[pokeredus] ws error:', err);
+    });
+    ws.on('close', () => console.log('[pokeredus] ws closed'));
+    console.log(`[pokeredus] connected to ${url}`);
   }
 
   /** Send a raw protocol message. */
