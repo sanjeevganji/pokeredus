@@ -362,6 +362,7 @@ function LoginModal(props: {
         <p className="muted" style={{ margin: 0 }}>
           Saved locally in launch settings. PokeRedus verifies it against the Showdown login server before connecting.
         </p>
+        {props.error && <p className="field-err" role="alert">{props.error}</p>}
         <div className="drawer-actions">
           <button type="button" className="btn-secondary" onClick={props.onClose}>Cancel</button>
           <button type="submit" className="btn-primary" disabled={missing || props.busy}>
