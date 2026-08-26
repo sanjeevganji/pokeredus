@@ -66,6 +66,7 @@ describe('randbats import', () => {
     expect(compatible(set, { species: 'garchomp', moves: ['swordsdance'] })).toBe(true);
     expect(compatible(set, { species: 'garchomp', moves: [], teraType: 'Fire' })).toBe(true);
     expect(compatible(set, { species: 'garchomp', moves: [], teraType: 'Water' })).toBe(false);
+    expect(compatible(set, { species: 'garchomp', moves: ['earthquake'], level: 80 })).toBe(true);
   });
 
   it('prefers revealed moves when picking four', () => {
