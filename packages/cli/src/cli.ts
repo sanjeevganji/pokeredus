@@ -271,6 +271,28 @@ Flags:
 `);
 }
 
+function watchOverrides(filePath: string, onChange: () => void): () => void {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const bump = () => {
+    clearTimeout(timer);
+    timer = setTimeout(onChange, 80);
+  };
+  try {
+    const dir = path.dirname(filePath) || '.';
+    const base = path.basename(filePath);
+    const watcher = fs.watch(dir, (_event, name) => {
+      if (!name || name === base || String(name).startsWith(`${base}.`)) bump();
+    });
+    watcher.on('error', () => { /* ignore */ });
+    return () => {
+      clearTimeout(timer);
+      watcher.close();
+    };
+  } catch {
+    return () => { clearTimeout(timer); };
+  }
+}
+
 main().catch((e) => {
   console.error(e);
   process.exit(1);
