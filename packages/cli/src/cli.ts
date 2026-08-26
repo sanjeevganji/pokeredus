@@ -190,6 +190,7 @@ async function main(): Promise<void> {
         }
         if (decideBusy) {
           decideQueued = true;
+          if (send) queuedSend = true;
           return;
         }
         const obs = observe(send);
