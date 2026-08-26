@@ -96,7 +96,7 @@ export default function Games() {
   return (
     <div>
       <h1 className="neon-title" style={{ fontSize: '1.8rem' }}>Games</h1>
-      <p className="muted">Saved Showdown login, detect battles, or join by id.</p>
+      <p className="muted">Saved Showdown login, detect battles, or open a battle by id or URL.</p>
 
       <section className="panel account-card" style={{ marginTop: 16 }}>
         {saved ? (
@@ -111,12 +111,10 @@ export default function Games() {
                 </div>
               </div>
             </div>
+            <JoinSearch busy={busy === 'attach'} onJoin={(id) => void goLive(id)} />
             <div className="row-actions">
               <button type="button" className="btn-primary" onClick={() => run('detect', () => detectGames())} disabled={Boolean(busy)}>
                 {busy === 'detect' ? 'Detecting…' : 'Detect games'}
-              </button>
-              <button type="button" onClick={() => setJoinOpen(true)} disabled={Boolean(busy)}>
-                Join battle
               </button>
               <button type="button" onClick={() => run('search', () => searchGames())} disabled={!snap.connected || Boolean(busy)}>
                 Search Random Battle
@@ -124,7 +122,7 @@ export default function Games() {
               <button type="button" onClick={() => run('cancel', () => cancelSearch())} disabled={!snap.connected || Boolean(busy)}>
                 Cancel search
               </button>
-              {liveOn && <Link to="/games/live" className="btn-primary">Open battle</Link>}
+              {liveOn && <Link to="/games/live" className="btn-primary">View live</Link>}
             </div>
             <div className="row-actions account-tools">
               <label className="send-toggle">
