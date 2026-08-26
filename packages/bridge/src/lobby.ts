@@ -100,10 +100,56 @@ export function parseLobbyLine(raw: string): LobbyEvent | null {
   return null;
 }
 
+export function parseBattleMetaLine(raw: string): BattleMeta | null {
+  let line = raw.trim();
+  if (!line.startsWith('|')) {
+    const bar = line.indexOf('|');
+    if (bar < 0) return null;
+    line = line.slice(bar);
+  }
+  const parts = line.split('|');
+  const cmd = parts[1];
+  if (cmd === 'player') {
+    const name = (parts[3] ?? '').trim();
+    if (!name) return null;
+    if (parts[2] === 'p1') return { p1: name };
+    if (parts[2] === 'p2') return { p2: name };
+    return null;
+  }
+  if (cmd === 'turn') {
+    const turn = Number(parts[2]);
+    return Number.isFinite(turn) ? { turn } : null;
+  }
+  if (cmd === 'title') {
+    const title = (parts[2] ?? '').trim();
+    if (!title) return null;
+    return { title, ...playersFromTitle(title) };
+  }
+  return null;
+}
+
+export function applyBattleMeta(game: DetectedGame, patch: BattleMeta): DetectedGame {
+  const p1 = patch.p1 || game.p1;
+  const p2 = patch.p2 || game.p2;
+  return {
+    ...game,
+    p1,
+    p2,
+    turn: patch.turn ?? game.turn,
+    title: p1 || p2 ? `${p1 ?? '?'} vs ${p2 ?? '?'}` : (patch.title || game.title),
+  };
+}
+
+function playersFromTitle(title: string): { p1?: string; p2?: string } {
+  const m = /^(.+?)\s+vs\.?\s+(.+)$/i.exec(title.trim());
+  return m ? { p1: m[1]!.trim(), p2: m[2]!.trim() } : {};
+}
+
 export function gamesFromSearch(games: Record<string, string>): DetectedGame[] {
   return Object.entries(games).map(([room, title]) => ({
     room: normalizeBattleRoom(room),
     title,
+    ...playersFromTitle(title),
     mine: true,
   }));
 }
