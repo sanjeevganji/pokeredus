@@ -111,6 +111,7 @@ export class GameHub {
   private credPass = '';
   private credUrl = '';
   private connectLock?: Promise<void>;
+  private joinedRooms = new Set<string>();
 
   constructor(private readonly root: string) {}
 
