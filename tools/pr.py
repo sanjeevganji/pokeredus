@@ -279,10 +279,6 @@ def action_pytest() -> list[tuple[list[str], Path]]:
               "tests/test_phase5.py", "tests/test_game_state.py"], ROOT / "pokeredus")]
 
 
-def action_pool() -> list[tuple[list[str], Path]]:
-    return [(cli("generate-pool", "--samples", "200", "--seed", "1", "--out", str(POOL_OUT)), ROOT)]
-
-
 def action_pack_ts(mini: bool = False) -> list[tuple[list[str], Path]]:
     argv = cli("export-pack")
     if mini:
