@@ -376,7 +376,39 @@ export class GameHub {
     };
   }
 
+  private mergeMine(next: DetectedGame[]): DetectedGame[] {
+    const prev = new Map(this.mine.map((g) => [g.room, g]));
+    return next.map((g) => {
+      const was = prev.get(g.room);
+      return was ? applyBattleMeta(g, was) : g;
+    });
+  }
+
+  private overlayFromList(listed: DetectedGame[]): void {
+    const byRoom = new Map(listed.map((g) => [g.room, g]));
+    this.mine = this.mine.map((g) => {
+      const pub = byRoom.get(g.room);
+      return pub ? applyBattleMeta(g, pub) : g;
+    });
+  }
+
+  private syncJoinedRooms(): void {
+    if (!this.client) return;
+    const want = new Set(this.mine.map((g) => g.room));
+    for (const room of this.joinedRooms) {
+      if (want.has(room)) continue;
+      this.client.send(`${room}|/leave`);
+      this.joinedRooms.delete(room);
+    }
+    for (const room of want) {
+      if (this.joinedRooms.has(room)) continue;
+      this.joinedRooms.add(room);
+      this.client.send(`|/join ${room}`);
+    }
+  }
+
   private closeLobby(): void {
+    this.joinedRooms.clear();
     this.client?.close();
     this.client = undefined;
   }
