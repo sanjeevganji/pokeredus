@@ -169,6 +169,7 @@ async function main(): Promise<void> {
       let decideGen = 0;
       let decideBusy = false;
       let decideQueued = false;
+      let queuedSend = false;
 
       const observe = (settle: boolean) => {
         try {
