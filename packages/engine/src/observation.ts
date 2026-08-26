@@ -106,6 +106,7 @@ export interface SlotSnapshot {
   setComplete?: boolean;
   setWarning?: string;
   hypotheses: SetHypothesis[];
+  setOptions?: SetOption[];
   modifiers: Modifier[];
 }
 
