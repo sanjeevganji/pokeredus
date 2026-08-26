@@ -34,8 +34,18 @@ export interface CanonicalSet {
   nature: string;
   gender?: string;
   teraType?: string;
+  teraTypes?: string[];
+  role?: string;
+  movePool?: string[];
   evs?: Partial<Record<'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe', number>>;
   ivs?: Partial<Record<'hp' | 'atk' | 'def' | 'spa' | 'spd' | 'spe', number>>;
+}
+
+export interface SetOption {
+  role: string;
+  teraTypes: string[];
+  compatible: boolean;
+  set: CanonicalSet;
 }
 
 export interface SetHypothesis {
