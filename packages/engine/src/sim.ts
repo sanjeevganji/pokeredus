@@ -102,8 +102,8 @@ function slotSet(slot: SlotSnapshot): CanonicalSet {
 
 export function packObservation(obs: BattleObservation, theirOverride?: CanonicalSet[]): [string, string] {
   const PS = loadShowdown();
-  const ours = obs.ours.map((s) => toPackedSet(s.set ?? placeholderSet()));
-  const theirs = (theirOverride ?? obs.theirs.map(slotSet)).map(toPackedSet);
+  const ours = obs.ours.map((s) => toPackedSet(s.set ?? placeholderSet(), s.knownMoves));
+  const theirs = (theirOverride ?? obs.theirs.map(slotSet)).map((set, i) => toPackedSet(set, obs.theirs[i]?.knownMoves));
   while (ours.length < 6) ours.push(toPackedSet(placeholderSet()));
   while (theirs.length < 6) theirs.push(toPackedSet(placeholderSet()));
   return [PS.Teams.pack(ours) ?? '', PS.Teams.pack(theirs) ?? ''];
