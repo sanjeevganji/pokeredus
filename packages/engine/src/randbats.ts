@@ -1,5 +1,5 @@
 import type { CanonicalSet } from './observation.js';
-import { speciesKey, type PoolRow, type RandomSetPool } from './pool.js';
+import type { PoolRow, RandomSetPool } from './pool.js';
 
 export const DEFAULT_NATURE = 'Hardy';
 export const DEFAULT_LEVEL = 80;
