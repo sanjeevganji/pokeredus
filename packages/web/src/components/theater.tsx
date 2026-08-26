@@ -225,7 +225,7 @@ function SlotRow({
 }
 
 export function Bench({
-  title, slots, field, accent, area, tera, compact, onEditSet,
+  title, slots, field, accent, area, tera, compact, onEditSet, onAssumeSet,
 }: {
   title: string;
   slots: LiveSlot[];
@@ -235,6 +235,7 @@ export function Bench({
   tera?: boolean;
   compact?: boolean;
   onEditSet?: (slot: LiveSlot, opener: HTMLElement) => void;
+  onAssumeSet?: (slot: LiveSlot, set: CanonicalSet) => void;
 }) {
   const six = [...slots];
   while (six.length < 6) {
