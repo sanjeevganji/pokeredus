@@ -254,13 +254,12 @@ function printHelp(): void {
 Usage:
   pokeredus render-pack --pack <pack.json>
   pokeredus export-pack [--template <pack.json>] [--out <path>] [--mini]
-  pokeredus generate-pool [--samples <n>] [--seed <n>] [--out <path>]
   pokeredus score --replay <transcript.txt> [--pool <pool.json>] [--policy quantum|softmax] [--dry-run]
   pokeredus live  --battle <roomid> [--policy quantum|softmax] [--dry-run]
 
 Flags:
   --pack <f>          Knowledge Pack JSON.
-  --pool <f>          Empirical Random Battle set pool.
+  --pool <f>          Random Battle set data (pkmn/randbats JSON, default).
   --our-sets <f>      JSON array of our six known CanonicalSets.
   --policy <m>        quantum (default) or softmax (benchmark only).
   --seed <n>          Policy / pool seed.
