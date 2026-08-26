@@ -375,22 +375,37 @@ export class GameHub {
     this.client = undefined;
   }
 
-  private async ensureConnected(opts: { user: string; pass: string; url: string }): Promise<void> {
-    if (this.client) return;
-    this.credUser = opts.user;
-    this.credPass = opts.pass;
-    this.credUrl = opts.url;
+  private async ensureConnected(opts: { requireNamed?: boolean } = {}): Promise<void> {
+    if (this.connectLock) await this.connectLock;
+    if (this.client) {
+      if (opts.requireNamed && this.hasSavedLogin() && !this.named) this.closeLobby();
+      else return;
+    }
+    const work = this.openLobby(opts);
+    this.connectLock = work.finally(() => { this.connectLock = undefined; });
+    await this.connectLock;
+  }
+
+  private async openLobby(opts: { requireNamed?: boolean }): Promise<void> {
+    const s = this.loadSettings();
+    const user = this.credUser || s.user;
+    const pass = this.credPass || s.pass;
+    const url = this.credUrl || s.url;
+    this.credUser = user;
+    this.credPass = pass;
+    this.credUrl = url;
+    this.named = false;
+    this.userName = '';
+    const requireNamed = Boolean(opts.requireNamed && user && pass);
     const client = new LobbyClient({
-      url: opts.url || undefined,
-      user: opts.user || undefined,
-      pass: opts.pass || undefined,
+      url: url || undefined,
+      user: user || undefined,
+      pass: pass || undefined,
     });
     client.onLobby((ev) => {
       if (ev.type === 'updateuser') {
         this.userName = ev.name.trim();
         this.named = ev.named;
-        for (const w of this.authWaiters) w();
-        this.authWaiters = [];
       } else if (ev.type === 'updatesearch') {
         this.searching = ev.searching;
         this.mine = gamesFromSearch(ev.games);
@@ -401,18 +416,34 @@ export class GameHub {
           .slice(0, 40);
       } else if (ev.type === 'popup') {
         this.error = ev.text.replace(/<[^>]+>/g, ' ').trim();
+      } else if (ev.type === 'nametaken') {
+        this.error = ev.reason.replace(/<[^>]+>/g, ' ').trim() || 'Showdown rejected that username.';
       }
     });
     this.client = client;
-    const authed = new Promise<void>((resolve) => {
-      const t = setTimeout(resolve, AUTH_MS);
-      this.authWaiters.push(() => {
+    const authed = new Promise<void>((resolve, reject) => {
+      const finish = () => {
         clearTimeout(t);
+        off();
+        if (requireNamed && !this.named) {
+          reject(new Error(this.error || client.authError || 'Showdown did not verify this login.'));
+          return;
+        }
         resolve();
+      };
+      const t = setTimeout(finish, AUTH_MS);
+      const off = client.onLobby((ev) => {
+        if (ev.type === 'updateuser' && (!requireNamed || ev.named)) finish();
+        else if (ev.type === 'nametaken' || (ev.type === 'popup' && requireNamed)) finish();
       });
     });
-    await client.connect();
-    await authed;
+    try {
+      await client.connect();
+      await authed;
+    } catch (err) {
+      this.closeLobby();
+      throw err;
+    }
   }
 }
 
