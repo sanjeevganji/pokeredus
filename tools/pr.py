@@ -320,7 +320,7 @@ def action_verify() -> list[tuple[list[str], Path]]:
 
 
 def action_train() -> list[tuple[list[str], Path]]:
-    return action_pool() + action_pack_ts() + action_graph()
+    return action_pack_ts() + action_graph()
 
 
 def run_jobs(jobs: list[tuple[list[str], Path]], *, pause: bool = False) -> int:
