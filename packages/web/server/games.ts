@@ -394,16 +394,10 @@ export class GameHub {
 
   private syncJoinedRooms(): void {
     if (!this.client) return;
-    const want = new Set(this.mine.map((g) => g.room));
-    for (const room of this.joinedRooms) {
-      if (want.has(room)) continue;
-      this.client.send(`${room}|/leave`);
-      this.joinedRooms.delete(room);
-    }
-    for (const room of want) {
-      if (this.joinedRooms.has(room)) continue;
-      this.joinedRooms.add(room);
-      this.client.send(`|/join ${room}`);
+    for (const g of this.mine) {
+      if (this.joinedRooms.has(g.room)) continue;
+      this.joinedRooms.add(g.room);
+      this.client.send(`|/join ${g.room}`);
     }
   }
 

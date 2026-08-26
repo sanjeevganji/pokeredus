@@ -36,7 +36,6 @@ export default function Games() {
   const [busy, setBusy] = useState('');
   const [err, setErr] = useState('');
   const [loginOpen, setLoginOpen] = useState(false);
-  const [joinOpen, setJoinOpen] = useState(false);
 
   const apply = (next: GamesSnapshot) => {
     setSnap({ ...empty, ...next, login: next.login ?? empty.login, settings: next.settings ?? empty.settings });
