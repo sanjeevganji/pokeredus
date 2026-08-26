@@ -58,6 +58,12 @@ export interface GamesSnapshot {
     policy: string;
     dry_run: boolean;
   };
+  login: {
+    saved: boolean;
+    user: string;
+    hasPass: boolean;
+    verified: boolean;
+  };
 }
 
 function sleep(ms: number): Promise<void> {
