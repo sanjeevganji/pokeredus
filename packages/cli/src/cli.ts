@@ -1,5 +1,6 @@
 // PokeRedus CLI — knowledge-pack tools, Random Battle scoring, live play.
 import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { loadKnowledgePack } from '@pokeredus/pack/load';
 import { BattleTracker, decideAndAct, LiveStateWriter, ShowdownClient, type BattleEvent } from '@pokeredus/bridge';
 import {
