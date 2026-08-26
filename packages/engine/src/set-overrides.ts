@@ -88,27 +88,36 @@ export function validateCanonicalSet(raw: unknown, expectedSpecies?: string): Ca
   if (expectedSpecies && speciesKey(species) !== speciesKey(expectedSpecies)) {
     throw new Error(`species ${species} does not match ${expectedSpecies}`);
   }
-  if (typeof o.level !== 'number' || !Number.isFinite(o.level) || o.level < 1 || o.level > 100) {
-    throw new Error('level must be a finite number 1–100');
+  let level = DEFAULT_LEVEL;
+  if (o.level != null) {
+    if (typeof o.level !== 'number' || !Number.isFinite(o.level) || o.level < 1 || o.level > 100) {
+      throw new Error('level must be a finite number 1–100');
+    }
+    level = o.level;
   }
-  if (typeof o.item !== 'string') throw new Error('item must be a string');
+  if (o.item != null && typeof o.item !== 'string') throw new Error('item must be a string');
   const ability = reqString(o.ability, 'ability');
-  const nature = reqString(o.nature, 'nature');
+  const nature = typeof o.nature === 'string' && o.nature.trim() ? o.nature.trim() : DEFAULT_NATURE;
   if (!Array.isArray(o.moves)) throw new Error('moves must be an array of 1–4 non-empty names');
   const moves = o.moves.map((m, i) => {
     if (typeof m !== 'string' || !m.trim()) throw new Error(`moves[${i}] must be a non-empty string`);
     return m.trim();
   });
   if (moves.length < 1 || moves.length > 4) throw new Error('moves must contain 1–4 non-empty names');
+  const teraTypes = parseStringList(o.teraTypes, 'teraTypes');
+  const movePool = parseStringList(o.movePool, 'movePool');
   return {
     species,
-    level: o.level,
-    item: o.item,
+    level,
+    item: typeof o.item === 'string' ? o.item : '',
     ability,
     moves,
     nature,
     gender: optString(o.gender, 'gender'),
     teraType: optString(o.teraType, 'teraType'),
+    teraTypes,
+    role: optString(o.role, 'role'),
+    movePool,
     evs: parseSpread(o.evs, 'evs', 252),
     ivs: parseSpread(o.ivs, 'ivs', 31),
   };
