@@ -44,10 +44,9 @@ PokeRedus / PokeLink launcher
   python tools/pr.py quantum <battle-id>     live with QAOA policy
   python tools/pr.py softmax <battle-id>     live with softmax benchmark
   python tools/pr.py score [transcript]      replay a Showdown transcript
-  python tools/pr.py pool                    generate Random Battle set pool
   python tools/pr.py pack [--mini]           export knowledge pack
   python tools/pr.py graph                   rebuild Python matchup graph
-  python tools/pr.py train                   pool + pack + graph
+  python tools/pr.py train                   pack + graph
   python tools/pr.py quantum-test            unittest quantum-policy
   python tools/pr.py test                    npm test + pytest + quantum tests
   python tools/pr.py settings [k=v ...]      print or set launcher options
