@@ -145,7 +145,7 @@ function SlotRow({
   function pickRole(nextRole: string) {
     const opt = options.find((o) => o.role === nextRole);
     if (!opt || !onAssumeSet) return;
-    const keep = teras.includes(tera) && opt.teraTypes.some((t) => t.toLowerCase() === tera.toLowerCase())
+    const keep = opt.teraTypes.some((t) => t.toLowerCase() === tera.toLowerCase())
       ? tera
       : opt.teraTypes[0];
     onAssumeSet(slot, { ...opt.set, teraType: keep || opt.set.teraType });
