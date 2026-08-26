@@ -171,7 +171,7 @@ export default function Games() {
         <GameList
           title="Your games"
           empty={snap.connected
-            ? 'No games on this account. Search, join by id, or start one on Pokémon Showdown and detect again.'
+            ? 'No games on this account. Search, paste an id, or start one on Pokémon Showdown and detect again.'
             : 'Detect games after saving a login.'}
           games={snap.mine}
           attached={snap.attached?.room}

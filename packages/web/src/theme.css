@@ -136,6 +136,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 
 .join-search input {
   flex: 1;
+  width: 0;
   min-width: 0;
   min-height: 40px;
 }
