@@ -7,7 +7,8 @@ import { speciesKey, type RandomSetPool } from './pool.js';
 const STATS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as const;
 type Stat = (typeof STATS)[number];
 const SET_KEYS = new Set([
-  'species', 'level', 'item', 'ability', 'moves', 'nature', 'gender', 'teraType', 'evs', 'ivs',
+  'species', 'level', 'item', 'ability', 'moves', 'nature', 'gender', 'teraType',
+  'teraTypes', 'role', 'movePool', 'evs', 'ivs',
 ]);
 
 export interface SetOverridesStore {
