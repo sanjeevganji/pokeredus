@@ -722,15 +722,25 @@ function ourSlotFromMon(
   fromFlag: CanonicalSet | undefined,
   store: SetOverridesStore,
   format: string,
+  pool: RandomSetPool,
 ): SlotSnapshot {
+  const facts = {
+    species: m.speciesId,
+    moves: Object.keys(m.pp).length ? Object.keys(m.pp) : (m.revealedMoves ?? []),
+    item: m.item,
+    ability: m.ability,
+    level: m.level,
+    teraType: m.teraType,
+  };
+  const setOptions = setOptionsFromPool(pool, m.speciesId, facts);
   const override = getSetOverride(store, format, m.speciesId);
   let set = fromFlag;
   let setSource: SetSource = 'revealed';
-  if (set && setIsComplete(set)) {
-    setSource = 'revealed';
-  } else if (override && setIsComplete(override)) {
+  if (override && setIsComplete(override) && compatible(override, facts)) {
     set = override;
     setSource = 'manual';
+  } else if (set && setIsComplete(set)) {
+    setSource = 'revealed';
   } else {
     set = setFromTracked(m);
     setSource = setIsComplete(set) ? 'revealed' : 'incomplete';
@@ -751,11 +761,12 @@ function ourSlotFromMon(
     ability: m.ability,
     teraType: m.teraType,
     level: m.level,
-    knownMoves: Object.keys(m.pp).length ? Object.keys(m.pp) : (m.revealedMoves ?? []),
+    knownMoves: facts.moves,
     set: used,
     setSource,
     setComplete: complete,
     hypotheses: [],
+    setOptions,
     modifiers: [],
   };
 }
