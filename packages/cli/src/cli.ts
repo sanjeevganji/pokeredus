@@ -4,12 +4,13 @@ import { loadKnowledgePack } from '@pokeredus/pack/load';
 import { BattleTracker, decideAndAct, LiveStateWriter, ShowdownClient, type BattleEvent } from '@pokeredus/bridge';
 import {
   QuantumPolicyProcess,
-  generateRandomSetPool,
   loadPool,
   defaultPoolPath,
+  defaultSetOverridesPath,
   loadSetOverrides,
   type CanonicalSet,
   type PolicyMode,
+  type RandomSetPool,
 } from '@pokeredus/engine';
 import {
   exportKnowledgePack,
