@@ -310,7 +310,7 @@ function Modal(props: { title: string; onClose: () => void; children: ReactNode 
       panel.removeEventListener('keydown', onKey);
       opener?.focus();
     };
-  }, [props]);
+  }, [props.onClose]);
   return (
     <div className="modal-overlay" onClick={props.onClose} role="presentation">
       <div
