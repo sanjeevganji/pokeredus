@@ -287,3 +287,23 @@ export function listSetCatalog(
   }
   return { species: spec, format: fmt, override: getSetOverride(store, fmt, spec), candidates };
 }
+
+export function roleLabel(set: CanonicalSet): string {
+  if (set.role) return set.role;
+  const bits = [set.item, set.ability].filter(Boolean);
+  return bits.length ? bits.join(' · ') : set.moves.slice(0, 2).join(' / ') || 'Set';
+}
+
+export function setOptionsFromPool(pool: RandomSetPool, species: string, facts?: RevealedFacts): SetOption[] {
+  try {
+    const factsFor = facts ?? { species, moves: [] };
+    return hypothesesForSpecies(pool, species).map((h) => ({
+      role: roleLabel(h.set),
+      teraTypes: h.set.teraTypes?.length ? h.set.teraTypes : (h.set.teraType ? [h.set.teraType] : []),
+      compatible: compatible(h.set, factsFor),
+      set: h.set,
+    }));
+  } catch {
+    return [];
+  }
+}
