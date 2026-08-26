@@ -48,6 +48,8 @@ describe('validateCanonicalSet', () => {
     expect(() => validateCanonicalSet({ ...garchomp, evs: { atk: 300 } })).toThrow(/evs\.atk/);
     expect(() => validateCanonicalSet({ ...garchomp, ivs: { spe: -1 } })).toThrow(/ivs\.spe/);
     expect(() => validateCanonicalSet({ ...garchomp, extra: 1 })).toThrow(/unknown set field/);
+    expect(validateCanonicalSet({ species: 'Garchomp', ability: 'Rough Skin', moves: ['Earthquake'] }).nature).toBe('Hardy');
+    expect(validateCanonicalSet({ species: 'Garchomp', ability: 'Rough Skin', moves: ['Earthquake'] }).level).toBe(80);
   });
 
   it('requires the stored species to match the assignment', () => {

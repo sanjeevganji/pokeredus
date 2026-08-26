@@ -11,7 +11,7 @@ const raw = readFileSync(new URL('./fixtures/pack.mini.json', import.meta.url), 
 const pack = new PackIndex(KnowledgePackSchema.parse(JSON.parse(raw)) as never);
 const transcript = readFileSync(new URL('./fixtures/transcript.txt', import.meta.url), 'utf-8');
 const dir = dirname(fileURLToPath(import.meta.url));
-const pool = loadPool(join(dir, '../../engine/data/gen9randombattle-pool.v1.json'));
+const pool = loadPool(join(dir, '../../engine/data/gen9randombattle.json'));
 
 describe('BattleTracker — transcript → observation', () => {
   it('folds the transcript into an observation with legal actions', () => {
