@@ -285,7 +285,7 @@ export function Bench({
         </>
       ) : (
         <ul className="bench-list">
-          {shown.map((s, i) => <SlotRow key={i} slot={s} accent={accent} onEditSet={onEditSet} />)}
+          {shown.map((s, i) => <SlotRow key={i} slot={s} accent={accent} onEditSet={onEditSet} onAssumeSet={onAssumeSet} />)}
         </ul>
       )}
     </section>
