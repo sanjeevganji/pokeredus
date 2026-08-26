@@ -769,6 +769,7 @@ function ourSlotFromMon(
     set: used,
     setSource,
     setComplete: complete,
+    setWarning,
     hypotheses: [],
     setOptions,
     modifiers: [],
