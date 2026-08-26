@@ -825,8 +825,6 @@ def main(argv: list[str] | None = None) -> int:
     if cmd == "score":
         transcript = rest[0] if rest and not rest[0].startswith("-") else None
         return run_jobs(action_score(transcript))
-    if cmd == "pool":
-        return run_jobs(action_pool())
     if cmd == "pack":
         return run_jobs(action_pack_ts("--mini" in rest))
     if cmd == "graph":
