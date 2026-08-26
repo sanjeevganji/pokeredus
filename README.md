@@ -194,8 +194,7 @@ Underlying `packages/cli` (same flags as before):
 ```bash
 npx tsx packages/cli/src/cli.ts render-pack --pack pokeredus/data/knowledge-pack/knowledge-pack-mini.json
 npx tsx packages/cli/src/cli.ts export-pack --mini
-npx tsx packages/cli/src/cli.ts generate-pool --samples 200 --seed 1 --out packages/engine/data/gen9randombattle-pool.v1.json
-npx tsx packages/cli/src/cli.ts score --replay packages/cli/tests/fixtures/transcript.txt --pool packages/engine/data/gen9randombattle-pool.v1.json --policy softmax --dry-run
+npx tsx packages/cli/src/cli.ts score --replay packages/cli/tests/fixtures/transcript.txt --policy softmax --dry-run
 npx tsx packages/cli/src/cli.ts live --battle <roomid> --policy quantum --dry-run --decision-log decisions.jsonl --live-state live-state.json
 ```
 
