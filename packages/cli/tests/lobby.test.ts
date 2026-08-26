@@ -1,8 +1,10 @@
 import { describe, it, expect } from 'vitest';
 import {
+  applyBattleMeta,
   gamesFromRoomlist,
   gamesFromSearch,
   normalizeBattleRoom,
+  parseBattleMetaLine,
   parseLobbyLine,
 } from '@pokeredus/bridge';
 
