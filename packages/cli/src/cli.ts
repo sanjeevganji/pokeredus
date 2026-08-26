@@ -165,36 +165,66 @@ async function main(): Promise<void> {
         dryRun,
       });
       const tracker = new BattleTracker();
+      let decideGen = 0;
+      let decideBusy = false;
+      let decideQueued = false;
+
+      const observe = () => {
+        try {
+          const obs = tracker.toObservation(pool, ourSets, loadSetOverrides(overridesPath));
+          hud.fromObservation(obs);
+          return obs;
+        } catch (err) {
+          console.error('[pokeredus] observation failed:', err);
+          hud.patch({ status: 'error', error: err instanceof Error ? err.message : String(err) });
+          return undefined;
+        }
+      };
+
+      const runDecide = (send: boolean) => {
+        if (!tracker.lastRequest?.active?.length) {
+          observe();
+          return;
+        }
+        if (decideBusy) {
+          decideQueued = true;
+          return;
+        }
+        const obs = observe();
+        if (!obs) return;
+        decideBusy = true;
+        const gen = ++decideGen;
+        hud.patch({ status: 'deciding' });
+        if (send) console.log(`\n=== turn ${obs.turn} (your move) ===`);
+        void decideAndAct(client, obs, {
+          dryRun: send ? dryRun : true,
+          policy,
+          process: proc,
+          seed,
+          shots,
+          logPath: send ? logPath : undefined,
+        }).then((result) => {
+          if (gen === decideGen) hud.fromDecision(result);
+        }).catch((err) => {
+          console.error(err);
+          if (gen === decideGen) hud.patch({ status: 'error', error: err instanceof Error ? err.message : String(err) });
+        }).finally(() => {
+          decideBusy = false;
+          if (decideQueued) {
+            decideQueued = false;
+            runDecide(false);
+          }
+        });
+      };
+
       client.onEvent((ev: BattleEvent) => {
         tracker.apply(ev);
         hud.noteEvent(ev);
         hud.fromTracker(tracker);
-        if (ev.type === 'request') {
-          if (!ev.json.active || ev.json.active.length === 0) return;
-          let obs;
-          try {
-            obs = tracker.toObservation(pool, ourSets, loadSetOverrides());
-          } catch (err) {
-            console.error('[pokeredus] observation failed:', err);
-            hud.patch({ status: 'error', error: err instanceof Error ? err.message : String(err) });
-            return;
-          }
-          hud.fromObservation(obs);
-          hud.patch({ status: 'deciding' });
-          console.log(`\n=== turn ${obs.turn} (your move) ===`);
-          void decideAndAct(client, obs, {
-            dryRun,
-            policy,
-            process: proc,
-            seed,
-            shots,
-            logPath,
-          }).then((result) => hud.fromDecision(result)).catch((err) => {
-            console.error(err);
-            hud.patch({ status: 'error', error: err instanceof Error ? err.message : String(err) });
-          });
-        }
+        if (ev.type === 'request' && ev.json.active && ev.json.active.length > 0) runDecide(true);
       });
+
+      const stopWatch = watchOverrides(overridesPath, () => runDecide(false));
       console.log(`[pokeredus] joining ${room} ...`);
       await client.connect();
       hud.patch({ status: 'connected' });
