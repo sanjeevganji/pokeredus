@@ -108,12 +108,27 @@ function provenanceLabel(slot: LiveSlot): string {
   return `Revealed${teraSuffix}`;
 }
 
+function currentRole(slot: LiveSlot): string {
+  if (slot.assumedSet?.role) return slot.assumedSet.role;
+  const tera = (slot.assumedSet?.teraType || slot.teraType || '').toLowerCase();
+  const hit = slot.setOptions?.find((o) =>
+    (!tera || o.teraTypes.some((t) => t.toLowerCase() === tera) || (o.set.teraType || '').toLowerCase() === tera)
+    && o.compatible,
+  ) ?? slot.setOptions?.[0];
+  return hit?.role ?? '';
+}
+
+function currentTera(slot: LiveSlot): string {
+  return slot.assumedSet?.teraType || slot.teraType || '';
+}
+
 function SlotRow({
-  slot, accent, onEditSet,
+  slot, accent, onEditSet, onAssumeSet,
 }: {
   slot: LiveSlot;
   accent: 'cyan' | 'pink';
   onEditSet?: (slot: LiveSlot, opener: HTMLElement) => void;
+  onAssumeSet?: (slot: LiveSlot, set: CanonicalSet) => void;
 }) {
   const revealed = slot.revealed;
   const max = Math.max(slot.maxHp || 0, 1);
@@ -121,6 +136,28 @@ function SlotRow({
   const color = !revealed ? 'var(--fg-dim)' : ratio < 0.25 ? 'var(--neon-red)' : ratio < 0.5 ? 'var(--neon-yellow)' : `var(--neon-${accent})`;
   const name = revealed ? prettySpecies(slot.speciesId) : 'Unknown';
   const hpLabel = revealed ? (slot.fainted ? 'fainted' : `${slot.hp}/${slot.maxHp}`) : 'hidden';
+  const options = slot.setOptions ?? [];
+  const role = currentRole(slot);
+  const selected = options.find((o) => o.role === role) ?? options[0];
+  const teras = selected?.teraTypes?.length ? selected.teraTypes : (slot.assumedSet?.teraType ? [slot.assumedSet.teraType] : []);
+  const tera = currentTera(slot);
+
+  function pickRole(nextRole: string) {
+    const opt = options.find((o) => o.role === nextRole);
+    if (!opt || !onAssumeSet) return;
+    const keep = teras.includes(tera) && opt.teraTypes.some((t) => t.toLowerCase() === tera.toLowerCase())
+      ? tera
+      : opt.teraTypes[0];
+    onAssumeSet(slot, { ...opt.set, teraType: keep || opt.set.teraType });
+  }
+
+  function pickTera(nextTera: string) {
+    if (!onAssumeSet) return;
+    const base = selected?.set ?? slot.assumedSet;
+    if (!base) return;
+    onAssumeSet(slot, { ...base, teraType: nextTera || undefined });
+  }
+
   return (
     <li className={`slot-row${slot.fainted ? ' slot-fainted' : ''}${slot.active ? ' slot-active' : ''}${revealed ? '' : ' slot-hidden'}`}>
       <Sprite speciesId={revealed ? slot.speciesId : ''} />
@@ -150,6 +187,37 @@ function SlotRow({
           <div className="hp-fill" style={{ width: `${ratio * 100}%`, background: color }} />
         </div>
         <span className="dim slot-hp">{hpLabel}</span>
+        {revealed && onAssumeSet && options.length > 0 && (
+          <div className="slot-picks">
+            <label className="slot-pick">
+              <span>Set</span>
+              <select
+                aria-label={`${name} set`}
+                value={role}
+                onChange={(e) => pickRole(e.target.value)}
+              >
+                {options.map((o) => (
+                  <option key={o.role} value={o.role}>
+                    {o.role}{o.compatible ? '' : ' (incompatible)'}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="slot-pick">
+              <span>Tera</span>
+              <select
+                aria-label={`${name} tera type`}
+                value={teras.some((t) => t.toLowerCase() === tera.toLowerCase()) ? tera : (teras[0] ?? '')}
+                onChange={(e) => pickTera(e.target.value)}
+                disabled={teras.length === 0}
+              >
+                {teras.map((t) => (
+                  <option key={t} value={t}>{t}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+        )}
         {slot.setWarning ? <span className="set-warn">{slot.setWarning}</span> : null}
       </div>
     </li>
