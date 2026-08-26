@@ -5,8 +5,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 vi.mock('ws', () => {
   class MockWebSocket {
+    static CONNECTING = 0;
+    static OPEN = 1;
+    static CLOSING = 2;
+    static CLOSED = 3;
     static instances: MockWebSocket[] = [];
     url: string;
+    readyState = 0;
     private handlers: Record<string, ((data?: unknown) => void)[]> = {};
     sent: string[] = [];
     constructor(url: string) {
@@ -16,13 +21,26 @@ vi.mock('ws', () => {
     on(ev: string, cb: (data?: unknown) => void) {
       (this.handlers[ev] ??= []).push(cb);
     }
+    once(ev: string, cb: (data?: unknown) => void) {
+      this.on(ev, cb);
+    }
+    off(ev: string, cb: (data?: unknown) => void) {
+      this.handlers[ev] = (this.handlers[ev] ?? []).filter((h) => h !== cb);
+    }
+    removeAllListeners(ev?: string) {
+      if (ev) delete this.handlers[ev];
+      else this.handlers = {};
+    }
     send(msg: string) {
       this.sent.push(msg);
     }
     trigger(ev: string, data?: unknown) {
+      if (ev === 'open') this.readyState = 1;
+      if (ev === 'close') this.readyState = 3;
       for (const h of this.handlers[ev] ?? []) h(data);
     }
-    close() {}
+    close() { this.readyState = 3; }
+    terminate() { this.readyState = 3; }
   }
   return { WebSocket: MockWebSocket, default: MockWebSocket };
 });
