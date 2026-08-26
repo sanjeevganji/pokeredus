@@ -446,12 +446,15 @@ export class GameHub {
         this.named = ev.named;
       } else if (ev.type === 'updatesearch') {
         this.searching = ev.searching;
-        this.mine = gamesFromSearch(ev.games);
+        this.mine = this.mergeMine(gamesFromSearch(ev.games));
+        this.syncJoinedRooms();
       } else if (ev.type === 'roomlist') {
+        const fromList = gamesFromRoomlist(ev.rooms);
         const mineRooms = new Set(this.mine.map((g) => g.room));
-        this.listed = gamesFromRoomlist(ev.rooms)
-          .map((g) => ({ ...g, mine: mineRooms.has(g.room) }))
-          .slice(0, 40);
+        this.overlayFromList(fromList);
+        this.listed = fromList.filter((g) => !mineRooms.has(g.room)).slice(0, LISTED_LIMIT);
+      } else if (ev.type === 'battlemeta') {
+        this.mine = this.mine.map((g) => (g.room === ev.room ? applyBattleMeta(g, ev) : g));
       } else if (ev.type === 'popup') {
         this.error = ev.text.replace(/<[^>]+>/g, ' ').trim();
       } else if (ev.type === 'nametaken') {
