@@ -543,11 +543,21 @@ export function gamesApiPlugin(root: string): Plugin {
           if (req.method !== 'POST') return next();
           const body = await readJsonBody(req);
           if (route === '/api/games/detect' || route === '/api/games/connect') {
-            sendJson(res, await hub.detect({
-              user: str(body.user),
-              pass: str(body.pass),
-              url: str(body.url),
-              format: str(body.format),
+            sendJson(res, await hub.detect({ format: str(body.format) }));
+            return;
+          }
+          if (route === '/api/games/login') {
+            sendJson(res, await hub.login(String(body.user ?? ''), String(body.pass ?? '')));
+            return;
+          }
+          if (route === '/api/games/logout') {
+            sendJson(res, hub.logout());
+            return;
+          }
+          if (route === '/api/games/settings') {
+            sendJson(res, hub.patchSettings({
+              dryRun: typeof body.dryRun === 'boolean' ? body.dryRun
+                : typeof body.dry_run === 'boolean' ? body.dry_run : undefined,
             }));
             return;
           }
