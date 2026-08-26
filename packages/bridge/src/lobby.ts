@@ -33,8 +33,17 @@ export interface RoomListEntry {
 }
 
 export function normalizeBattleRoom(id: string): string {
-  const battle = id.trim();
+  let battle = id.trim();
   if (!battle) return battle;
+  const embedded = battle.match(/battle-[a-z0-9]+-\d+[a-z0-9-]*/i);
+  if (embedded) return embedded[0];
+  if (/^https?:\/\//i.test(battle) || /pokemonshowdown\.com|psim\.us/i.test(battle)) {
+    try {
+      const href = battle.includes('://') ? battle : `https://${battle}`;
+      battle = new URL(href).pathname.split('/').filter(Boolean).pop() ?? battle;
+    } catch { /* keep trimmed input */ }
+  }
+  battle = battle.replace(/[/?#].*$/, '');
   if (battle.startsWith('battle-')) return battle;
   if (/^\d+$/.test(battle)) return `battle-gen9randombattle-${battle}`;
   return `battle-${battle}`;
