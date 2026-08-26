@@ -422,7 +422,10 @@ export class GameHub {
     });
     this.client = client;
     const authed = new Promise<void>((resolve, reject) => {
+      let settled = false;
       const finish = () => {
+        if (settled) return;
+        settled = true;
         clearTimeout(t);
         off();
         if (requireNamed && !this.named) {
