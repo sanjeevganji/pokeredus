@@ -14,7 +14,8 @@ export type LobbyEvent =
   | { type: 'updateuser'; name: string; named: boolean }
   | { type: 'updatesearch'; searching: string[]; games: Record<string, string> }
   | { type: 'roomlist'; rooms: Record<string, RoomListEntry> }
-  | { type: 'popup'; text: string };
+  | { type: 'popup'; text: string }
+  | { type: 'nametaken'; name: string; reason: string };
 
 export interface RoomListEntry {
   p1?: string;
