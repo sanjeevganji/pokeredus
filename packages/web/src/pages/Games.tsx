@@ -209,13 +209,6 @@ export default function Games() {
           }}
         />
       )}
-      {joinOpen && (
-        <JoinModal
-          busy={busy === 'attach'}
-          onClose={() => setJoinOpen(false)}
-          onJoin={(id) => void goLive(id)}
-        />
-      )}
     </div>
   );
 }
