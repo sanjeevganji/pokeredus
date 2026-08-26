@@ -4,7 +4,7 @@ Random Battle decision engine plus a knowledge-graph team builder.
 
 The live policy is a one-round official Showdown simulation plus PennyLane
 QAOA, not a search tree or weighted heuristic. Each turn the bot
-builds an immutable observation, updates opponent set beliefs from an empirical
+builds an immutable observation, updates opponent set beliefs from imported Random Battle set data,
 Showdown Random Battle pool, simulates **one official Showdown round**, scores
 legal actions with explicit CTA/CTS mathematics, then samples from a PennyLane
 QAOA probability distribution. A classical softmax exists only as a benchmark
