@@ -155,12 +155,12 @@ export default function Games() {
         ) : (
           <div className="account-empty">
             <p className="account-name" style={{ margin: 0 }}>No Showdown login saved</p>
-            <p className="muted">Verify your account with the Showdown server, then detect games or join by battle id.</p>
+            <p className="muted">Verify your account with the Showdown server, then detect games, or open a battle as guest.</p>
+            <JoinSearch busy={busy === 'attach'} onJoin={(id) => void goLive(id)} />
             <div className="row-actions">
               <button type="button" className="btn-primary" onClick={() => setLoginOpen(true)}>
                 Save login
               </button>
-              <button type="button" onClick={() => setJoinOpen(true)}>Join battle as guest</button>
             </div>
           </div>
         )}
