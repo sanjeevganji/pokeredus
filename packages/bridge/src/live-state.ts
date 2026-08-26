@@ -53,6 +53,7 @@ export interface LiveSlot {
   knownMoves?: string[];
   setSource?: SetSource;
   assumedSet?: CanonicalSet;
+  setOptions?: SetOption[];
   candidateProbability?: number;
   setComplete: boolean;
   setWarning?: string;
