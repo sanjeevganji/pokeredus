@@ -10,7 +10,9 @@ import {
   applyBattleMeta,
   gamesFromRoomlist,
   gamesFromSearch,
+  gamesFromUserdetails,
   normalizeBattleRoom,
+  toId,
   type DetectedGame,
 } from '../../bridge/src/lobby';
 import type { BattleObservation, RevealedFacts } from '../../engine/src/observation';
