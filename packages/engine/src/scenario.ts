@@ -3,10 +3,10 @@ import { observationTera } from './observation.js';
 import { legalFromSlots } from './actions.js';
 import { sampleAction, type QuantumPolicyProcess } from './policy.js';
 import { evaluateRound, theirActions, evaluateJointStatePolicy, type EvaluateOptions, type JointPolicyResult } from './evaluate.js';
-
-export { legalFromSlots } from './actions.js';
 import { simulateRound } from './sim.js';
 import { signedLog1p, wilsonScoreInterval, createSeededRng } from './math.js';
+
+export { legalFromSlots } from './actions.js';
 
 export interface ForecastOptions extends EvaluateOptions {
   rolloutsPerChoice?: number;

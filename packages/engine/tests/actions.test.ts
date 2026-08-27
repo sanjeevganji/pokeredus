@@ -58,4 +58,43 @@ describe('enumerateFromRequest', () => {
     });
     expect(actions.every((a) => a.type === 'switch' && a.forced)).toBe(true);
   });
+
+  it('wait requests yield no sendable actions but enumerateForEval uses team moves', () => {
+    const req = {
+      wait: true,
+      side: {
+        pokemon: [
+          {
+            ident: 'p1: Garchomp', details: 'Garchomp', condition: '100/100', active: true,
+            moves: [
+              { move: 'Earthquake', id: 'earthquake', pp: 10, maxpp: 16, disabled: false },
+              { move: 'Outrage', id: 'outrage', pp: 8, maxpp: 16, disabled: false },
+            ],
+          },
+          { ident: 'p1: Toxapex', details: 'Toxapex', condition: '100/100', active: false, moves: [] },
+        ],
+      },
+    };
+    expect(enumerateFromRequest(req)).toEqual([]);
+    const scored = enumerateForEval(req);
+    expect(scored.some((a) => a.moveId === 'earthquake')).toBe(true);
+    expect(scored.some((a) => a.type === 'switch' && a.slot === 2)).toBe(true);
+  });
+});
+
+describe('legalFromSlots', () => {
+  it('uses assumed-set moves when knownMoves are empty', () => {
+    const actions = legalFromSlots([{
+      slot: 0, speciesId: 'garchomp', revealed: true, hp: 100, maxHp: 100, status: '',
+      boosts: { atk: 0, def: 0, spa: 0, spd: 0, spe: 0, accuracy: 0, evasion: 0 },
+      fainted: false, active: true, knownMoves: [], hypotheses: [], modifiers: [],
+      set: {
+        species: 'Garchomp', level: 80, item: 'leftovers', ability: 'roughskin',
+        moves: ['Earthquake', 'Swords Dance', 'Scale Shot', 'Fire Fang'], nature: 'Jolly',
+      },
+    }]);
+    expect(actions.map((a) => a.moveId).filter(Boolean)).toEqual(
+      expect.arrayContaining(['earthquake', 'swordsdance', 'scaleshot', 'firefang']),
+    );
+  });
 });
