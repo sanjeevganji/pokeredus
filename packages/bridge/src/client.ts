@@ -104,12 +104,23 @@ export class ShowdownClient {
       }
       const lobby = parseLobbyLine(line);
       if (lobby) {
+        if (lobby.type === 'updateuser') {
+          this.named = lobby.named;
+          this.tryJoinBattle();
+        }
         for (const h of this.lobbyHandlers) h(lobby);
         continue;
       }
       const ev = parseLine(line);
       if (ev) for (const h of this.handlers) h(ev);
     }
+  }
+
+  private tryJoinBattle(): void {
+    if (this.joinedBattle || !this.battleRoom || !this.trnSent) return;
+    if (this.user && this.pass && !this.named) return;
+    this.send(`|/join ${this.battleRoom}`);
+    this.joinedBattle = true;
   }
 
   private async handleChallstr(line: string): Promise<void> {
@@ -127,6 +138,7 @@ export class ShowdownClient {
     } else {
       this.send(`|/trn ${guestName()},0,`);
     }
-    if (this.battleRoom) this.send(`|/join ${this.battleRoom}`);
+    this.trnSent = true;
+    this.tryJoinBattle();
   }
 }

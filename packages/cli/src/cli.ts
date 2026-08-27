@@ -165,7 +165,7 @@ async function main(): Promise<void> {
         battleRoom: room,
         dryRun,
       });
-      const tracker = new BattleTracker();
+      const tracker = new BattleTracker({ ourName: flags['user'] || '' });
       let decideGen = 0;
       let decideBusy = false;
       let decideQueued = false;
@@ -184,7 +184,7 @@ async function main(): Promise<void> {
       };
 
       const runDecide = (send: boolean) => {
-        if (!tracker.lastRequest?.active?.length) {
+        if (!tracker.lastRequest?.active?.length || tracker.lastRequest.wait) {
           observe(false);
           return;
         }
@@ -222,11 +222,16 @@ async function main(): Promise<void> {
         });
       };
 
+      client.onLobby((ev) => {
+        if (ev.type === 'updateuser' && ev.name.trim()) tracker.setOurName(ev.name);
+      });
+
       client.onEvent((ev: BattleEvent) => {
         tracker.apply(ev);
         hud.noteEvent(ev);
-        hud.fromTracker(tracker);
-        if (ev.type === 'request' && ev.json.active && ev.json.active.length > 0) runDecide(true);
+        const settle = ev.type === 'turn' || ev.type === 'win';
+        observe(settle);
+        if (ev.type === 'request' && ev.json.active && ev.json.active.length > 0 && !ev.json.wait) runDecide(true);
       });
 
       const stopWatch = watchOverrides(overridesPath, () => runDecide(false));
