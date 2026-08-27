@@ -153,6 +153,7 @@ export class GameHub {
   }
 
   snapshot(): GamesSnapshot {
+    this.maybeRequestUserdetails();
     const s = this.loadSettings();
     const savedUser = s.user.trim();
     return {
