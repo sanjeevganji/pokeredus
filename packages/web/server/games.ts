@@ -404,6 +404,30 @@ export class GameHub {
     });
   }
 
+  private rebuildMine(): void {
+    const prev = new Map(this.mine.map((g) => [g.room, g]));
+    const map = new Map<string, DetectedGame>();
+    for (const g of [...this.detailsMine, ...this.searchMine]) {
+      const was = map.get(g.room) ?? prev.get(g.room);
+      map.set(g.room, was ? applyBattleMeta(g, was) : g);
+    }
+    this.mine = [...map.values()];
+    // #region agent log
+    try {
+      fs.appendFileSync('d:/PokeRedus/debug-19ae98.log', `${JSON.stringify({
+        sessionId: '19ae98', location: 'games.ts:rebuildMine', message: 'mine rebuilt',
+        data: {
+          search: this.searchMine.map((g) => g.room),
+          details: this.detailsMine.map((g) => g.room),
+          mine: this.mine.map((g) => g.room),
+        },
+        timestamp: Date.now(), hypothesisId: 'D',
+      })}\n`);
+    } catch { /* ignore */ }
+    // #endregion
+    this.syncJoinedRooms();
+  }
+
   private overlayFromList(listed: DetectedGame[]): void {
     const byRoom = new Map(listed.map((g) => [g.room, g]));
     this.mine = this.mine.map((g) => {
@@ -412,8 +436,29 @@ export class GameHub {
     });
   }
 
+  private requestUserdetails(force = false): void {
+    if (!this.client) return;
+    const id = toId(this.userName);
+    if (!id) return;
+    const now = Date.now();
+    if (!force && now - this.lastUserdetailsAt < 2000) return;
+    this.lastUserdetailsAt = now;
+    this.client.send(`|/cmd userdetails ${id}`);
+  }
+
+  private maybeRequestUserdetails(): void {
+    if (!this.client || !this.named) return;
+    this.requestUserdetails(false);
+  }
+
   private syncJoinedRooms(): void {
     if (!this.client) return;
+    const want = new Set(this.mine.map((g) => g.room));
+    for (const room of [...this.joinedRooms]) {
+      if (want.has(room)) continue;
+      this.joinedRooms.delete(room);
+      this.client.send(`|/leave ${room}`);
+    }
     for (const g of this.mine) {
       if (this.joinedRooms.has(g.room)) continue;
       this.joinedRooms.add(g.room);
