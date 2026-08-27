@@ -243,5 +243,25 @@ describe('BattleTracker — live gen9randombattle-2671287078 log', () => {
     expect(obs.ours.find((s) => s.speciesId === 'entei')?.knownMoves).toContain('flareblitz');
     expect(obs.theirs.find((s) => s.speciesId === 'ironvaliant')?.revealed).toBe(true);
   });
+
+  it('enumerates assumed-set moves with no |request|', () => {
+    const tracker = new BattleTracker({ ourName: 'alice' });
+    tracker.applyLine('|player|p1|alice|');
+    tracker.applyLine('|player|p2|bob|');
+    tracker.applyLine('|switch|p1a: Garchomp|Garchomp, L78|100/100');
+    tracker.applyLine('|switch|p2a: Toxapex|Toxapex, L88|100/100');
+    const obs = tracker.toObservation(pool, []);
+    expect(obs.request).toBeUndefined();
+    expect(obs.legalActions.some((a) => a.type === 'move')).toBe(true);
+    expect(obs.ours.find((s) => s.active)?.set?.moves.length).toBeGreaterThan(0);
+    expect(tracker.spectatorNote()).toBeUndefined();
+  });
+
+  it('warns when the logged-in name is not a player', () => {
+    const tracker = new BattleTracker({ ourName: 'I AM BOT BTW' });
+    tracker.applyLine('|player|p1|wtfamidoinginlife|');
+    tracker.applyLine('|player|p2|I AM A BOT BTW|');
+    expect(tracker.spectatorNote()).toMatch(/No private team/);
+  });
 });
 
