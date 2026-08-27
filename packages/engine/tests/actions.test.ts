@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { enumerateFromRequest } from '../src/actions.js';
+import { enumerateFromRequest, enumerateForEval, legalFromSlots } from '../src/actions.js';
 
 describe('enumerateFromRequest', () => {
   it('emits ordinary and tera variants while Tera is available', () => {
