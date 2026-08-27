@@ -34,6 +34,17 @@ import {
 import { enumerateFromRequest } from '@pokeredus/engine';
 import { initialBelief, type RandomSetPool } from '@pokeredus/engine';
 import type { PackIndex } from '@pokeredus/pack';
+import * as fs from 'node:fs';
+
+function agentLog(location: string, message: string, data: Record<string, unknown>, hypothesisId: string): void {
+  // #region agent log
+  try {
+    fs.appendFileSync('d:/PokeRedus/debug-19ae98.log', `${JSON.stringify({
+      sessionId: '19ae98', location, message, data, timestamp: Date.now(), hypothesisId,
+    })}\n`);
+  } catch { /* ignore */ }
+  // #endregion
+}
 
 // ──────────────────────────────────────────────────────────────────────
 // Request JSON shapes (loose — only the fields we read)
