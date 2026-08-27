@@ -319,7 +319,7 @@ export class LiveStateWriter {
     this.flush();
   }
 
-  fromObservation(obs: BattleObservation, opts?: { settle?: boolean }): void {
+  fromObservation(obs: BattleObservation, opts?: { settle?: boolean; extraWarnings?: string[] }): void {
     // Settle any prior forecast point on receiving the new observation
     const points = [...(this.state.points ?? [])];
     const pending = points.find((p) => p.status === 'forecast');
