@@ -41,7 +41,7 @@ export function fieldBarSegments(parts?: Partial<ScoreParts>): FieldSeg[] {
       side,
       dir: hurt ? 'in' : 'out',
       color: kind === 'hp' ? (hurt ? RED : GREEN) : YELLOW,
-      value: Math.abs(raw),
+      value: Math.abs(v),
       label: kind === 'hp'
         ? (hurt ? `${side} damage` : `${side} heal`)
         : (hurt ? `${side} drop` : `${side} boost`),
