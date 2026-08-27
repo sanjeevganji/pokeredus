@@ -232,33 +232,11 @@ async function main(): Promise<void> {
 
       client.onLobby((ev) => {
         if (ev.type === 'updateuser' && ev.name.trim()) tracker.setOurName(ev.name);
-        if (ev.type === 'updateuser' || ev.type === 'nametaken' || ev.type === 'popup') {
-          agentLog('cli.ts:lobby', ev.type, {
-            name: 'name' in ev ? ev.name : undefined,
-            named: 'named' in ev ? ev.named : undefined,
-            text: 'text' in ev ? String(ev.text).slice(0, 160) : undefined,
-            reason: 'reason' in ev ? ev.reason : undefined,
-            hasUserFlag: Boolean(flags['user']),
-            hasPassFlag: Boolean(flags['pass']),
-          }, 'A');
-        }
       });
 
       client.onEvent((ev: BattleEvent) => {
         tracker.apply(ev);
         hud.noteEvent(ev);
-        if (ev.type === 'request' || ev.type === 'turn' || ev.type === 'player' || ev.type === 'switch') {
-          agentLog('cli.ts:event', ev.type, {
-            turn: tracker.turn,
-            ourSide: tracker.ourSide,
-            wait: ev.type === 'request' ? Boolean(ev.json.wait) : undefined,
-            activeLen: ev.type === 'request' ? (ev.json.active?.length ?? 0) : undefined,
-            pokeCount: ev.type === 'request' ? (ev.json.side?.pokemon?.length ?? 0) : undefined,
-            species: ev.type === 'switch' ? ev.speciesId : undefined,
-            side: ev.type === 'switch' || ev.type === 'player' ? ev.side : undefined,
-            playerName: ev.type === 'player' ? ev.name : undefined,
-          }, ev.type === 'request' ? 'B' : 'A');
-        }
         const settle = ev.type === 'turn' || ev.type === 'win';
         observe(settle);
         const canSend = ev.type === 'request' && Boolean(ev.json.active?.length) && !ev.json.wait;
