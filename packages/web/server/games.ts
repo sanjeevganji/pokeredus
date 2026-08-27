@@ -208,8 +208,21 @@ export class GameHub {
         resolve();
       }, ROOMLIST_MS);
     });
+    const gotDetails = new Promise<void>((resolve) => {
+      const off = this.client!.onLobby((ev) => {
+        if (ev.type === 'userdetails') {
+          off();
+          resolve();
+        }
+      });
+      setTimeout(() => {
+        off();
+        resolve();
+      }, ROOMLIST_MS);
+    });
+    this.requestUserdetails(true);
     this.client!.send(`|/cmd roomlist ${format}`);
-    await gotList;
+    await Promise.all([gotList, gotDetails]);
     return this.snapshot();
   }
 
