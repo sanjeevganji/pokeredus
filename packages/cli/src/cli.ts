@@ -208,41 +208,46 @@ async function main(): Promise<void> {
 
       const runDecide = (send: boolean) => {
         const req = tracker.lastRequest;
-        const skipWait = Boolean(req?.wait);
-        const skipNoActive = !req?.active?.length;
-        if (skipWait || skipNoActive) {
+        const canSend = Boolean(req?.active?.length && !req.wait);
+        const obs = observe(false);
+        if (!obs) return;
+        const ourOk = obs.ours.some((s) => s.active && s.revealed);
+        const theirOk = obs.theirs.some((s) => s.active && s.revealed);
+        if (!ourOk || !theirOk || !obs.legalActions.length) {
           agentLog('cli.ts:runDecide', 'eval skipped', {
-            send,
-            skipWait,
-            skipNoActive,
+            send, canSend, ourOk, theirOk,
+            legal: obs.legalActions.length,
             hasRequest: Boolean(req),
             pokeCount: req?.side?.pokemon?.length ?? 0,
-            turn: tracker.turn,
+            turn: obs.turn,
+            setMoves: obs.ours.find((s) => s.active)?.set?.moves?.length ?? 0,
           }, 'B');
-          observe(false);
           return;
         }
+        const key = `${obs.turn}|${obs.ours.find((s) => s.active)?.speciesId}|${obs.theirs.find((s) => s.active)?.speciesId}|${obs.legalActions.map((a) => a.id).join(',')}|${obs.ours.find((s) => s.active)?.set?.moves?.join(',')}|${obs.theirs.find((s) => s.active)?.set?.moves?.join(',')}`;
+        if (!send && key === lastEvalKey) return;
         if (decideBusy) {
           decideQueued = true;
           if (send) queuedSend = true;
           return;
         }
-        const obs = observe(send);
-        if (!obs) return;
+        lastEvalKey = key;
         decideBusy = true;
         const gen = ++decideGen;
         hud.patch({ status: 'deciding' });
-        if (send) console.log(`\n=== turn ${obs.turn} (your move) ===`);
+        if (send && canSend) console.log(`\n=== turn ${obs.turn} (your move) ===`);
+        else console.log(`\n=== turn ${obs.turn} (eval) ===`);
         agentLog('cli.ts:runDecide', 'eval starting', {
-          send, turn: obs.turn, legal: obs.legalActions.length, dryRun: send ? dryRun : true,
+          send, canSend, turn: obs.turn, legal: obs.legalActions.length,
+          dryRun: send && canSend ? dryRun : true,
         }, 'D');
         void decideAndAct(client, obs, {
-          dryRun: send ? dryRun : true,
+          dryRun: send && canSend ? dryRun : true,
           policy,
           process: proc,
           seed,
           shots,
-          logPath: send ? logPath : undefined,
+          logPath: send && canSend ? logPath : undefined,
         }).then((result) => {
           agentLog('cli.ts:runDecide', 'eval ok', {
             sampledId: result.sampledId,
@@ -250,7 +255,7 @@ async function main(): Promise<void> {
             replies: result.evaluation.replies.length,
             roundScore: result.evaluation.roundScore,
           }, 'D');
-          if (gen === decideGen) hud.fromDecision(result, { rescore: !send });
+          if (gen === decideGen) hud.fromDecision(result, { rescore: !canSend || !send });
         }).catch((err) => {
           console.error('[pokeredus] engine/quantum failed:', err);
           agentLog('cli.ts:runDecide', 'eval failed', { error: err instanceof Error ? err.message : String(err) }, 'F');
