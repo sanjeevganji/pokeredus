@@ -177,7 +177,7 @@ async function main(): Promise<void> {
           const obs = tracker.toObservation(pool, ourSets, loadSetOverrides(overridesPath));
           const extra = tracker.spectatorNote();
           if (extra) console.warn(`[pokeredus] ${extra}`);
-          hud.fromObservation(obs, { settle, extraWarnings: extra ? [extra] : [] });
+          hud.fromObservation(obs, { settle, extraWarnings: extra ? [extra] : [], ...livePlayers(tracker) });
           return obs;
         } catch (err) {
           console.error('[pokeredus] observation failed:', err);
