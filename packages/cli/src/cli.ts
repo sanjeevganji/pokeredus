@@ -170,7 +170,6 @@ async function main(): Promise<void> {
       let decideBusy = false;
       let decideQueued = false;
       let queuedSend = false;
-      let lastObsKey = '';
       let lastEvalKey = '';
 
       const observe = (settle: boolean) => {
@@ -179,25 +178,9 @@ async function main(): Promise<void> {
           const extra = tracker.spectatorNote();
           if (extra) console.warn(`[pokeredus] ${extra}`);
           hud.fromObservation(obs, { settle, extraWarnings: extra ? [extra] : [] });
-          const oursRevealed = obs.ours.filter((s) => s.revealed).map((s) => s.speciesId);
-          const theirsRevealed = obs.theirs.filter((s) => s.revealed).map((s) => s.speciesId);
-          const key = `${obs.turn}:${obs.legalActions.length}:${oursRevealed.join(',')}:${theirsRevealed.join(',')}:${Boolean(obs.request)}`;
-          if (key !== lastObsKey) {
-            lastObsKey = key;
-            agentLog('cli.ts:observe', 'observation built', {
-              turn: obs.turn,
-              ourSide: obs.ourSide,
-              legal: obs.legalActions.length,
-              oursRevealed,
-              theirsRevealed,
-              activeSetMoves: obs.ours.find((s) => s.active)?.set?.moves?.length ?? 0,
-              hasRequest: Boolean(obs.request),
-            }, 'A');
-          }
           return obs;
         } catch (err) {
           console.error('[pokeredus] observation failed:', err);
-          agentLog('cli.ts:observe', 'observation failed', { error: err instanceof Error ? err.message : String(err) }, 'F');
           hud.patch({ status: 'error', error: err instanceof Error ? err.message : String(err) });
           return undefined;
         }
@@ -210,17 +193,7 @@ async function main(): Promise<void> {
         if (!obs) return;
         const ourOk = obs.ours.some((s) => s.active && s.revealed);
         const theirOk = obs.theirs.some((s) => s.active && s.revealed);
-        if (!ourOk || !theirOk || !obs.legalActions.length) {
-          agentLog('cli.ts:runDecide', 'eval skipped', {
-            send, canSend, ourOk, theirOk,
-            legal: obs.legalActions.length,
-            hasRequest: Boolean(req),
-            pokeCount: req?.side?.pokemon?.length ?? 0,
-            turn: obs.turn,
-            setMoves: obs.ours.find((s) => s.active)?.set?.moves?.length ?? 0,
-          }, 'B');
-          return;
-        }
+        if (!ourOk || !theirOk || !obs.legalActions.length) return;
         const key = `${obs.turn}|${obs.ours.find((s) => s.active)?.speciesId}|${obs.theirs.find((s) => s.active)?.speciesId}|${obs.legalActions.map((a) => a.id).join(',')}|${obs.ours.find((s) => s.active)?.set?.moves?.join(',')}|${obs.theirs.find((s) => s.active)?.set?.moves?.join(',')}`;
         if (!send && key === lastEvalKey) return;
         if (decideBusy) {
@@ -234,10 +207,6 @@ async function main(): Promise<void> {
         hud.patch({ status: 'deciding' });
         if (send && canSend) console.log(`\n=== turn ${obs.turn} (your move) ===`);
         else console.log(`\n=== turn ${obs.turn} (eval) ===`);
-        agentLog('cli.ts:runDecide', 'eval starting', {
-          send, canSend, turn: obs.turn, legal: obs.legalActions.length,
-          dryRun: send && canSend ? dryRun : true,
-        }, 'D');
         void decideAndAct(client, obs, {
           dryRun: send && canSend ? dryRun : true,
           policy,
@@ -246,16 +215,9 @@ async function main(): Promise<void> {
           shots,
           logPath: send && canSend ? logPath : undefined,
         }).then((result) => {
-          agentLog('cli.ts:runDecide', 'eval ok', {
-            sampledId: result.sampledId,
-            choices: result.evaluation.choices.length,
-            replies: result.evaluation.replies.length,
-            roundScore: result.evaluation.roundScore,
-          }, 'D');
           if (gen === decideGen) hud.fromDecision(result, { rescore: !canSend || !send });
         }).catch((err) => {
           console.error('[pokeredus] engine/quantum failed:', err);
-          agentLog('cli.ts:runDecide', 'eval failed', { error: err instanceof Error ? err.message : String(err) }, 'F');
           if (gen === decideGen) hud.patch({ status: 'error', error: err instanceof Error ? err.message : String(err) });
         }).finally(() => {
           decideBusy = false;
