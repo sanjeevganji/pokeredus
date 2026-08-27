@@ -206,6 +206,10 @@ export interface LiveState {
   policy: string;
   turn: number;
   winner?: string;
+  oursName?: string;
+  theirsName?: string;
+  teraUsedOurs?: boolean;
+  teraUsedTheirs?: boolean;
   field: LiveField;
   ours: LiveSlot[];
   theirs: LiveSlot[];
@@ -215,6 +219,22 @@ export interface LiveState {
   events: LiveEvent[];
   error?: string;
   warnings?: string[];
+}
+
+export function livePlayers(tracker: BattleTracker): {
+  oursName: string;
+  theirsName: string;
+  teraUsedOurs: boolean;
+  teraUsedTheirs: boolean;
+} {
+  const oursName = tracker.ourSide === 'p2' ? tracker.p2Name : tracker.p1Name;
+  const theirsName = tracker.ourSide === 'p2' ? tracker.p1Name : tracker.p2Name;
+  return {
+    oursName,
+    theirsName,
+    teraUsedOurs: tracker.teraUsedOurs,
+    teraUsedTheirs: tracker.teraUsedTheirs,
+  };
 }
 
 export function defaultLiveStatePath(): string {
