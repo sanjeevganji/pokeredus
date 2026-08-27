@@ -176,20 +176,27 @@ async function main(): Promise<void> {
       let decideBusy = false;
       let decideQueued = false;
       let queuedSend = false;
+      let lastObsKey = '';
 
       const observe = (settle: boolean) => {
         try {
           const obs = tracker.toObservation(pool, ourSets, loadSetOverrides(overridesPath));
           hud.fromObservation(obs, { settle });
-          agentLog('cli.ts:observe', 'observation built', {
-            turn: obs.turn,
-            ourSide: obs.ourSide,
-            legal: obs.legalActions.length,
-            oursRevealed: obs.ours.filter((s) => s.revealed).map((s) => s.speciesId),
-            theirsRevealed: obs.theirs.filter((s) => s.revealed).map((s) => s.speciesId),
-            activeSetMoves: obs.ours.find((s) => s.active)?.set?.moves?.length ?? 0,
-            hasRequest: Boolean(obs.request),
-          }, 'A');
+          const oursRevealed = obs.ours.filter((s) => s.revealed).map((s) => s.speciesId);
+          const theirsRevealed = obs.theirs.filter((s) => s.revealed).map((s) => s.speciesId);
+          const key = `${obs.turn}:${obs.legalActions.length}:${oursRevealed.join(',')}:${theirsRevealed.join(',')}:${Boolean(obs.request)}`;
+          if (key !== lastObsKey) {
+            lastObsKey = key;
+            agentLog('cli.ts:observe', 'observation built', {
+              turn: obs.turn,
+              ourSide: obs.ourSide,
+              legal: obs.legalActions.length,
+              oursRevealed,
+              theirsRevealed,
+              activeSetMoves: obs.ours.find((s) => s.active)?.set?.moves?.length ?? 0,
+              hasRequest: Boolean(obs.request),
+            }, 'A');
+          }
           return obs;
         } catch (err) {
           console.error('[pokeredus] observation failed:', err);
