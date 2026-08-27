@@ -245,6 +245,8 @@ describe('field fidelity, CTA, and ranges', () => {
     expect(eqChoice).toBeTruthy();
     expect(eqChoice!.cta).toBeCloseTo(1);
     expect(eqChoice!.choiceScore).toBeCloseTo(1);
+    expect(eqChoice!.theirHealth).toBeLessThan(0);
+    expect(eqChoice!.hitsToKill).toBe(1);
     expect(eqChoice!.scaledChoiceScore).toBeLessThan(eqChoice!.choiceScore);
 
     const slow = await evaluateRound({
