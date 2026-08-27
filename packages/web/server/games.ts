@@ -114,6 +114,10 @@ export class GameHub {
   private credUrl = '';
   private connectLock?: Promise<void>;
   private joinedRooms = new Set<string>();
+  private searchMine: DetectedGame[] = [];
+  private detailsMine: DetectedGame[] = [];
+  private lastUserdetailsAt = 0;
+  private userdetailsTimer?: ReturnType<typeof setInterval>;
 
   constructor(private readonly root: string) {}
 
