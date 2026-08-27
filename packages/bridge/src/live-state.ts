@@ -316,19 +316,6 @@ export class LiveStateWriter {
       ours: hudSlots(tracker.myMons, tracker.field.weather),
       theirs: hudSlots(tracker.oppMons, tracker.field.weather),
     };
-    // #region agent log
-    try {
-      fs.appendFileSync('d:/PokeRedus/debug-19ae98.log', `${JSON.stringify({
-        sessionId: '19ae98', location: 'live-state.ts:fromTracker', message: 'hud overwritten from tracker',
-        data: {
-          turn: tracker.turn, ourSide: tracker.ourSide,
-          ours: this.state.ours.filter((s) => s.revealed).map((s) => ({ id: s.speciesId, complete: s.setComplete, item: s.item })),
-          theirs: this.state.theirs.filter((s) => s.revealed).map((s) => ({ id: s.speciesId, complete: s.setComplete })),
-        },
-        timestamp: Date.now(), hypothesisId: 'B',
-      })}\n`);
-    } catch { /* ignore */ }
-    // #endregion
     this.flush();
   }
 
