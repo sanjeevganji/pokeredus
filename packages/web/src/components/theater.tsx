@@ -79,33 +79,36 @@ export function Sprite({ speciesId }: { speciesId: string }) {
 }
 
 function BoostPills({ slot }: { slot: LiveSlot }) {
-  if (!slot.revealed || !slot.boosts) return null;
-  const bits: string[] = [];
-  for (const [k, v] of Object.entries(slot.boosts)) {
+  if (!slot.revealed) return null;
+  const bits: { key: string; text: string; kind: 'up' | 'down' | 'mod' }[] = [];
+  for (const [k, v] of Object.entries(slot.boosts ?? {})) {
     if (!v) continue;
-    bits.push(`${v > 0 ? '+' : ''}${v} ${STAT_LABEL[k] ?? k}`);
+    bits.push({
+      key: k,
+      text: `${v > 0 ? '+' : ''}${v} ${STAT_LABEL[k] ?? k}`,
+      kind: v > 0 ? 'up' : 'down',
+    });
   }
   for (const m of slot.modifiers ?? []) {
     if (m.name.startsWith('boost:')) continue;
-    bits.push(m.name);
+    bits.push({ key: m.name, text: prettySpecies(m.name), kind: 'mod' });
   }
   if (!bits.length) return null;
   return (
-    <span className="boost-pills" title={bits.join(', ')}>
-      {bits.map((b) => <span key={b} className="status-pill">{b}</span>)}
+    <span className="boost-pills" title={bits.map((b) => b.text).join(', ')}>
+      {bits.map((b) => (
+        <span key={b.key} className={`status-pill pill-${b.kind}`}>{b.text}</span>
+      ))}
     </span>
   );
 }
 
 function provenanceLabel(slot: LiveSlot): string {
   if (!slot.revealed) return '';
-  const tera = slot.teraType || slot.assumedSet?.teraType;
-  const teraSuffix = tera ? ` · Tera ${tera}` : '';
-  if (!slot.setComplete || slot.setSource === 'incomplete') return `Incomplete${teraSuffix}`;
-  if (slot.setSource === 'manual') return `Manual assumption${teraSuffix}`;
-  if (slot.setSource === 'public') return `Public assumption${teraSuffix}`;
-  if (slot.setSource === 'revealed') return `Revealed${teraSuffix}`;
-  return `Revealed${teraSuffix}`;
+  if (!slot.setComplete || slot.setSource === 'incomplete') return 'Incomplete';
+  if (slot.setSource === 'manual') return 'Manual';
+  if (slot.setSource === 'public') return 'Public';
+  return 'Revealed';
 }
 
 function currentRole(slot: LiveSlot): string {
@@ -122,11 +125,21 @@ function currentTera(slot: LiveSlot): string {
   return slot.assumedSet?.teraType || slot.teraType || '';
 }
 
+function kitLine(slot: LiveSlot): string {
+  const level = slot.level ?? slot.assumedSet?.level;
+  const item = prettySpecies(slot.item || slot.assumedSet?.item || '');
+  const ability = prettySpecies(slot.ability || slot.assumedSet?.ability || '');
+  return [level != null ? `Lv.${level}` : '', item !== '?' ? item : '', ability !== '?' ? ability : '']
+    .filter(Boolean)
+    .join(' · ');
+}
+
 function SlotRow({
-  slot, accent, onEditSet, onAssumeSet,
+  slot, accent, compact, onEditSet, onAssumeSet,
 }: {
   slot: LiveSlot;
   accent: 'cyan' | 'pink';
+  compact?: boolean;
   onEditSet?: (slot: LiveSlot, opener: HTMLElement) => void;
   onAssumeSet?: (slot: LiveSlot, set: CanonicalSet) => void;
 }) {
@@ -141,6 +154,7 @@ function SlotRow({
   const selected = options.find((o) => o.role === role) ?? options[0];
   const teras = selected?.teraTypes?.length ? selected.teraTypes : (slot.assumedSet?.teraType ? [slot.assumedSet.teraType] : []);
   const tera = currentTera(slot);
+  const kit = revealed ? kitLine(slot) : '';
 
   function pickRole(nextRole: string) {
     const opt = options.find((o) => o.role === nextRole);
@@ -159,12 +173,13 @@ function SlotRow({
   }
 
   return (
-    <li className={`slot-row${slot.fainted ? ' slot-fainted' : ''}${slot.active ? ' slot-active' : ''}${revealed ? '' : ' slot-hidden'}`}>
+    <li className={`slot-row${slot.fainted ? ' slot-fainted' : ''}${slot.active ? ' slot-active' : ''}${revealed ? '' : ' slot-hidden'}${compact ? ' slot-compact' : ''}`}>
       <Sprite speciesId={revealed ? slot.speciesId : ''} />
       <div className="slot-body">
         <div className="slot-meta">
-          <span>{slot.active ? '● ' : ''}{name}</span>
-          {revealed && slot.status ? <span className="status-pill">{slot.status}</span> : null}
+          <span className="slot-name">{slot.active ? '● ' : ''}{name}</span>
+          {revealed && slot.status ? <span className="status-pill pill-status">{slot.status}</span> : null}
+          {revealed && tera ? <span className="status-pill">{tera}</span> : null}
           {revealed && onEditSet ? (
             <button
               type="button"
@@ -174,19 +189,22 @@ function SlotRow({
               {provenanceLabel(slot)}
             </button>
           ) : null}
-          <BoostPills slot={slot} />
         </div>
-        <div
-          className="hp-track"
-          role="meter"
-          aria-label={`${name} HP`}
-          aria-valuemin={0}
-          aria-valuemax={max}
-          aria-valuenow={revealed ? (slot.fainted ? 0 : slot.hp) : 0}
-        >
-          <div className="hp-fill" style={{ width: `${ratio * 100}%`, background: color }} />
+        {kit ? <p className="slot-kit">{kit}</p> : null}
+        <div className="hp-row">
+          <div
+            className="hp-track"
+            role="meter"
+            aria-label={`${name} HP`}
+            aria-valuemin={0}
+            aria-valuemax={max}
+            aria-valuenow={revealed ? (slot.fainted ? 0 : slot.hp) : 0}
+          >
+            <div className="hp-fill" style={{ width: `${ratio * 100}%`, background: color }} />
+          </div>
+          <span className="dim slot-hp">{hpLabel}</span>
         </div>
-        <span className="dim slot-hp">{hpLabel}</span>
+        <BoostPills slot={slot} />
         {revealed && onAssumeSet && options.length > 0 && (
           <div className="slot-picks">
             <label className="slot-pick">
@@ -204,7 +222,7 @@ function SlotRow({
               </select>
             </label>
             <label className="slot-pick">
-              <span>Tera</span>
+              <span>Tera type</span>
               <select
                 aria-label={`${name} tera type`}
                 value={teras.some((t) => t.toLowerCase() === tera.toLowerCase()) ? tera : (teras[0] ?? '')}
@@ -227,7 +245,7 @@ function SlotRow({
 export function Bench({
   title, slots, field, accent, area, tera, compact, onEditSet, onAssumeSet,
 }: {
-  title: string;
+  title?: string;
   slots: LiveSlot[];
   field?: LiveField['ours'];
   accent: 'cyan' | 'pink';
@@ -248,25 +266,33 @@ export function Bench({
   const lead = shown[activeIdx >= 0 ? activeIdx : 0]!;
   const rest = shown.filter((_, i) => i !== (activeIdx >= 0 ? activeIdx : 0));
   return (
-    <section className={`card bench bench-${accent}${compact ? ' compact' : ''}${area ? ` theater-${area}` : ''}${tera ? ' tera-mode' : ''}`}>
-      <h2 className="bench-title">{title}</h2>
+    <section
+      className={`card bench bench-${accent}${compact ? ' compact' : ''}${area ? ` theater-${area}` : ''}${tera ? ' tera-mode' : ''}`}
+      aria-label={title || (accent === 'cyan' ? 'Our Pokémon' : 'Their Pokémon')}
+    >
+      {title ? <h2 className="bench-title">{title}</h2> : null}
       <SideFieldBadges side={field} />
       {compact ? (
         <>
           <ul className="bench-list">
-            <SlotRow slot={lead} accent={accent} onEditSet={onEditSet} onAssumeSet={onAssumeSet} />
+            <SlotRow slot={lead} accent={accent} compact onEditSet={onEditSet} onAssumeSet={onAssumeSet} />
           </ul>
           <div className="bench-rest">
             {rest.map((s, i) => {
               const name = s.revealed && s.speciesId ? prettySpecies(s.speciesId) : 'Unknown';
+              const max = Math.max(s.maxHp || 0, 1);
+              const ratio = s.fainted || !s.revealed ? 0 : Math.max(0, Math.min(1, s.hp / max));
               if (s.revealed && onEditSet) {
                 return (
                   <button
                     key={i}
                     type="button"
-                    className={`bench-name set-prov${s.fainted ? ' slot-fainted' : ''}${s.setWarning ? ' set-prov-warn' : ''}`}
+                    className={`bench-chip set-prov${s.fainted ? ' slot-fainted' : ''}${s.setWarning ? ' set-prov-warn' : ''}`}
                     onClick={(e) => onEditSet(s, e.currentTarget)}
                   >
+                    <span className="bench-chip-hp" aria-hidden="true">
+                      <span style={{ width: `${ratio * 100}%` }} />
+                    </span>
                     {name}
                     <span className="set-prov-mini">{provenanceLabel(s)}</span>
                   </button>
@@ -275,8 +301,11 @@ export function Bench({
               return (
                 <span
                   key={i}
-                  className={`bench-name${s.fainted ? ' slot-fainted' : ''}${s.revealed ? '' : ' slot-hidden'}`}
+                  className={`bench-chip${s.fainted ? ' slot-fainted' : ''}${s.revealed ? '' : ' slot-hidden'}`}
                 >
+                  <span className="bench-chip-hp" aria-hidden="true">
+                    <span style={{ width: `${ratio * 100}%` }} />
+                  </span>
                   {name}
                 </span>
               );
