@@ -530,6 +530,7 @@ export class GameHub {
       }
     });
     this.client = client;
+    this.userdetailsTimer = setInterval(() => this.requestUserdetails(false), 3000);
     const authed = new Promise<void>((resolve, reject) => {
       let settled = false;
       const finish = () => {
