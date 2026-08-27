@@ -18,18 +18,24 @@ import {
   type SetCatalog,
 } from '../lib/games';
 import {
+  baseActionId,
   computeScoreGraphDomain,
-  displayFraction,
+  formatConnect,
+  formatKO,
   formatPercent,
+  formatScoreRange,
   formatSigned,
-  formatTTK,
   formatWilsonInterval,
   getLatestSettledScore,
   getRecommendedActionId,
+  isTeraAction,
+  normalizeMass,
+  playableChoices,
+  workingHitsToKill,
 } from '../lib/live-score';
 import { importScenario } from '../lib/scenarios';
 import { ScoreBar } from '../components/ScoreBar';
-import { Bench, FieldBadges, actionLabel, prettySpecies } from '../components/theater';
+import { Bench, FieldBadges, SideFieldBadges, actionLabel, prettySpecies } from '../components/theater';
 
 export default function BattleLive() {
   const navigate = useNavigate();
