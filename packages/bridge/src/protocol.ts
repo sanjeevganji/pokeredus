@@ -31,7 +31,7 @@ import {
   type SetSource,
   type SlotSnapshot,
 } from '@pokeredus/engine';
-import { enumerateFromRequest } from '@pokeredus/engine';
+import { legalActionsForEval } from '@pokeredus/engine';
 import { initialBelief, type RandomSetPool } from '@pokeredus/engine';
 import type { PackIndex } from '@pokeredus/pack';
 
