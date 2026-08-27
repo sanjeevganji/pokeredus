@@ -335,11 +335,19 @@ export class LiveStateWriter {
       field: liveFieldFromTracker(tracker),
       ours: hudSlots(tracker.myMons, tracker.field.weather),
       theirs: hudSlots(tracker.oppMons, tracker.field.weather),
+      ...livePlayers(tracker),
     };
     this.flush();
   }
 
-  fromObservation(obs: BattleObservation, opts?: { settle?: boolean; extraWarnings?: string[] }): void {
+  fromObservation(obs: BattleObservation, opts?: {
+    settle?: boolean;
+    extraWarnings?: string[];
+    oursName?: string;
+    theirsName?: string;
+    teraUsedOurs?: boolean;
+    teraUsedTheirs?: boolean;
+  }): void {
     // Settle any prior forecast point on receiving the new observation
     const points = [...(this.state.points ?? [])];
     const pending = points.find((p) => p.status === 'forecast');
