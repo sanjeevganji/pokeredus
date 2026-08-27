@@ -22,6 +22,7 @@ export type LobbyEvent =
   | { type: 'updateuser'; name: string; named: boolean }
   | { type: 'updatesearch'; searching: string[]; games: Record<string, string> }
   | { type: 'roomlist'; rooms: Record<string, RoomListEntry> }
+  | { type: 'userdetails'; id: string; name: string; rooms: Record<string, unknown> }
   | { type: 'popup'; text: string }
   | { type: 'nametaken'; name: string; reason: string }
   | ({ type: 'battlemeta'; room: string } & BattleMeta);
