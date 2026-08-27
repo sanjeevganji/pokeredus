@@ -69,9 +69,6 @@ export async function decideAndAct(
   const ids = evaluation.choices.map((c) => c.action.id);
   if (!ids.length) {
     console.warn('[pokeredus] no legal actions this turn');
-    // #region agent log
-    fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '246bd1' }, body: JSON.stringify({ sessionId: '246bd1', runId: 'pre-fix', hypothesisId: 'D', location: 'decide.ts:decideAndAct', message: 'no legal actions', data: { turn: obs.turn, legalObs: obs.legalActions.length, replies: evaluation.replies.length }, timestamp: Date.now() }) }).catch(() => {});
-    // #endregion
     return { evaluation, probabilities: [], sampledId: '', sent: false, teraOurs, teraTheirs };
   }
 
