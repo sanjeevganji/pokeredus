@@ -156,6 +156,17 @@ export default function BattleLive() {
         <span className="muted">{live.policy}</span>
         <span className="muted">{live.dryRun ? 'dry-run' : 'send'}</span>
         <FieldBadges field={live.field} />
+        <div className="player-vs" aria-label="Players">
+          <span className="player-tag player-ours">
+            <strong>{live.oursName || 'You'}</strong>
+            <SideFieldBadges side={live.field?.ours} />
+          </span>
+          <span className="player-vs-sep">vs</span>
+          <span className="player-tag player-theirs">
+            <strong>{live.theirsName || 'Opponent'}</strong>
+            <SideFieldBadges side={live.field?.theirs} />
+          </span>
+        </div>
         <button type="button" className="btn-secondary" onClick={save} disabled={busy}>
           Save scenario
         </button>
