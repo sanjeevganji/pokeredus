@@ -986,15 +986,39 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 
 .bench.compact .slot-row { border-bottom: 0; padding-bottom: 4px; }
 .bench.compact .bench-title { margin-bottom: 6px; }
+.bench.compact .hp-track { height: 6px; }
 .bench-rest {
   display: flex;
   flex-wrap: wrap;
-  gap: 4px 10px;
+  gap: 6px;
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--fg-dim);
   font-size: 0.75rem;
   color: var(--fg-secondary);
+}
+.bench-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: var(--bg-input);
+  border: 1px solid var(--fg-dim);
+}
+.bench-chip-hp {
+  width: 24px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--bg-dark);
+  overflow: hidden;
+  flex-shrink: 0;
+}
+.bench-chip-hp > span {
+  display: block;
+  height: 100%;
+  background: var(--fg-secondary);
 }
 .bench-name { white-space: nowrap; }
 
