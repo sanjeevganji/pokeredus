@@ -61,6 +61,17 @@ describe('parseLobbyLine', () => {
       type: 'nametaken', name: 'alice', reason: 'Wrong password.',
     });
   });
+
+  it('parses userdetails rooms as the account\'s current battles', () => {
+    const ev = parseLobbyLine(
+      '|queryresponse|userdetails|{"userid":"iamabotbtw","name":"I AM A BOT BTW","rooms":{"battle-gen9randombattle-2671287078":1,"lobby":1}}',
+    );
+    expect(ev?.type).toBe('userdetails');
+    const rooms = ev && ev.type === 'userdetails' ? ev.rooms : {};
+    expect(gamesFromUserdetails(rooms)).toEqual([
+      { room: 'battle-gen9randombattle-2671287078', title: 'gen9randombattle-2671287078', mine: true },
+    ]);
+  });
 });
 
 describe('battle meta', () => {
