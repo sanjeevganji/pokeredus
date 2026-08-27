@@ -7,6 +7,7 @@ import {
   getSetOverride,
   listSetCatalog,
   loadSetOverrides,
+  overlayRevealedOnSet,
   saveSetOverride,
   validateCanonicalSet,
 } from '../src/set-overrides.js';
