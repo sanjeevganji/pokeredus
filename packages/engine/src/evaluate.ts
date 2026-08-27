@@ -39,7 +39,7 @@ import {
   type ScoreWeights,
 } from './math.js';
 import { simulateRound, type ActionEffect, type ActionTelemetry, type RoundSimResult } from './sim.js';
-import { enumerateFromRequest, type ShowdownRequest } from './actions.js';
+import { legalActionsForEval, toMoveId } from './actions.js';
 import type { QuantumPolicyProcess } from './policy.js';
 
 const CHANCE_SEEDS = 4;
