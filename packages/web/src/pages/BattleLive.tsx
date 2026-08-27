@@ -761,6 +761,9 @@ function TheirReplyList({
 }) {
   const [teraOn, setTeraOn] = useState(false);
   const canTera = !teraUsed && replies.some((r) => isTeraAction(r.id));
+  useEffect(() => {
+    if (!canTera) setTeraOn(false);
+  }, [canTera]);
   const teraType = slots?.find((s) => s.active)?.teraType
     || slots?.find((s) => s.active)?.assumedSet?.teraType;
   const visible = useMemo(() => {
