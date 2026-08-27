@@ -758,7 +758,30 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 
 .slot-body { flex: 1; min-width: 0; }
 .slot-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
-.slot-hp { font-size: 0.75rem; }
+.slot-name { font-weight: 600; }
+.slot-kit {
+  margin: 2px 0 0;
+  font-size: 0.75rem;
+  color: var(--fg-secondary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.hp-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+.hp-track {
+  flex: 1;
+  height: 6px;
+  background: var(--bg-input);
+  border-radius: 3px;
+  overflow: hidden;
+}
+.hp-fill { height: 100%; border-radius: 3px; }
+.slot-hp { font-size: 0.75rem; flex-shrink: 0; }
 .slot-picks {
   display: grid;
   grid-template-columns: 1fr 7rem;
