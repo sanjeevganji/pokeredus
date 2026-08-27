@@ -3,7 +3,7 @@ import * as path from 'node:path';
 import { canonicalizeSet, compatible, hypothesesForSpecies } from './beliefs.js';
 import type { CanonicalSet, RevealedFacts, SetOption } from './observation.js';
 import { speciesKey, type RandomSetPool } from './pool.js';
-import { DEFAULT_LEVEL, DEFAULT_NATURE } from './randbats.js';
+import { DEFAULT_LEVEL, DEFAULT_NATURE, pickMoves } from './randbats.js';
 
 const STATS = ['hp', 'atk', 'def', 'spa', 'spd', 'spe'] as const;
 type Stat = (typeof STATS)[number];
