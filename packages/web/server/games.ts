@@ -404,19 +404,6 @@ export class GameHub {
       map.set(g.room, was ? applyBattleMeta(g, was) : g);
     }
     this.mine = [...map.values()];
-    // #region agent log
-    try {
-      fs.appendFileSync('d:/PokeRedus/debug-19ae98.log', `${JSON.stringify({
-        sessionId: '19ae98', location: 'games.ts:rebuildMine', message: 'mine rebuilt',
-        data: {
-          search: this.searchMine.map((g) => g.room),
-          details: this.detailsMine.map((g) => g.room),
-          mine: this.mine.map((g) => g.room),
-        },
-        timestamp: Date.now(), hypothesisId: 'D',
-      })}\n`);
-    } catch { /* ignore */ }
-    // #endregion
     this.syncJoinedRooms();
   }
 
