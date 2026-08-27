@@ -3,6 +3,7 @@ import {
   applyBattleMeta,
   gamesFromRoomlist,
   gamesFromSearch,
+  gamesFromUserdetails,
   normalizeBattleRoom,
   parseBattleMetaLine,
   parseLobbyLine,
