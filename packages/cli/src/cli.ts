@@ -177,11 +177,14 @@ async function main(): Promise<void> {
       let decideQueued = false;
       let queuedSend = false;
       let lastObsKey = '';
+      let lastEvalKey = '';
 
       const observe = (settle: boolean) => {
         try {
           const obs = tracker.toObservation(pool, ourSets, loadSetOverrides(overridesPath));
-          hud.fromObservation(obs, { settle });
+          const extra = tracker.spectatorNote();
+          if (extra) console.warn(`[pokeredus] ${extra}`);
+          hud.fromObservation(obs, { settle, extraWarnings: extra ? [extra] : [] });
           const oursRevealed = obs.ours.filter((s) => s.revealed).map((s) => s.speciesId);
           const theirsRevealed = obs.theirs.filter((s) => s.revealed).map((s) => s.speciesId);
           const key = `${obs.turn}:${obs.legalActions.length}:${oursRevealed.join(',')}:${theirsRevealed.join(',')}:${Boolean(obs.request)}`;
