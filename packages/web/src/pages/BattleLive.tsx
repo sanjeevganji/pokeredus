@@ -195,9 +195,7 @@ export default function BattleLive() {
           <div className="theater-body">
             <Bench
               area="ours"
-              title="Ours"
               slots={live.ours ?? []}
-              field={live.field?.ours}
               accent="cyan"
               compact
               onEditSet={openSet}
@@ -210,13 +208,12 @@ export default function BattleLive() {
               sampledId={live.eval?.sampledAction}
               quantum={live.eval?.quantum}
               slots={live.ours}
-              points={live.points}
+              foe={live.theirs?.find((s) => s.active)}
+              teraUsed={live.teraUsedOurs}
             />
             <Bench
               area="theirs"
-              title="Theirs"
               slots={live.theirs ?? []}
-              field={live.field?.theirs}
               accent="pink"
               compact
               onEditSet={openSet}
@@ -227,6 +224,8 @@ export default function BattleLive() {
               title="Their replies"
               replies={live.eval?.replies ?? []}
               slots={live.theirs}
+              us={live.ours?.find((s) => s.active)}
+              teraUsed={live.teraUsedTheirs}
             />
           </div>
         </>
