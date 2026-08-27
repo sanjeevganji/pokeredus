@@ -413,6 +413,9 @@ interface TrackedMon {
 
 export class BattleTracker {
   ourSide: PlayerSide = 'p1';
+  ourName = '';
+  p1Name = '';
+  p2Name = '';
   turn = 0;
   myMons: Map<string, TrackedMon> = new Map();
   oppMons: Map<string, TrackedMon> = new Map();
@@ -421,6 +424,15 @@ export class BattleTracker {
   teraUsedTheirs = false;
   lastRequest: RequestJson | null = null;
 
+  constructor(opts?: { ourName?: string }) {
+    if (opts?.ourName) this.ourName = opts.ourName;
+  }
+
+  setOurName(name: string): void {
+    this.ourName = name;
+    this.alignSideFromPlayers();
+  }
+
   private monsFor(side: PlayerSide): Map<string, TrackedMon> {
     return side === this.ourSide ? this.myMons : this.oppMons;
   }
@@ -428,7 +440,29 @@ export class BattleTracker {
   private findMon(side: PlayerSide, identity: string, speciesId = ''): TrackedMon | undefined {
     const map = this.monsFor(side);
     const key = monKey(identity, speciesId);
-    return map.get(key) ?? [...map.values()].find((m) => m.active);
+    if (map.has(key)) return map.get(key);
+    const name = toId(identityName(identity));
+    const byName = [...map.values()].find((m) => toId(m.speciesId) === name || toId(identityName(m.identity)) === name);
+    if (byName) return byName;
+    const slot = splitIdentity(identity).slot;
+    return [...map.values()].find((m) => m.active && m.slot === slot);
+  }
+
+  private setOurSide(side: PlayerSide): void {
+    if (side === this.ourSide) return;
+    if (this.myMons.size || this.oppMons.size) {
+      const swap = this.myMons;
+      this.myMons = this.oppMons;
+      this.oppMons = swap;
+    }
+    this.ourSide = side;
+  }
+
+  private alignSideFromPlayers(): void {
+    const me = toId(this.ourName);
+    if (!me) return;
+    if (toId(this.p2Name) === me) this.setOurSide('p2');
+    else if (toId(this.p1Name) === me) this.setOurSide('p1');
   }
 
   /** Parse and apply one raw protocol line. Returns the parsed event (for callers that branch on it). */
