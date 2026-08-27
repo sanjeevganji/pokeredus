@@ -468,6 +468,12 @@ export class GameHub {
 
   private closeLobby(): void {
     this.joinedRooms.clear();
+    this.searchMine = [];
+    this.detailsMine = [];
+    if (this.userdetailsTimer) {
+      clearInterval(this.userdetailsTimer);
+      this.userdetailsTimer = undefined;
+    }
     this.client?.close();
     this.client = undefined;
   }
