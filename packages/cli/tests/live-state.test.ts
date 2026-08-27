@@ -135,6 +135,21 @@ describe('LiveStateWriter', () => {
     expect(snap.events.some((e: { text: string }) => e.text.includes('roundScore=0.420'))).toBe(true);
   });
 
+  it('writes player names from the tracker into the HUD', () => {
+    const file = tmpPath();
+    const hud = new LiveStateWriter({ path: file, room: 'battle-gen9randombattle-9', dryRun: true, policy: 'softmax' });
+    const tracker = new BattleTracker({ ourName: 'alice' });
+    tracker.applyLine('|player|p1|alice|');
+    tracker.applyLine('|player|p2|bob|');
+    hud.fromTracker(tracker);
+    hud.fromObservation(obs(), { oursName: 'alice', theirsName: 'bob', teraUsedOurs: false, teraUsedTheirs: false });
+    expect(hud.state.oursName).toBe('alice');
+    expect(hud.state.theirsName).toBe('bob');
+    const snap = JSON.parse(fs.readFileSync(file, 'utf8'));
+    expect(snap.oursName).toBe('alice');
+    expect(snap.theirsName).toBe('bob');
+  });
+
   it('settles prior forecast point when next observation arrives', () => {
     const file = tmpPath();
     const hud = new LiveStateWriter({ path: file, room: 'battle-gen9randombattle-2', dryRun: true, policy: 'softmax' });
