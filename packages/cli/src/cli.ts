@@ -2,7 +2,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { loadKnowledgePack } from '@pokeredus/pack/load';
-import { BattleTracker, decideAndAct, LiveStateWriter, ShowdownClient, type BattleEvent } from '@pokeredus/bridge';
+import { BattleTracker, decideAndAct, livePlayers, LiveStateWriter, ShowdownClient, type BattleEvent } from '@pokeredus/bridge';
 import {
   QuantumPolicyProcess,
   loadPool,
