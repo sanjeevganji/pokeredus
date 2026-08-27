@@ -130,13 +130,23 @@ export class ShowdownClient {
       try {
         const assertion = await getAssertion(this.user, this.pass, challstr);
         this.send(`|/trn ${this.user},0,${assertion}`);
+        // #region agent log
+        fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '246bd1' }, body: JSON.stringify({ sessionId: '246bd1', runId: 'pre-fix', hypothesisId: 'A', location: 'client.ts:handleChallstr', message: 'named login sent', data: { user: this.user, assertionLen: assertion.length }, timestamp: Date.now() }) }).catch(() => {});
+        // #endregion
       } catch (e) {
         console.error('[pokeredus] Showdown login failed:', e);
+        // #region agent log
+        fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '246bd1' }, body: JSON.stringify({ sessionId: '246bd1', runId: 'pre-fix', hypothesisId: 'A', location: 'client.ts:handleChallstr', message: 'named login failed', data: { user: this.user, error: e instanceof Error ? e.message : String(e) }, timestamp: Date.now() }) }).catch(() => {});
+        // #endregion
         this.close();
         throw e;
       }
     } else {
-      this.send(`|/trn ${guestName()},0,`);
+      const guest = guestName();
+      this.send(`|/trn ${guest},0,`);
+      // #region agent log
+      fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '246bd1' }, body: JSON.stringify({ sessionId: '246bd1', runId: 'pre-fix', hypothesisId: 'A', location: 'client.ts:handleChallstr', message: 'guest login', data: { hasUser: Boolean(this.user), hasPass: Boolean(this.pass), guest }, timestamp: Date.now() }) }).catch(() => {});
+      // #endregion
     }
     this.trnSent = true;
     this.tryJoinBattle();
