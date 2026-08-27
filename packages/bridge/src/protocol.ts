@@ -673,13 +673,6 @@ export class BattleTracker {
       const enabled = moves.filter((m) => !m.disabled);
       if (moves.length >= 2 && enabled.length === 1 && activeMon) activeMon.choiceLock = enabled[0]!.id;
     }
-    // #region agent log
-    agentLog('protocol.ts:applyRequest', 'request applied', {
-      sideId, ourSide: this.ourSide, ourName: this.ourName,
-      moveSample: pokemon[0] ? typeof pokemon[0].moves?.[0] : null,
-      ours: [...this.myMons.values()].map((m) => ({ id: m.speciesId, moves: m.revealedMoves, item: m.item, ability: m.ability, active: m.active })),
-    }, 'C');
-    // #endregion
   }
 
   /** Build the immutable observation the engine consumes. */
