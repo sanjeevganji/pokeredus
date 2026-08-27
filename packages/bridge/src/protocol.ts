@@ -96,6 +96,7 @@ interface SlotCommon {
 export type BattleEvent =
   | { type: 'init'; room?: string }
   | { type: 'turn'; num: number }
+  | { type: 'player'; side: PlayerSide; name: string }
   | { type: 'request'; json: RequestJson }
   | ({ type: 'switch' } & SlotCommon & { speciesId: string; details: string; hp: number; maxHp: number; status: string })
   | ({ type: 'drag' } & SlotCommon & { speciesId: string; details: string; hp: number; maxHp: number; status: string })
