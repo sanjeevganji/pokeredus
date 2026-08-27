@@ -1,33 +1,24 @@
-// one-shot spectator dump of a live Showdown battle log
-import { ShowdownClient } from './packages/bridge/src/client.ts';
+import { connectShowdownWebSocket, closeShowdownWebSocket } from './packages/bridge/src/socket.ts';
+import { guestName } from './packages/bridge/src/auth.ts';
 
 const room = 'battle-gen9randombattle-2671287078';
-const lines = [];
-const client = new ShowdownClient({ battleRoom: room, dryRun: true });
-client.onEvent((ev) => {
-  lines.push({ kind: 'battle', type: ev.type, ev });
+const { ws } = await connectShowdownWebSocket();
+const frames = [];
+ws.on('message', (data) => {
+  const text = typeof data === 'string' ? data : data.toString();
+  frames.push(text);
+  if (text.includes('|challstr|')) {
+    const line = text.split('\n').find((l) => l.includes('|challstr|')) ?? '';
+    const challstr = line.split('|').slice(2).join('|');
+    void challstr;
+    ws.send(`|/trn ${guestName('dump')},0,`);
+    ws.send(`|/join ${room}`);
+  }
 });
-client.onLobby((ev) => {
-  lines.push({ kind: 'lobby', type: ev.type, ev });
-});
-
-const orig = client.onMessage?.bind(client);
-// tap raw frames by wrapping connect
-const raw = [];
-await client.connect();
-const ws = client.ws ?? client['ws'];
-if (ws) {
-  ws.on('message', (data) => {
-    const text = typeof data === 'string' ? data : data.toString();
-    raw.push(text);
-  });
-}
-
-await new Promise((r) => setTimeout(r, 8000));
-client.close();
-console.log('RAW_FRAMES', raw.length);
-for (const t of raw) {
+await new Promise((r) => setTimeout(r, 10000));
+closeShowdownWebSocket(ws);
+for (const t of frames) {
   console.log('-----FRAME-----');
-  console.log(t.slice(0, 8000));
+  console.log(t);
 }
-console.log('EVENTS', lines.map((x) => x.type).join(','));
+console.log('FRAME_COUNT', frames.length);
