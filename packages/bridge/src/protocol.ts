@@ -742,7 +742,7 @@ export class BattleTracker {
     for (const s of theirs) s.modifiers = modifiersFromSlot(s, weather);
 
     const legalActions = enumerateFromRequest(this.lastRequest ?? undefined, this.teraUsedOurs);
-    return {
+    const obs: BattleObservation = {
       turn: this.turn,
       format,
       ourSide: this.ourSide,
@@ -764,6 +764,20 @@ export class BattleTracker {
       teraUsedOurs: this.teraUsedOurs,
       teraUsedTheirs: this.teraUsedTheirs,
     };
+    // #region agent log
+    agentLog('protocol.ts:toObservation', 'observation built', {
+      ourSide: obs.ourSide, ourName: this.ourName, turn: obs.turn,
+      ours: ours.filter((s) => s.revealed).map((s) => ({
+        id: s.speciesId, active: s.active, complete: s.setComplete, source: s.setSource,
+        moves: s.knownMoves, item: s.item, ability: s.ability,
+      })),
+      theirs: theirs.filter((s) => s.revealed).map((s) => ({
+        id: s.speciesId, active: s.active, complete: s.setComplete, source: s.setSource,
+        moves: s.knownMoves, item: s.item,
+      })),
+    }, 'A');
+    // #endregion
+    return obs;
   }
 }
 
