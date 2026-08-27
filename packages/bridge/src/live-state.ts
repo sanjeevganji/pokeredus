@@ -336,7 +336,8 @@ export class LiveStateWriter {
     // Settle any prior forecast point on receiving the new observation
     const points = [...(this.state.points ?? [])];
     const pending = points.find((p) => p.status === 'forecast');
-    if (opts?.settle !== false && pending) {
+    const settleNow = opts?.settle !== false;
+    if (settleNow && pending) {
       if (this.lastObs) {
         const afterScore = observationStateScore(obs.ours, obs.theirs);
         const beforeScore = observationStateScore(this.lastObs.ours, this.lastObs.theirs);
@@ -369,6 +370,29 @@ export class LiveStateWriter {
         maxTotal: score,
         samples: 0,
       });
+    } else if (settleNow && !pending && points.length > 0) {
+      const last = points[points.length - 1]!;
+      if (last.turn !== obs.turn) {
+        const score = observationStateScore(obs.ours, obs.theirs);
+        const delta = score - last.cumulativeTotal;
+        points.push({
+          sequence: last.sequence + 1,
+          turn: obs.turn,
+          actionId: 'sync',
+          actionKind: 'move',
+          tera: false,
+          status: 'settled',
+          expectedDelta: delta,
+          minDelta: delta,
+          maxDelta: delta,
+          realizedDelta: delta,
+          cumulativeTotal: score,
+          expectedTotal: score,
+          minTotal: score,
+          maxTotal: score,
+          samples: 0,
+        });
+      }
     }
 
     const turns: LiveTurn[] = points.map((p) => ({
