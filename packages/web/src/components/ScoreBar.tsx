@@ -8,35 +8,49 @@ export interface ScoreParts {
 /** |value| of 1 fills origin → edge. Parts are HP/mod deltas already in [-1, 1]. */
 export const CHOICE_BAR_DOMAIN = 1;
 
-const SEGMENTS: Array<{ key: keyof ScoreParts; color: string; label: string; flip: boolean }> = [
-  { key: 'ourHealth', color: 'var(--neon-cyan)', label: 'our HP', flip: false },
-  { key: 'ourModifier', color: 'var(--neon-yellow)', label: 'our mods', flip: false },
-  { key: 'theirHealth', color: 'var(--neon-pink)', label: 'their HP', flip: true },
-  { key: 'theirModifier', color: 'var(--neon-purple)', label: 'their mods', flip: true },
-];
+export type FieldDir = 'in' | 'out';
+export type FieldSide = 'ours' | 'theirs';
 
-type BarSeg = { key: string; value: number; color: string; label: string };
+export interface FieldSeg {
+  key: string;
+  side: FieldSide;
+  dir: FieldDir;
+  color: string;
+  value: number;
+  label: string;
+}
 
-/** Our-POV signed parts, scaled so their net equals `score` (turn/choice score). */
-export function scaledChoiceSegments(score: number, parts?: Partial<ScoreParts>): BarSeg[] {
-  const raw: BarSeg[] = SEGMENTS.map((seg) => {
-    const v = parts?.[seg.key] ?? 0;
-    return { key: seg.key, value: seg.flip ? -v : v, color: seg.color, label: seg.label };
-  });
-  const net = raw.reduce((s, x) => s + x.value, 0);
-  if (Math.abs(net) <= 1e-9) {
-    if (Math.abs(score) <= 1e-9) return [];
-    return [{
-      key: 'score',
-      value: score,
-      color: score >= 0 ? 'var(--neon-cyan)' : 'var(--neon-pink)',
-      label: 'turn score',
-    }];
-  }
-  const k = score / net;
-  return raw
-    .map((s) => ({ ...s, value: s.value * k }))
-    .filter((s) => Math.abs(s.value) > 1e-9);
+const RED = 'var(--neon-red)';
+const GREEN = 'var(--neon-green)';
+const YELLOW = 'var(--neon-yellow)';
+
+/** Center origin: damage/debuff inward, heal/buff outward. Left = us, right = them. */
+export function fieldBarSegments(parts?: Partial<ScoreParts>): FieldSeg[] {
+  const segs: FieldSeg[] = [];
+  const push = (
+    key: string,
+    side: FieldSide,
+    raw: number,
+    kind: 'hp' | 'mod',
+  ) => {
+    if (!Number.isFinite(raw) || Math.abs(raw) <= 1e-9) return;
+    const hurt = raw < 0;
+    segs.push({
+      key,
+      side,
+      dir: hurt ? 'in' : 'out',
+      color: kind === 'hp' ? (hurt ? RED : GREEN) : YELLOW,
+      value: Math.abs(raw),
+      label: kind === 'hp'
+        ? (hurt ? `${side} damage` : `${side} heal`)
+        : (hurt ? `${side} drop` : `${side} boost`),
+    });
+  };
+  push('ourHealth', 'ours', parts?.ourHealth ?? 0, 'hp');
+  push('ourModifier', 'ours', parts?.ourModifier ?? 0, 'mod');
+  push('theirHealth', 'theirs', parts?.theirHealth ?? 0, 'hp');
+  push('theirModifier', 'theirs', parts?.theirModifier ?? 0, 'mod');
+  return segs;
 }
 
 export function ScoreBar({
@@ -48,46 +62,52 @@ export function ScoreBar({
   parts?: Partial<ScoreParts>;
   label: string;
 }) {
-  const segs = scaledChoiceSegments(score, parts);
-  const pos = segs.filter((s) => s.value > 0);
-  const neg = segs.filter((s) => s.value < 0);
-  const posSum = pos.reduce((s, x) => s + x.value, 0);
-  const negSum = neg.reduce((s, x) => s + Math.abs(x.value), 0);
-  const domain = Math.max(CHOICE_BAR_DOMAIN, posSum, negSum);
-  const pct = (v: number) => (Math.abs(v) / domain) * 50;
-  const posPct = pos.reduce((s, x) => s + pct(x.value), 0);
-  const negPct = neg.reduce((s, x) => s + pct(x.value), 0);
+  const segs = fieldBarSegments(parts);
+  const domain = Math.max(
+    CHOICE_BAR_DOMAIN,
+    ...segs.map((s) => s.value),
+  );
+  const pct = (v: number) => (v / domain) * 50;
+  const arm = (side: FieldSide, dir: FieldDir) => segs.filter((s) => s.side === side && s.dir === dir);
+  const oursOut = arm('ours', 'out');
+  const oursIn = arm('ours', 'in');
+  const theirsIn = arm('theirs', 'in');
+  const theirsOut = arm('theirs', 'out');
   return (
     <div
-      className="choice-track bipolar"
+      className="choice-track field-bar"
       role="meter"
       aria-label={label}
       aria-valuemin={-domain}
       aria-valuemax={domain}
       aria-valuenow={Number(score.toFixed(3))}
     >
-      <div className="bipolar-mid" />
-      {negPct > 0 && (
-        <div className="bipolar-arm bipolar-neg" style={{ width: `${negPct}%` }}>
-          {neg.map((s) => (
-            <div
-              key={s.key}
-              className="score-seg"
-              title={`${s.label} ${s.value.toFixed(2)}`}
-              style={{ flex: Math.abs(s.value), background: s.color }}
-            />
+      <div className="field-origin" />
+      {oursOut.length > 0 && (
+        <div className="field-arm field-ours-out" style={{ width: `${oursOut.reduce((s, x) => s + pct(x.value), 0)}%` }}>
+          {oursOut.map((s) => (
+            <div key={s.key} className="score-seg" title={`${s.label} ${s.value.toFixed(2)}`} style={{ flex: s.value, background: s.color }} />
           ))}
         </div>
       )}
-      {posPct > 0 && (
-        <div className="bipolar-arm bipolar-pos" style={{ width: `${posPct}%` }}>
-          {pos.map((s) => (
-            <div
-              key={s.key}
-              className="score-seg"
-              title={`${s.label} ${s.value.toFixed(2)}`}
-              style={{ flex: Math.abs(s.value), background: s.color }}
-            />
+      {oursIn.length > 0 && (
+        <div className="field-arm field-ours-in" style={{ width: `${oursIn.reduce((s, x) => s + pct(x.value), 0)}%` }}>
+          {oursIn.map((s) => (
+            <div key={s.key} className="score-seg" title={`${s.label} ${s.value.toFixed(2)}`} style={{ flex: s.value, background: s.color }} />
+          ))}
+        </div>
+      )}
+      {theirsIn.length > 0 && (
+        <div className="field-arm field-theirs-in" style={{ width: `${theirsIn.reduce((s, x) => s + pct(x.value), 0)}%` }}>
+          {theirsIn.map((s) => (
+            <div key={s.key} className="score-seg" title={`${s.label} ${s.value.toFixed(2)}`} style={{ flex: s.value, background: s.color }} />
+          ))}
+        </div>
+      )}
+      {theirsOut.length > 0 && (
+        <div className="field-arm field-theirs-out" style={{ width: `${theirsOut.reduce((s, x) => s + pct(x.value), 0)}%` }}>
+          {theirsOut.map((s) => (
+            <div key={s.key} className="score-seg" title={`${s.label} ${s.value.toFixed(2)}`} style={{ flex: s.value, background: s.color }} />
           ))}
         </div>
       )}
