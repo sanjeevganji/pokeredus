@@ -651,6 +651,9 @@ function OurChoiceList({
 }) {
   const [teraOn, setTeraOn] = useState(false);
   const canTera = !teraUsed && choices.some((c) => isTeraAction(c.id));
+  useEffect(() => {
+    if (!canTera) setTeraOn(false);
+  }, [canTera]);
   const teraType = slots?.find((s) => s.active)?.teraType
     || slots?.find((s) => s.active)?.assumedSet?.teraType;
   const visible = useMemo(() => {
