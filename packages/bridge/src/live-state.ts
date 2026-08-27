@@ -399,19 +399,6 @@ export class LiveStateWriter {
       points: points.slice(-MAX_LIVE_POINTS),
       turns,
     };
-    // #region agent log
-    try {
-      fs.appendFileSync('d:/PokeRedus/debug-19ae98.log', `${JSON.stringify({
-        sessionId: '19ae98', location: 'live-state.ts:fromObservation', message: 'hud from observation',
-        data: {
-          turn: obs.turn, ourSide: obs.ourSide, settle: opts?.settle !== false, points: points.length,
-          ours: this.state.ours.filter((s) => s.revealed).map((s) => ({ id: s.speciesId, complete: s.setComplete, source: s.setSource, active: s.active })),
-          theirs: this.state.theirs.filter((s) => s.revealed).map((s) => ({ id: s.speciesId, complete: s.setComplete, source: s.setSource, active: s.active })),
-        },
-        timestamp: Date.now(), hypothesisId: 'B',
-      })}\n`);
-    } catch { /* ignore */ }
-    // #endregion
     this.flush();
     this.writeObservation(obs);
   }

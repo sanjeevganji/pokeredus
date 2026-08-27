@@ -741,19 +741,6 @@ export class BattleTracker {
       teraUsedOurs: this.teraUsedOurs,
       teraUsedTheirs: this.teraUsedTheirs,
     };
-    // #region agent log
-    agentLog('protocol.ts:toObservation', 'observation built', {
-      ourSide: obs.ourSide, ourName: this.ourName, turn: obs.turn,
-      ours: ours.filter((s) => s.revealed).map((s) => ({
-        id: s.speciesId, active: s.active, complete: s.setComplete, source: s.setSource,
-        moves: s.knownMoves, item: s.item, ability: s.ability,
-      })),
-      theirs: theirs.filter((s) => s.revealed).map((s) => ({
-        id: s.speciesId, active: s.active, complete: s.setComplete, source: s.setSource,
-        moves: s.knownMoves, item: s.item,
-      })),
-    }, 'A');
-    // #endregion
     return obs;
   }
 }
