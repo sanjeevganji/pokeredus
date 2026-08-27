@@ -1,0 +1,28 @@
+>battle-gen9randombattle-2671287078
+|init|battle
+|title|sahil ansari vs. I AM A BOT BTW
+|j|☆sahil ansari
+|j|☆I AM A BOT BTW
+|gametype|singles
+|player|p1|sahil ansari|101|1499
+|player|p2|I AM A BOT BTW|170|1491
+|gen|9
+|tier|[Gen 9] Random Battle
+|rule|Species Clause: Limit one of each Pokémon
+|rule|HP Percentage Mod: HP is shown in percentages
+|teamsize|p1|6
+|teamsize|p2|6
+|start
+|switch|p1a: Iron Valiant|Iron Valiant, L78|100/100
+|switch|p2a: Entei|Entei, L78|100/100
+|turn|1
+|l|☆sahil ansari
+|player|p1|
+|-end|p1a: Iron Valiant|Quark Drive|[silent]
+|switch|p1a: Coalossal|Coalossal, L89, F|100/100
+|move|p2a: Entei|Flare Blitz|p1a: Coalossal
+|-resisted|p1a: Coalossal
+|-damage|p1a: Coalossal|91/100
+|-damage|p2a: Entei|97/100|[from] Recoil
+|upkeep
+|turn|2
