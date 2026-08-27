@@ -96,6 +96,22 @@ export function parseLobbyLine(raw: string): LobbyEvent | null {
       return null;
     }
   }
+  if (cmd === 'queryresponse' && parts[2] === 'userdetails') {
+    try {
+      const data = JSON.parse(parts.slice(3).join('|')) as {
+        id?: string; userid?: string; name?: string; rooms?: Record<string, unknown> | false;
+      };
+      const rooms = data.rooms && typeof data.rooms === 'object' ? data.rooms : {};
+      return {
+        type: 'userdetails',
+        id: String(data.userid || data.id || ''),
+        name: String(data.name || ''),
+        rooms,
+      };
+    } catch {
+      return null;
+    }
+  }
   if (cmd === 'popup') {
     return { type: 'popup', text: parts.slice(2).join('|') };
   }
