@@ -66,14 +66,15 @@ function valuesOf(ours: SlotSnapshot[], theirs: SlotSnapshot[]) {
 
 export function theirActions(obs: BattleObservation, hyp: CanonicalSet | undefined): LegalAction[] {
   const active = obs.theirs.find((s) => s.active) ?? obs.theirs[0];
-  const moves = hyp?.moves ?? active?.knownMoves ?? [];
+  const rawMoves = hyp?.moves?.length ? hyp.moves : (active?.knownMoves ?? []);
+  const moves = rawMoves.map((m) => toMoveId(m)).filter(Boolean);
   const canTera = !observationTera(obs).theirs && Boolean(hyp?.teraType) && !active?.terastallized;
   const isChoiceLocked = Boolean(active?.choiceLock);
   const isTrapped = Boolean(active?.trapped);
 
   const out: LegalAction[] = [];
   for (const moveId of moves) {
-    if (isChoiceLocked && active && moveId !== active.choiceLock) continue;
+    if (isChoiceLocked && active && moveId !== toMoveId(active.choiceLock ?? '')) continue;
     out.push({ id: actionId({ type: 'move', moveId, tera: false }), type: 'move', moveId, tera: false });
     if (canTera) {
       out.push({ id: actionId({ type: 'move', moveId, tera: true }), type: 'move', moveId, tera: true });
