@@ -156,3 +156,22 @@ describe('listSetCatalog', () => {
     expect(catalog.override?.item).toBe('Leftovers');
   });
 });
+
+describe('overlayRevealedOnSet', () => {
+  it('puts revealed moves and item onto a public candidate', () => {
+    const base = {
+      species: 'Entei',
+      level: 78,
+      item: 'Choice Band',
+      ability: 'Inner Focus',
+      moves: ['Extreme Speed', 'Sacred Fire', 'Stone Edge', 'Flare Blitz'],
+      nature: 'Adamant',
+      movePool: ['Extreme Speed', 'Flare Blitz', 'Sacred Fire', 'Stone Edge', 'Stomping Tantrum'],
+    };
+    const over = overlayRevealedOnSet(base, { species: 'entei', moves: ['flareblitz'], item: 'choicescarf' });
+    expect(over.item).toBe('choicescarf');
+    expect(over.moves.map((m) => m.toLowerCase().replace(/[^a-z0-9]/g, ''))).toContain('flareblitz');
+    expect(over.moves).toHaveLength(4);
+    expect(over.ability).toBe('Inner Focus');
+  });
+});
