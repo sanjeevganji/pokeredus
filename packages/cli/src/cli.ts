@@ -47,12 +47,6 @@ function policyMode(flags: Record<string, string>): PolicyMode {
   return flags['policy'] === 'softmax' ? 'softmax' : 'quantum';
 }
 
-function agentLog(location: string, message: string, data: Record<string, unknown>, hypothesisId: string): void {
-  // #region agent log
-  fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '246bd1' }, body: JSON.stringify({ sessionId: '246bd1', runId: 'post-fix', hypothesisId, location, message, data, timestamp: Date.now() }) }).catch(() => {});
-  // #endregion
-}
-
 function ourSetsFromFlag(raw?: string): CanonicalSet[] {
   if (!raw) return [];
   return JSON.parse(fs.readFileSync(raw, 'utf8')) as CanonicalSet[];
