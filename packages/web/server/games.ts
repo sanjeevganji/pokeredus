@@ -507,6 +507,10 @@ export class GameHub {
         this.rebuildMine();
       } else if (ev.type === 'userdetails') {
         this.detailsMine = gamesFromUserdetails(ev.rooms);
+        if (this.named) {
+          const keep = new Set(this.detailsMine.map((g) => g.room));
+          this.searchMine = this.searchMine.filter((g) => keep.has(g.room));
+        }
         this.rebuildMine();
       } else if (ev.type === 'roomlist') {
         const fromList = gamesFromRoomlist(ev.rooms);
