@@ -478,6 +478,18 @@ export class BattleTracker {
         this.turn = ev.num;
         break;
 
+      case 'player':
+        if (!ev.name) break;
+        if (ev.side === 'p1') this.p1Name = ev.name;
+        else this.p2Name = ev.name;
+        this.alignSideFromPlayers();
+        // #region agent log
+        agentLog('protocol.ts:apply:player', 'player line', {
+          side: ev.side, name: ev.name, ourName: this.ourName, ourSide: this.ourSide,
+        }, 'A');
+        // #endregion
+        break;
+
       case 'request':
         this.lastRequest = ev.json;
         this.applyRequest(ev.json);
