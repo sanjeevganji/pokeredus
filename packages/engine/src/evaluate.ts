@@ -670,11 +670,9 @@ async function refineLoop(
 }
 
 export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptions): Promise<RoundEvaluation> {
-  const tera = observationTera(obs);
-  const raw = obs.legalActions.length ? obs.legalActions : enumerateFromRequest(obs.request as ShowdownRequest, tera.ours);
-  const legal = raw;
+  const legal = obs.legalActions.length ? obs.legalActions : legalActionsForEval(obs);
   // #region agent log
-  fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '246bd1' }, body: JSON.stringify({ sessionId: '246bd1', runId: 'pre-fix', hypothesisId: 'D', location: 'evaluate.ts:evaluateRound', message: 'evaluateRound start', data: { turn: obs.turn, legal: legal.length, fromObs: obs.legalActions.length, wait: Boolean((obs.request as ShowdownRequest | undefined)?.wait), ourActive: obs.ours.find((s) => s.active)?.speciesId, theirActive: obs.theirs.find((s) => s.active)?.speciesId, setMoves: obs.ours.find((s) => s.active)?.set?.moves?.length ?? 0 }, timestamp: Date.now() }) }).catch(() => {});
+  fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '246bd1' }, body: JSON.stringify({ sessionId: '246bd1', runId: 'post-fix', hypothesisId: 'D', location: 'evaluate.ts:evaluateRound', message: 'evaluateRound start', data: { turn: obs.turn, legal: legal.length, fromObs: obs.legalActions.length, wait: Boolean((obs.request as { wait?: boolean } | undefined)?.wait), ourActive: obs.ours.find((s) => s.active)?.speciesId, theirActive: obs.theirs.find((s) => s.active)?.speciesId, setMoves: obs.ours.find((s) => s.active)?.set?.moves?.length ?? 0 }, timestamp: Date.now() }) }).catch(() => {});
   // #endregion
   const chanceN = opts?.chanceSeeds ?? CHANCE_SEEDS;
   const weights = opts?.weights ?? DEFAULT_WEIGHTS;
