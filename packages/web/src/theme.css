@@ -980,7 +980,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   color: var(--neon-cyan);
 }
 
-.choice-list.compact .choice-row { padding: 4px 0; }
+.choice-list.compact .choice-row { padding: 6px 8px; margin: 2px 0; border-radius: 4px; }
 .choice-list.compact .choice-track { height: 8px; margin-top: 2px; }
 .choice-list.compact .choice-meta { margin-top: 2px; }
 
