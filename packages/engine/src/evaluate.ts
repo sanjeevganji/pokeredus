@@ -411,8 +411,8 @@ function assemble(
       expectedImpact: mixed.parts.total,
       expectedHealthDelta: mixed.parts.health,
       expectedModifierDelta: mixed.parts.modifier,
-      ourHealth: mixed.parts.ourHealth,
-      theirHealth: mixed.parts.theirHealth,
+      ourHealth: finiteOrZero(mixed.htk.oa - mixed.htk.ob),
+      theirHealth: finiteOrZero(mixed.htk.ta - mixed.htk.tb),
       ourModifier: mixed.parts.ourModifier,
       theirModifier: mixed.parts.theirModifier,
       hitsToKill: hitsToKill(mixed.htk.tb, mixed.htk.ta),
@@ -426,8 +426,6 @@ function assemble(
       sampleCount: range.n,
       features: mixed.features,
       probability: pOur[i],
-      ourHealth: finiteOrZero(mixed.htk.oa - mixed.htk.ob),
-      theirHealth: finiteOrZero(mixed.htk.ta - mixed.htk.tb),
     });
     forcedRows.push(replies.map((reply) => {
       const cell = cells.get(pairKey(action.id, reply.id));
