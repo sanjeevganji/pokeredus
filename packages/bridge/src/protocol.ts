@@ -212,6 +212,11 @@ export function parseLine(raw: string): BattleEvent | null {
     case 'turn':
       return { type: 'turn', num: Number(parts[2]) };
 
+    case 'player': {
+      const side: PlayerSide = (parts[2] ?? '').startsWith('p2') ? 'p2' : 'p1';
+      return { type: 'player', side, name: (parts[3] ?? '').trim() };
+    }
+
     case 'request': {
       try {
         const json = JSON.parse(parts.slice(2).join('|')) as RequestJson;
