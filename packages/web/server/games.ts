@@ -396,14 +396,6 @@ export class GameHub {
     };
   }
 
-  private mergeMine(next: DetectedGame[]): DetectedGame[] {
-    const prev = new Map(this.mine.map((g) => [g.room, g]));
-    return next.map((g) => {
-      const was = prev.get(g.room);
-      return was ? applyBattleMeta(g, was) : g;
-    });
-  }
-
   private rebuildMine(): void {
     const prev = new Map(this.mine.map((g) => [g.room, g]));
     const map = new Map<string, DetectedGame>();
