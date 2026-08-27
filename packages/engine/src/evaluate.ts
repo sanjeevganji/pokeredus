@@ -426,6 +426,8 @@ function assemble(
       sampleCount: range.n,
       features: mixed.features,
       probability: pOur[i],
+      ourHealth: finiteOrZero(mixed.htk.oa - mixed.htk.ob),
+      theirHealth: finiteOrZero(mixed.htk.ta - mixed.htk.tb),
     });
     forcedRows.push(replies.map((reply) => {
       const cell = cells.get(pairKey(action.id, reply.id));
