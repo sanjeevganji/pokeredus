@@ -409,7 +409,7 @@ export class LiveStateWriter {
       ours: slotsFromObservation(obs, 'ours'),
       theirs: slotsFromObservation(obs, 'theirs'),
       warnings: slotWarnings(obs),
-      points,
+      points: points.slice(-MAX_LIVE_POINTS),
       turns,
     };
     // #region agent log

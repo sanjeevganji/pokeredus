@@ -179,6 +179,25 @@ describe('LiveStateWriter', () => {
     );
   });
 
+  it('records a start point and a sync point when turns advance without a decision', () => {
+    const file = tmpPath();
+    const hud = new LiveStateWriter({ path: file, room: 'battle-gen9randombattle-4', dryRun: true, policy: 'softmax' });
+    const o1 = obs();
+    o1.turn = 1;
+    hud.fromObservation(o1, { settle: true });
+    expect(hud.state.points).toHaveLength(1);
+    expect(hud.state.points![0]!.actionId).toBe('start');
+
+    const o2 = obs();
+    o2.turn = 2;
+    o2.theirs[0]!.hp = 40;
+    hud.fromObservation(o2, { settle: true });
+    expect(hud.state.points).toHaveLength(2);
+    expect(hud.state.points![1]!.actionId).toBe('sync');
+    expect(hud.state.points![1]!.turn).toBe(2);
+    expect(hud.state.points![1]!.status).toBe('settled');
+  });
+
   it('caps points at MAX_LIVE_POINTS (64)', () => {
     const file = tmpPath();
     const hud = new LiveStateWriter({ path: file, room: 'battle-gen9randombattle-3', dryRun: true, policy: 'softmax' });
