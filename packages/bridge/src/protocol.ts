@@ -868,14 +868,7 @@ function ourSlotFromMon(
   format: string,
   pool: RandomSetPool,
 ): SlotSnapshot {
-  const facts = {
-    species: m.speciesId,
-    moves: Object.keys(m.pp).length ? Object.keys(m.pp) : (m.revealedMoves ?? []),
-    item: m.item,
-    ability: m.ability,
-    level: m.level,
-    teraType: m.teraType,
-  };
+  const facts = factsFromMon(m, true);
   const setOptions = setOptionsFromPool(pool, m.speciesId, facts);
   const override = getSetOverride(store, format, m.speciesId);
   let set = fromFlag;
@@ -883,15 +876,21 @@ function ourSlotFromMon(
   let setWarning: string | undefined;
   if (override && setIsComplete(override)) {
     if (compatible(override, facts)) {
-      set = override;
+      set = overlayRevealedOnSet(override, facts);
       setSource = 'manual';
     } else {
       setWarning = `Assumed set for ${m.speciesId} conflicts with revealed facts; using revealed set`;
     }
   }
   if (!(set && setIsComplete(set))) {
-    set = setFromTracked(m);
-    setSource = setIsComplete(set) ? 'revealed' : 'incomplete';
+    const publicSet = setOptions.find((o) => o.compatible)?.set ?? setOptions[0]?.set ?? publicSetFor(pool, facts);
+    if (publicSet) {
+      set = overlayRevealedOnSet(publicSet, facts);
+      setSource = setIsComplete(set) ? (facts.moves.length >= 4 ? 'revealed' : 'public') : 'incomplete';
+    } else {
+      set = setFromTracked(m);
+      setSource = setIsComplete(set) ? 'revealed' : 'incomplete';
+    }
   }
   const used = set ?? setFromTracked(m);
   const complete = setIsComplete(used);
@@ -905,13 +904,13 @@ function ourSlotFromMon(
     boosts: { ...m.boosts },
     fainted: m.fainted,
     active: m.active,
-    item: m.item,
-    ability: m.ability,
+    item: m.item || used.item,
+    ability: m.ability || used.ability,
     teraType: m.teraType,
     level: m.level,
     knownMoves: facts.moves,
     set: used,
-    setSource,
+    setSource: complete ? setSource : 'incomplete',
     setComplete: complete,
     setWarning,
     hypotheses: [],
@@ -927,23 +926,20 @@ function theirSlotFromMon(
   store: SetOverridesStore,
   format: string,
 ): SlotSnapshot {
-  const facts = {
-    species: m.speciesId,
-    moves: m.revealedMoves.length ? m.revealedMoves : (m.lastMove ? [m.lastMove] : []),
-    item: m.item,
-    ability: m.ability,
-    level: m.level,
-    teraType: m.teraType,
-  };
+  const facts = factsFromMon(m, false);
   const setOptions = setOptionsFromPool(pool, m.speciesId, facts);
   let hypotheses: SetHypothesis[] = [];
   try {
     hypotheses = initialBelief(pool, facts);
-  } catch (err) {
-    console.error(`[pokeredus] ${err instanceof Error ? err.message : err}`);
+  } catch {
+    try {
+      hypotheses = hypothesesForSpecies(pool, facts.species);
+    } catch (err) {
+      console.error(`[pokeredus] ${err instanceof Error ? err.message : err}`);
+    }
   }
   const override = getSetOverride(store, format, m.speciesId);
-  let set = hypotheses[0]?.set;
+  let set = hypotheses[0]?.set ?? setOptions.find((o) => o.compatible)?.set ?? setOptions[0]?.set;
   let setSource: SetSource = set ? 'public' : 'incomplete';
   let candidateProbability = hypotheses[0]?.probability;
   let setWarning: string | undefined;
@@ -957,6 +953,9 @@ function theirSlotFromMon(
       console.error(`[pokeredus] ${setWarning}`);
     }
   }
+  if (set) {
+    set = overlayRevealedOnSet(set, facts);
+  }
   const complete = setIsComplete(set);
   return {
     slot: i,
@@ -969,8 +968,8 @@ function theirSlotFromMon(
     fainted: m.fainted,
     active: m.active,
     knownMoves: facts.moves,
-    item: m.item,
-    ability: m.ability,
+    item: m.item || set?.item,
+    ability: m.ability || set?.ability,
     teraType: m.teraType,
     level: m.level,
     hypotheses,
