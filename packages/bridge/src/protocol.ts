@@ -210,10 +210,7 @@ export function parseLine(raw: string): BattleEvent | null {
       try {
         const json = JSON.parse(parts.slice(2).join('|')) as RequestJson;
         return { type: 'request', json };
-      } catch (err) {
-        // #region agent log
-        fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '246bd1' }, body: JSON.stringify({ sessionId: '246bd1', runId: 'pre-fix', hypothesisId: 'C', location: 'protocol.ts:parseLine', message: 'request JSON parse failed', data: { payloadLen: parts.slice(2).join('|').length, error: err instanceof Error ? err.message : String(err) }, timestamp: Date.now() }) }).catch(() => {});
-        // #endregion
+      } catch {
         return { type: 'other', raw };
       }
     }
