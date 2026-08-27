@@ -721,7 +721,9 @@ export class BattleTracker {
     for (const s of ours) s.modifiers = modifiersFromSlot(s, weather);
     for (const s of theirs) s.modifiers = modifiersFromSlot(s, weather);
 
-    const legalActions = enumerateFromRequest(this.lastRequest ?? undefined, this.teraUsedOurs);
+    const legalActions = legalActionsForEval({
+      ours, request: this.lastRequest ?? undefined, teraUsedOurs: this.teraUsedOurs,
+    });
     const obs: BattleObservation = {
       turn: this.turn,
       format,
