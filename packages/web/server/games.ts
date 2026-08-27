@@ -511,8 +511,11 @@ export class GameHub {
         this.named = ev.named;
       } else if (ev.type === 'updatesearch') {
         this.searching = ev.searching;
-        this.mine = this.mergeMine(gamesFromSearch(ev.games));
-        this.syncJoinedRooms();
+        this.searchMine = gamesFromSearch(ev.games);
+        this.rebuildMine();
+      } else if (ev.type === 'userdetails') {
+        this.detailsMine = gamesFromUserdetails(ev.rooms);
+        this.rebuildMine();
       } else if (ev.type === 'roomlist') {
         const fromList = gamesFromRoomlist(ev.rooms);
         const mineRooms = new Set(this.mine.map((g) => g.room));
