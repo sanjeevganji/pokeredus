@@ -62,7 +62,7 @@ export interface RequestPokemon {
   details: string;
   condition: string;
   active: boolean;
-  moves: RequestMove[];
+  moves: Array<RequestMove | string>;
   baseAbility: string;
   item: string;
   teraType?: string;
