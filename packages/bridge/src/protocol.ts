@@ -640,50 +640,62 @@ export class BattleTracker {
 
   private applyRequest(json: RequestJson): void {
     const sideId = (json.side?.id === 'p2' ? 'p2' : 'p1') as PlayerSide;
-    if (sideId !== this.ourSide) {
-      if (this.myMons.size || this.oppMons.size) {
-        const swap = this.myMons;
-        this.myMons = this.oppMons;
-        this.oppMons = swap;
-      }
-      this.ourSide = sideId;
-    }
+    this.setOurSide(sideId);
     const pokemon = json.side?.pokemon ?? [];
     const next = new Map<string, TrackedMon>();
     for (const p of pokemon) {
       const speciesId = speciesIdFromDetails(p.details);
       const key = monKey(p.ident, speciesId);
-      const { hp, status } = parseCondition(p.condition);
+      const parsedCond = parseCondition(p.condition);
       const existing = this.myMons.get(key) ?? [...this.myMons.values()].find((m) => m.speciesId === speciesId);
+      const moveIds = moveIdsFromPokemon(p);
       const pp: Record<string, number> = {};
-      for (const m of p.moves ?? []) pp[m.id] = m.pp;
+      for (const m of p.moves ?? []) {
+        if (m && typeof m === 'object' && m.id) pp[m.id] = m.pp;
+      }
       const parsed = parseDetails(p.details);
+      const revealed = existing?.revealedMoves?.length
+        ? uniqueIds([...existing.revealedMoves, ...moveIds])
+        : (moveIds.length ? moveIds : Object.keys(pp));
       const mon: TrackedMon = {
         slot: splitIdentity(p.ident).slot, side: sideId, identity: p.ident,
         speciesId, details: p.details,
-        hp, maxHp: existing?.maxHp ?? 0, status,
+        hp: parsedCond.hp, maxHp: parsedCond.maxHp > 0 ? parsedCond.maxHp : (existing?.maxHp ?? 0),
+        status: parsedCond.status,
         boosts: existing?.boosts ?? emptyBoosts(),
         pp, lastMove: existing?.lastMove,
-        revealedMoves: existing?.revealedMoves ? [...existing.revealedMoves] : Object.keys(pp),
+        revealedMoves: revealed,
         item: toId(p.item || '') || existing?.item,
         ability: toId(p.baseAbility || '') || existing?.ability,
         level: parsed.level ?? existing?.level,
         teraType: p.teraType || parsed.teraType || existing?.teraType,
         choiceLock: existing?.choiceLock,
-        tauntTurns: existing?.tauntTurns ?? 0, fainted: hp <= 0, active: !!p.active,
+        tauntTurns: existing?.tauntTurns ?? 0, fainted: parsedCond.fainted || parsedCond.hp <= 0, active: !!p.active,
       };
       if (p.terastallized) this.teraUsedOurs = true;
       next.set(key, mon);
     }
     this.myMons = next;
     const firstActive = json.active?.[0];
-    const firstPoke = pokemon[0];
+    const firstPoke = pokemon.find((p) => p.active) ?? pokemon[0];
     if (firstActive && firstPoke) {
       const activeMon = this.myMons.get(monKey(firstPoke.ident, speciesIdFromDetails(firstPoke.details)));
       const moves = firstActive.moves ?? [];
+      if (activeMon) {
+        const fromActive = moves.map((m) => m.id).filter(Boolean);
+        if (fromActive.length) activeMon.revealedMoves = uniqueIds([...activeMon.revealedMoves, ...fromActive]);
+        for (const m of moves) if (m.id) activeMon.pp[m.id] = m.pp;
+      }
       const enabled = moves.filter((m) => !m.disabled);
       if (moves.length >= 2 && enabled.length === 1 && activeMon) activeMon.choiceLock = enabled[0]!.id;
     }
+    // #region agent log
+    agentLog('protocol.ts:applyRequest', 'request applied', {
+      sideId, ourSide: this.ourSide, ourName: this.ourName,
+      moveSample: pokemon[0] ? typeof pokemon[0].moves?.[0] : null,
+      ours: [...this.myMons.values()].map((m) => ({ id: m.speciesId, moves: m.revealedMoves, item: m.item, ability: m.ability, active: m.active })),
+    }, 'C');
+    // #endregion
   }
 
   /** Build the immutable observation the engine consumes. */
