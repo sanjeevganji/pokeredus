@@ -34,7 +34,8 @@ export function fieldBarSegments(parts?: Partial<ScoreParts>): FieldSeg[] {
     kind: 'hp' | 'mod',
   ) => {
     if (!Number.isFinite(raw) || Math.abs(raw) <= 1e-9) return;
-    const hurt = raw < 0;
+    const v = Math.max(-1, Math.min(1, raw));
+    const hurt = v < 0;
     segs.push({
       key,
       side,
