@@ -668,14 +668,14 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   font-size: 0.75rem;
 }
 
-/* Bipolar score bar */
-.bipolar {
+/* Field score bar: center origin, left = us, right = them */
+.field-bar {
   position: relative;
   background: var(--bg-input);
   overflow: visible;
 }
 
-.bipolar-mid {
+.field-origin {
   position: absolute;
   left: 50%;
   top: -2px;
@@ -687,7 +687,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   pointer-events: none;
 }
 
-.bipolar-arm {
+.field-arm {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -695,8 +695,12 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   min-width: 0;
 }
 
-.bipolar-pos { left: 50%; }
-.bipolar-neg { right: 50%; flex-direction: row-reverse; }
+.field-ours-out { right: 50%; flex-direction: row-reverse; }
+.field-ours-in { left: 0; }
+.field-theirs-in { right: 0; flex-direction: row-reverse; }
+.field-theirs-out { left: 50%; }
+
+.choice-track.field-bar { overflow: visible; }
 
 .theater-body {
   display: grid;
