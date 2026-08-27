@@ -161,7 +161,9 @@ describe('LiveStateWriter', () => {
       sent: true,
     });
 
-    expect(hud.state.points![0]!.status).toBe('forecast');
+    expect(hud.state.points![0]!.actionId).toBe('start');
+    expect(hud.state.points![0]!.status).toBe('settled');
+    expect(hud.state.points![1]!.status).toBe('forecast');
 
     // Next turn observation: opponent toxapex fainted (hp = 0)
     const o2 = obs();
@@ -170,9 +172,11 @@ describe('LiveStateWriter', () => {
     o2.theirs[0]!.fainted = true;
     hud.fromObservation(o2);
 
-    expect(hud.state.points![0]!.status).toBe('settled');
-    expect(hud.state.points![0]!.realizedDelta).toBeGreaterThan(0);
-    expect(hud.state.points![0]!.cumulativeTotal).toBe(hud.state.points![0]!.realizedDelta);
+    expect(hud.state.points![1]!.status).toBe('settled');
+    expect(hud.state.points![1]!.realizedDelta).toBeGreaterThan(0);
+    expect(hud.state.points![1]!.cumulativeTotal).toBe(
+      (hud.state.points![0]!.cumulativeTotal) + hud.state.points![1]!.realizedDelta!,
+    );
   });
 
   it('caps points at MAX_LIVE_POINTS (64)', () => {

@@ -178,7 +178,7 @@ describe('BattleTracker — assumed set overrides', () => {
     expect(foe?.candidateProbability).toBeCloseTo(0.7);
   });
 
-  it('marks our request team incomplete instead of filling Smeargle', () => {
+  it('uses a public randbats set instead of Smeargle when request moves are empty', () => {
     const tracker = new BattleTracker();
     tracker.apply({
       type: 'request',
@@ -196,10 +196,52 @@ describe('BattleTracker — assumed set overrides', () => {
     const obs = tracker.toObservation(miniPool, []);
     const us = obs.ours.find((s) => s.speciesId === 'garchomp');
     expect(us?.speciesId).toBe('garchomp');
-    expect(us?.setComplete).toBe(false);
-    expect(us?.setSource).toBe('incomplete');
     expect(us?.set?.species).not.toBe('smeargle');
+    expect(us?.setComplete).toBe(true);
+    expect(us?.knownMoves).toEqual(expect.arrayContaining(['earthquake']));
     expect(obs.ours.filter((s) => !s.revealed).every((s) => s.setComplete === false)).toBe(true);
+  });
+
+  it('treats request.moves as string ids so our full team is complete', () => {
+    const tracker = new BattleTracker();
+    tracker.apply({
+      type: 'request',
+      json: {
+        side: {
+          id: 'p1',
+          name: 'me',
+          pokemon: [{
+            ident: 'p1: Garchomp', details: 'Garchomp, L78, M', condition: '200/200', active: true,
+            moves: ['earthquake', 'swordsdance', 'scaleshot', 'firefang'],
+            baseAbility: 'Rough Skin', item: 'Loaded Dice',
+          }],
+        },
+        active: [{ moves: [{ move: 'Earthquake', id: 'earthquake', pp: 10, maxpp: 16, disabled: false }] }],
+      },
+    });
+    const obs = tracker.toObservation(miniPool, []);
+    const us = obs.ours.find((s) => s.speciesId === 'garchomp');
+    expect(us?.knownMoves).toEqual(expect.arrayContaining(['earthquake', 'swordsdance', 'scaleshot', 'firefang']));
+    expect(us?.setComplete).toBe(true);
+    expect(us?.setSource).toBe('revealed');
+    expect(us?.set?.item.toLowerCase().replace(/[^a-z0-9]/g, '')).toBe('loadeddice');
+  });
+});
+
+describe('BattleTracker — live gen9randombattle-2671287078 log', () => {
+  it('puts Entei on our side vs Coalossal at turn 2 when we are p2', () => {
+    const tracker = new BattleTracker({ ourName: 'I AM A BOT BTW' });
+    const log = readFileSync(new URL('./fixtures/entei-coalossal.txt', import.meta.url), 'utf-8');
+    for (const line of log.split('\n')) tracker.applyLine(line);
+    const obs = tracker.toObservation(pool, []);
+    expect(obs.ourSide).toBe('p2');
+    expect(obs.turn).toBe(2);
+    expect(obs.ours.find((s) => s.active)?.speciesId).toBe('entei');
+    expect(obs.theirs.find((s) => s.active)?.speciesId).toBe('coalossal');
+    expect(obs.ours.find((s) => s.speciesId === 'entei')?.setComplete).toBe(true);
+    expect(obs.theirs.find((s) => s.speciesId === 'coalossal')?.setComplete).toBe(true);
+    expect(obs.ours.find((s) => s.speciesId === 'entei')?.knownMoves).toContain('flareblitz');
+    expect(obs.theirs.find((s) => s.speciesId === 'ironvaliant')?.revealed).toBe(true);
   });
 });
 
