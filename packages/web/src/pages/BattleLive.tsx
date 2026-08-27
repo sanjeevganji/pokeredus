@@ -594,13 +594,50 @@ function TurnGraph({
   );
 }
 
+function TeraToggle({
+  on,
+  available,
+  type,
+  onToggle,
+}: {
+  on: boolean;
+  available: boolean;
+  type?: string;
+  onToggle: (next: boolean) => void;
+}) {
+  if (!available && !on) return null;
+  const label = type ? `Tera ${type}` : 'Terastallize';
+  return (
+    <button
+      type="button"
+      className={`tera-switch${on ? ' tera-switch-on' : ''}`}
+      role="switch"
+      aria-checked={on}
+      aria-label={label}
+      disabled={!available}
+      onClick={() => onToggle(!on)}
+    >
+      <span className="tera-switch-track" aria-hidden="true">
+        <span className="tera-switch-knob" />
+      </span>
+      <span className="tera-switch-label">{label}</span>
+    </button>
+  );
+}
+
+function hpFrac(slot?: LiveSlot): number | undefined {
+  if (!slot?.revealed || slot.fainted || !(slot.maxHp > 0)) return undefined;
+  return slot.hp / slot.maxHp;
+}
+
 function OurChoiceList({
   title,
   choices,
   sampledId,
   quantum,
   slots,
-  points,
+  foe,
+  teraUsed,
   area,
 }: {
   title: string;
@@ -608,94 +645,90 @@ function OurChoiceList({
   sampledId?: string;
   quantum?: LiveQuantum;
   slots?: LiveSlot[];
-  points?: LiveScorePoint[];
+  foe?: LiveSlot;
+  teraUsed?: boolean;
   area?: string;
 }) {
-  const [showAll, setShowAll] = useState(false);
-  const recommendedId = useMemo(() => getRecommendedActionId(choices), [choices]);
-  const baseScore = useMemo(() => getLatestSettledScore(points) ?? 0, [points]);
-
-  // Sort choices: recommended action first, then highest expected terminal or turn score
-  const sortedChoices = useMemo(() => {
-    return [...choices].sort((a, b) => {
+  const [teraOn, setTeraOn] = useState(false);
+  const canTera = !teraUsed && choices.some((c) => isTeraAction(c.id));
+  const teraType = slots?.find((s) => s.active)?.teraType
+    || slots?.find((s) => s.active)?.assumedSet?.teraType;
+  const visible = useMemo(() => {
+    const rows = playableChoices(choices, teraOn && canTera, slots);
+    return [...rows].sort((a, b) => {
       const aTerm = a.expectedTerminalScore ?? a.choiceScore;
       const bTerm = b.expectedTerminalScore ?? b.choiceScore;
       return bTerm - aTerm;
     });
-  }, [choices]);
-
-  const visibleChoices = showAll ? sortedChoices : sortedChoices.slice(0, 3);
+  }, [choices, teraOn, canTera, slots]);
+  const mass = useMemo(() => normalizeMass(visible), [visible]);
+  const recommendedId = useMemo(() => getRecommendedActionId(visible), [visible]);
+  const sampledBase = sampledId ? baseActionId(sampledId) : '';
+  const foeHp = hpFrac(foe);
 
   return (
     <section className={`card choice-list compact${area ? ` theater-${area}` : ''}`}>
       <div className="choice-head-row">
         <h2 className="bench-title">{title}</h2>
-        {choices.length > 3 && (
-          <button
-            type="button"
-            className="choice-toggle-btn"
-            onClick={() => setShowAll((s) => !s)}
-            aria-expanded={showAll}
-          >
-            {showAll ? 'Show top 3' : `Show all (${choices.length})`}
-          </button>
-        )}
+        <TeraToggle
+          on={teraOn && canTera}
+          available={canTera}
+          type={teraType}
+          onToggle={setTeraOn}
+        />
       </div>
 
       {choices.length === 0 && <p className="muted">No evaluation yet this battle.</p>}
 
       <ol className="choice-ol">
-        {visibleChoices.map((c, i) => {
-          const isSampled = c.id === sampledId;
-          const isRecommended = c.id === recommendedId;
-          const isTera = c.id.endsWith(':tera') || Boolean(c.cta && c.id.includes('tera'));
-          const projectedTotal = baseScore + c.choiceScore;
-          const policyWeight = c.policyWeight ?? c.probability ?? 0;
-          const displayWidth = displayFraction(policyWeight) * 100;
-          const minD = c.minTurnScore != null ? formatSigned(c.minTurnScore, 2) : formatSigned(c.choiceScore, 2);
-          const maxD = c.maxTurnScore != null ? formatSigned(c.maxTurnScore, 2) : formatSigned(c.choiceScore, 2);
+        {visible.map((c, i) => {
+          const isSampled = sampledBase !== '' && baseActionId(c.id) === sampledBase;
+          const isRecommended = recommendedId != null && baseActionId(c.id) === baseActionId(recommendedId);
+          const p = mass[i] ?? 0;
+          const ttk = workingHitsToKill(c.hitsToKill, foeHp, c.theirHealth);
+          const ko = formatKO(ttk);
+          const connect = c.type === 'move' ? formatConnect(c.cta) : '';
+          const range = formatScoreRange(c.minTurnScore, c.maxTurnScore, c.choiceScore);
 
           return (
             <li
               key={c.id}
               className={`choice-row${isSampled ? ' choice-sampled' : ''}${isRecommended ? ' choice-recommended' : ''}`}
             >
+              {p > 0 && (
+                <div
+                  className="choice-q-fill"
+                  style={{ width: `${p * 100}%` }}
+                  title={quantum ? quantumTitle(quantum) : undefined}
+                />
+              )}
               <span className="choice-rank">{i + 1}</span>
               <div className="choice-body">
                 <div className="choice-head">
                   <span className="choice-name">
                     {actionLabel(c.id, slots)}
-                    {isTera && <span className="badge-tera">TERA (once)</span>}
                     {isRecommended && <span className="badge-recommended">Recommended</span>}
                     {isSampled && <span className="badge-sampled">Sampled</span>}
                   </span>
-                  <span className="choice-score">{formatSigned(c.choiceScore, 2)}</span>
+                  <span className="choice-score" title="Worst to best this turn">{range}</span>
                 </div>
 
                 <ScoreBar score={c.choiceScore} parts={c} label={`${actionLabel(c.id, slots)} turn score`} />
 
-                {policyWeight > 0 && (
-                  <div
-                    className="choice-p"
-                    role="meter"
-                    aria-label={`${actionLabel(c.id, slots)} QAOA policy weight`}
-                    aria-valuemin={0}
-                    aria-valuemax={1}
-                    aria-valuenow={Number(policyWeight.toFixed(4))}
-                    title={quantum ? quantumTitle(quantum) : `Policy weight: ${(policyWeight * 100).toFixed(1)}%`}
-                  >
-                    <div className="choice-p-fill" style={{ width: `${displayWidth}%` }} />
-                  </div>
-                )}
-
                 <div className="choice-meta dim">
-                  <span>TTK: {formatTTK(c.hitsToKill)}</span>
-                  <span>Range: [{minD}, {maxD}]</span>
-                  <span>Projected total: {formatSigned(projectedTotal, 2)}</span>
-                  {policyWeight > 0 && <span>QAOA: {formatPercent(policyWeight, 1)}</span>}
+                  {ko ? <span>{ko}</span> : null}
+                  {connect ? <span>{connect}</span> : null}
+                  {p > 0 ? (
+                    <span title={quantum ? quantumTitle(quantum) : 'Policy mass'}>
+                      {formatPercent(p, 0)}
+                    </span>
+                  ) : null}
                   {c.winRate != null && (
                     <span className="choice-win-rate">
-                      Win: {formatPercent(c.winRate, 0)} ({formatWilsonInterval(c.winRateLow, c.winRateHigh)})
+                      Win {formatPercent(c.winRate, 0)}
+                      {formatWilsonInterval(c.winRateLow, c.winRateHigh)
+                        ? ` (${formatWilsonInterval(c.winRateLow, c.winRateHigh)})`
+                        : ''}
                     </span>
                   )}
                 </div>
@@ -712,82 +745,69 @@ function TheirReplyList({
   title,
   replies,
   slots,
+  us,
+  teraUsed,
   area,
 }: {
   title: string;
   replies: LiveReply[];
   slots?: LiveSlot[];
+  us?: LiveSlot;
+  teraUsed?: boolean;
   area?: string;
 }) {
-  const [showAll, setShowAll] = useState(false);
-
-  // Opponent rows: sorted from most harmful to us (lowest score / highest impact against us)
-  const sortedReplies = useMemo(() => {
-    return [...replies].sort((a, b) => {
+  const [teraOn, setTeraOn] = useState(false);
+  const canTera = !teraUsed && replies.some((r) => isTeraAction(r.id));
+  const teraType = slots?.find((s) => s.active)?.teraType
+    || slots?.find((s) => s.active)?.assumedSet?.teraType;
+  const visible = useMemo(() => {
+    const rows = playableChoices(replies, teraOn && canTera, slots);
+    return [...rows].sort((a, b) => {
       const aScore = a.choiceScore ?? a.expectedImpact;
       const bScore = b.choiceScore ?? b.expectedImpact;
       return aScore - bScore;
     });
-  }, [replies]);
-
-  const visibleReplies = showAll ? sortedReplies : sortedReplies.slice(0, 3);
+  }, [replies, teraOn, canTera, slots]);
+  const mass = useMemo(() => normalizeMass(visible), [visible]);
+  const ourHp = hpFrac(us);
 
   return (
     <section className={`card choice-list compact${area ? ` theater-${area}` : ''}`}>
       <div className="choice-head-row">
         <h2 className="bench-title">{title}</h2>
-        {replies.length > 3 && (
-          <button
-            type="button"
-            className="choice-toggle-btn"
-            onClick={() => setShowAll((s) => !s)}
-            aria-expanded={showAll}
-          >
-            {showAll ? 'Show top 3' : `Show all (${replies.length})`}
-          </button>
-        )}
+        <TeraToggle
+          on={teraOn && canTera}
+          available={canTera}
+          type={teraType}
+          onToggle={setTeraOn}
+        />
       </div>
 
       {replies.length === 0 && <p className="muted">No hypothesized replies yet.</p>}
 
       <ol className="choice-ol">
-        {visibleReplies.map((r, i) => {
+        {visible.map((r, i) => {
           const score = r.choiceScore ?? r.expectedImpact;
-          const policyWeight = r.policyWeight ?? r.probability ?? 0;
-          const displayWidth = displayFraction(policyWeight) * 100;
-          const isTera = r.id.endsWith(':tera');
+          const p = mass[i] ?? 0;
+          const ttk = workingHitsToKill(r.hitsToKillUs, ourHp, r.ourHealth);
+          const ko = formatKO(ttk, true);
+          const range = formatScoreRange(r.minTurnScore, r.maxTurnScore, score);
 
           return (
             <li key={r.id} className="choice-row">
+              {p > 0 && <div className="choice-q-fill choice-q-fill-opp" style={{ width: `${p * 100}%` }} />}
               <span className="choice-rank">{i + 1}</span>
               <div className="choice-body">
                 <div className="choice-head">
-                  <span className="choice-name">
-                    {actionLabel(r.id, slots)}
-                    {isTera && <span className="badge-tera">TERA</span>}
-                  </span>
-                  <span className="choice-score">{formatSigned(score, 2)}</span>
+                  <span className="choice-name">{actionLabel(r.id, slots)}</span>
+                  <span className="choice-score" title="Worst to best this turn">{range}</span>
                 </div>
 
                 <ScoreBar score={score} parts={r} label={`${actionLabel(r.id, slots)} reply score`} />
 
-                {policyWeight > 0 && (
-                  <div
-                    className="choice-p choice-p-opp"
-                    role="meter"
-                    aria-label={`${actionLabel(r.id, slots)} Opponent model weight`}
-                    aria-valuemin={0}
-                    aria-valuemax={1}
-                    aria-valuenow={Number(policyWeight.toFixed(4))}
-                    title={`Opponent model weight: ${(policyWeight * 100).toFixed(1)}%`}
-                  >
-                    <div className="choice-p-fill choice-p-fill-opp" style={{ width: `${displayWidth}%` }} />
-                  </div>
-                )}
-
                 <div className="choice-meta dim">
-                  <span>TTK on us: {formatTTK(r.hitsToKillUs)}</span>
-                  {policyWeight > 0 && <span>Opponent weight: {formatPercent(policyWeight, 1)}</span>}
+                  {ko ? <span>{ko}</span> : null}
+                  {p > 0 ? <span>{formatPercent(p, 0)}</span> : null}
                 </div>
               </div>
             </li>

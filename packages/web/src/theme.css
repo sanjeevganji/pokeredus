@@ -395,6 +395,37 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   color: var(--neon-cyan);
 }
 
+.player-vs {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  padding: 4px 10px;
+  background: var(--bg-input);
+  border: 1px solid var(--fg-dim);
+  border-radius: 6px;
+}
+
+.player-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.player-tag .side-pills {
+  margin: 0;
+  gap: 4px;
+}
+
+.player-ours strong { color: var(--neon-cyan); }
+.player-theirs strong { color: var(--neon-pink); }
+.player-vs-sep {
+  color: var(--fg-dim);
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
 .theater-alert {
   padding: 8px 12px;
   border-radius: 6px;
