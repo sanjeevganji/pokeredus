@@ -181,16 +181,37 @@ async function main(): Promise<void> {
         try {
           const obs = tracker.toObservation(pool, ourSets, loadSetOverrides(overridesPath));
           hud.fromObservation(obs, { settle });
+          agentLog('cli.ts:observe', 'observation built', {
+            turn: obs.turn,
+            ourSide: obs.ourSide,
+            legal: obs.legalActions.length,
+            oursRevealed: obs.ours.filter((s) => s.revealed).map((s) => s.speciesId),
+            theirsRevealed: obs.theirs.filter((s) => s.revealed).map((s) => s.speciesId),
+            activeSetMoves: obs.ours.find((s) => s.active)?.set?.moves?.length ?? 0,
+            hasRequest: Boolean(obs.request),
+          }, 'A');
           return obs;
         } catch (err) {
           console.error('[pokeredus] observation failed:', err);
+          agentLog('cli.ts:observe', 'observation failed', { error: err instanceof Error ? err.message : String(err) }, 'F');
           hud.patch({ status: 'error', error: err instanceof Error ? err.message : String(err) });
           return undefined;
         }
       };
 
       const runDecide = (send: boolean) => {
-        if (!tracker.lastRequest?.active?.length || tracker.lastRequest.wait) {
+        const req = tracker.lastRequest;
+        const skipWait = Boolean(req?.wait);
+        const skipNoActive = !req?.active?.length;
+        if (skipWait || skipNoActive) {
+          agentLog('cli.ts:runDecide', 'eval skipped', {
+            send,
+            skipWait,
+            skipNoActive,
+            hasRequest: Boolean(req),
+            pokeCount: req?.side?.pokemon?.length ?? 0,
+            turn: tracker.turn,
+          }, 'B');
           observe(false);
           return;
         }
@@ -205,6 +226,9 @@ async function main(): Promise<void> {
         const gen = ++decideGen;
         hud.patch({ status: 'deciding' });
         if (send) console.log(`\n=== turn ${obs.turn} (your move) ===`);
+        agentLog('cli.ts:runDecide', 'eval starting', {
+          send, turn: obs.turn, legal: obs.legalActions.length, dryRun: send ? dryRun : true,
+        }, 'D');
         void decideAndAct(client, obs, {
           dryRun: send ? dryRun : true,
           policy,
@@ -213,9 +237,16 @@ async function main(): Promise<void> {
           shots,
           logPath: send ? logPath : undefined,
         }).then((result) => {
+          agentLog('cli.ts:runDecide', 'eval ok', {
+            sampledId: result.sampledId,
+            choices: result.evaluation.choices.length,
+            replies: result.evaluation.replies.length,
+            roundScore: result.evaluation.roundScore,
+          }, 'D');
           if (gen === decideGen) hud.fromDecision(result, { rescore: !send });
         }).catch((err) => {
-          console.error(err);
+          console.error('[pokeredus] engine/quantum failed:', err);
+          agentLog('cli.ts:runDecide', 'eval failed', { error: err instanceof Error ? err.message : String(err) }, 'F');
           if (gen === decideGen) hud.patch({ status: 'error', error: err instanceof Error ? err.message : String(err) });
         }).finally(() => {
           decideBusy = false;
