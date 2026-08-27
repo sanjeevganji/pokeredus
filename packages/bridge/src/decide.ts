@@ -87,9 +87,6 @@ export async function decideAndAct(
       });
     } catch (err) {
       console.error('[pokeredus] quantum policy failed; not sending a choice:', err);
-      // #region agent log
-      fetch('http://127.0.0.1:7559/ingest/6200673b-d438-4c7f-9e45-49a0c341555a', { method: 'POST', headers: { 'Content-Type': 'application/json', 'X-Debug-Session-Id': '246bd1' }, body: JSON.stringify({ sessionId: '246bd1', runId: 'pre-fix', hypothesisId: 'F', location: 'decide.ts:decideAndAct', message: 'quantum policy failed', data: { error: err instanceof Error ? err.message : String(err), actionCount: ids.length }, timestamp: Date.now() }) }).catch(() => {});
-      // #endregion
       throw err;
     }
     probabilities = response.probabilities;
