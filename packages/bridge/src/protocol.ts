@@ -425,6 +425,13 @@ export class BattleTracker {
     this.alignSideFromPlayers();
   }
 
+  spectatorNote(): string | undefined {
+    if (!this.ourName || !this.p1Name || !this.p2Name) return;
+    const me = toId(this.ourName);
+    if (toId(this.p1Name) === me || toId(this.p2Name) === me) return;
+    return `Logged in as ${this.ourName}, but this battle is ${this.p1Name} vs ${this.p2Name}. No private team — scoring assumed sets from the public log. Log in as the player to load all 6 Pokémon.`;
+  }
+
   private monsFor(side: PlayerSide): Map<string, TrackedMon> {
     return side === this.ourSide ? this.myMons : this.oppMons;
   }

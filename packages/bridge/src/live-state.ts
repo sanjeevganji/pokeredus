@@ -395,7 +395,7 @@ export class LiveStateWriter {
       field: liveFieldFromObs(obs),
       ours: slotsFromObservation(obs, 'ours'),
       theirs: slotsFromObservation(obs, 'theirs'),
-      warnings: slotWarnings(obs),
+      warnings: [...slotWarnings(obs), ...(opts?.extraWarnings ?? [])],
       points: points.slice(-MAX_LIVE_POINTS),
       turns,
     };
