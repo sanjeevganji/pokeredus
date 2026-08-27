@@ -302,7 +302,9 @@ async function main(): Promise<void> {
         }
         const settle = ev.type === 'turn' || ev.type === 'win';
         observe(settle);
-        if (ev.type === 'request' && ev.json.active && ev.json.active.length > 0 && !ev.json.wait) runDecide(true);
+        const canSend = ev.type === 'request' && Boolean(ev.json.active?.length) && !ev.json.wait;
+        if (canSend) runDecide(true);
+        else if (ev.type === 'request' || ev.type === 'turn' || ev.type === 'switch') runDecide(false);
       });
 
       const stopWatch = watchOverrides(overridesPath, () => runDecide(false));
