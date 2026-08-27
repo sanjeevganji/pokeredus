@@ -187,3 +187,18 @@ export function gamesFromRoomlist(rooms: Record<string, RoomListEntry>): Detecte
       mine: false,
     }));
 }
+
+/** Battle rooms a logged-in user is in (any client), from `|queryresponse|userdetails|`. */
+export function gamesFromUserdetails(rooms: Record<string, unknown>): DetectedGame[] {
+  const out: DetectedGame[] = [];
+  const seen = new Set<string>();
+  for (const key of Object.keys(rooms ?? {})) {
+    const m = key.match(/battle-[a-z0-9]+-\d+[a-z0-9-]*/i);
+    if (!m) continue;
+    const room = normalizeBattleRoom(m[0]);
+    if (!room || seen.has(room)) continue;
+    seen.add(room);
+    out.push({ room, title: room.replace(/^battle-/, ''), mine: true });
+  }
+  return out;
+}
