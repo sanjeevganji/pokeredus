@@ -803,8 +803,11 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   min-height: 32px;
   font-size: 0.8rem;
 }
-.boost-pills { display: flex; flex-wrap: wrap; gap: 4px; }
+.boost-pills { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
 .side-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
+.pill-up { border-color: var(--neon-green); color: var(--neon-green); }
+.pill-down { border-color: var(--neon-red); color: var(--neon-red); }
+.pill-status { border-color: var(--neon-orange); color: var(--neon-orange); }
 
 /* Choice list & rows */
 .choice-rank {
