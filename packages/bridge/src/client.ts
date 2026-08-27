@@ -36,6 +36,9 @@ export class ShowdownClient {
   private ws?: WebSocket;
   private handlers: EventHandler[] = [];
   private lobbyHandlers: LobbyHandler[] = [];
+  private trnSent = false;
+  private named = false;
+  private joinedBattle = false;
 
   constructor(opts: ShowdownClientOptions = {}) {
     this.url = opts.url ?? '';
