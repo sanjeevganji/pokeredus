@@ -797,17 +797,67 @@ function resolveOverrides(overrides?: SetOverridesStore | string): SetOverridesS
   return overrides ?? { version: 1, overrides: {} };
 }
 
+function moveIdsFromPokemon(p: RequestPokemon): string[] {
+  const ids: string[] = [];
+  for (const m of p.moves ?? []) {
+    if (typeof m === 'string' && m.trim()) ids.push(toId(m));
+    else if (m && typeof m === 'object') {
+      const id = toId(m.id || m.move || '');
+      if (id) ids.push(id);
+    }
+  }
+  return uniqueIds(ids);
+}
+
+function uniqueIds(ids: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const id of ids) {
+    const k = toId(id);
+    if (!k || seen.has(k)) continue;
+    seen.add(k);
+    out.push(k);
+  }
+  return out;
+}
+
 function setFromTracked(m: TrackedMon): CanonicalSet {
   const moves = m.revealedMoves.length ? [...m.revealedMoves] : Object.keys(m.pp);
   return {
     species: m.speciesId,
-    level: m.level && m.level >= 1 && m.level <= 100 ? m.level : 0,
+    level: m.level && m.level >= 1 && m.level <= 100 ? m.level : DEFAULT_LEVEL,
     item: m.item ?? '',
     ability: m.ability ?? '',
     moves,
-    nature: '',
+    nature: DEFAULT_NATURE,
     teraType: m.teraType,
   };
+}
+
+function factsFromMon(m: TrackedMon, ours: boolean): RevealedFacts {
+  const moves = ours
+    ? (Object.keys(m.pp).length ? uniqueIds([...Object.keys(m.pp), ...m.revealedMoves]) : (m.revealedMoves ?? []))
+    : (m.revealedMoves.length ? m.revealedMoves : (m.lastMove ? [m.lastMove] : []));
+  return {
+    species: m.speciesId,
+    moves,
+    item: m.item,
+    ability: m.ability,
+    level: m.level,
+    teraType: m.teraType,
+  };
+}
+
+function publicSetFor(pool: RandomSetPool, facts: RevealedFacts): CanonicalSet | undefined {
+  try {
+    const filtered = initialBelief(pool, facts);
+    if (filtered[0]?.set) return overlayRevealedOnSet(filtered[0].set, facts);
+  } catch { /* no compatible row; fall through */ }
+  try {
+    const raw = hypothesesForSpecies(pool, facts.species);
+    if (raw[0]?.set) return overlayRevealedOnSet(raw[0].set, facts);
+  } catch { /* species missing from pool */ }
+  return undefined;
 }
 
 function ourSlotFromMon(
