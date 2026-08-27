@@ -144,6 +144,35 @@ export function setIsComplete(set: CanonicalSet | undefined): boolean {
   }
 }
 
+/** Fill a public/manual set with observed item/ability/moves/level without dropping the rest of the set. */
+export function overlayRevealedOnSet(set: CanonicalSet, facts: RevealedFacts): CanonicalSet {
+  const id = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const pool = set.movePool?.length ? set.movePool : set.moves;
+  let moves = pickMoves(pool, facts.moves, 4);
+  const have = new Set(moves.map(id));
+  for (const m of facts.moves) {
+    if (!m || have.has(id(m))) continue;
+    if (moves.length < 4) {
+      moves.push(m);
+      have.add(id(m));
+    } else {
+      moves[3] = m;
+      break;
+    }
+  }
+  if (!moves.length) moves = [...set.moves];
+  const level = facts.level && facts.level >= 1 && facts.level <= 100 ? facts.level : set.level;
+  return {
+    ...set,
+    item: facts.item || set.item,
+    ability: facts.ability || set.ability,
+    level: level || set.level || DEFAULT_LEVEL,
+    teraType: facts.teraType || set.teraType,
+    moves,
+    nature: set.nature?.trim() ? set.nature : DEFAULT_NATURE,
+  };
+}
+
 function parseStore(raw: string): SetOverridesStore {
   const parsed = JSON.parse(raw) as unknown;
   if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
