@@ -157,7 +157,7 @@ Apply the persisted `ScoreWeights` exactly once:
 ```text
 conditionalValue =
   clamp(
-      healthWeight × healthFeature
+      healthWeight × actorHealthFeature
     + modifierWeight × actorModifierFeature
     + secondaryWeight × secondaryFeature
     + sacrificeWeight × sacrificeFeature
@@ -298,8 +298,8 @@ and per-side workflows.
 8. Save weights atomically using the existing Windows-safe temp/backup/rename
    pattern in `set-overrides.ts`.
 9. Reevaluate with the new weights and return the updated ordering. The
-   corrected pair's aggregate ranking loss must decrease unless a documented
-   weight bound prevents it.
+   corrected pair's aggregate ranking loss must decrease, or diagnostics must
+   explicitly report `boundHit` and/or `shrinkageDominated`.
 10. Reset remains a full, visible rollback to defaults.
 
 Do not add a training framework or a second feedback database. Persisted
@@ -314,6 +314,8 @@ Do not add a training framework or a second feedback database. Persisted
 - `packages/engine/src/observation.ts`
 - `packages/engine/src/index.ts`
 - one focused valuation loader file if needed
+- export `scoreRealizedPair(before, ourAction, theirAction, simResult, weights,
+  valuations)` for both `evaluateRound` and plan 009
 - `packages/web/server/scenario-handlers.ts`
 - `packages/web/src/lib/scenarios.ts` only for additive diagnostics/types
 - the three `pokeredus/data/effects/*.json` files
@@ -321,8 +323,8 @@ Do not add a training framework or a second feedback database. Persisted
 - `packages/engine/tests/weights.test.ts`
 - `packages/engine/tests/integration.test.ts`
 - one focused valuation/config test
-- one small scenario rank-handler test following the pure handler style in
-  `packages/cli/tests/games-sets.test.ts`
+- one small `packages/web/server/scenario-rank.test.ts` following the pure
+  handler style in `packages/cli/tests/games-sets.test.ts`
 
 ## Out of scope
 
