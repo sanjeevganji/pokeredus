@@ -131,6 +131,10 @@ P_ours(i) =
   T(ourActions, ourUtility(*))
 ```
 
+`D(i,j,h)` never changes perspective: it is always our `PairScore.score`.
+The opponent transform input is exactly `-D`, once. Do not negate opponent
+features in plan 007 and then negate the resulting pair delta again.
+
 The opponent transform receives opponent-perspective utility. Positive input
 must mean good for the actor on both calls.
 
@@ -400,10 +404,10 @@ Create a fixed two-action Scenario:
 1. evaluate with default weights in softmax mode;
 2. apply one or more plan 007 human reorder corrections;
 3. evaluate again with persisted weights;
-4. assert the relevant normalized pair deltas and our policy probabilities
-   move toward the human order;
-5. assert opponent probabilities still favor opponent-positive utility;
-6. reset and assert the default distribution returns.
+4. assert the relevant normalized pair deltas, `P_ours`, at least one affected
+   `P_theirs(*|h)`, and `roundScore` change in the expected direction;
+5. assert opponent probabilities still favor exactly `-D`;
+6. reset and assert the default deltas, distributions, and round score return.
 
 This is the end-to-end check that the model is elastic rather than a UI-only
 weight editor.
