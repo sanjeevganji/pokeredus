@@ -18,8 +18,6 @@ import {
   type SetCatalog,
 } from '../lib/games';
 import {
-  baseActionId,
-  computeScoreGraphDomain,
   describeScorePoint,
   expectedStubRange,
   faintTurnsFromEvents,
