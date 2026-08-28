@@ -116,37 +116,64 @@ python tools/pr.py pool
 
 ## Formulas
 
-Scores use our perspective. Positive is favorable to us. Each simulated
-branch attributes effects to the submitted action that caused them.
-Recoil and drain may affect both sides. Residuals (Leftovers, weather
-chip, status damage) are unattributed and excluded from selected-action
-score.
+Scores use our perspective unless a row is explicitly actor-local. Positive is
+favorable to that actor. Each simulated branch attributes effects to the
+submitted action that caused them. Recoil and drain may affect both sides.
+Residuals (Leftovers, weather chip, status damage) are unattributed and
+excluded from selected-action score.
 
 ```
-CTA(move)       = P(executes) × P(hit | executes) × P(alive at resolve)   ∈ [0, 1]
-damageScore     = CTA / expectedTTK
-expectedTTK     = max(1, ceil(currentHP / damage)) on hitting branches
-healScore       = restoredHP / maxHP   (no overheal)
-modifierValue   = 0.5 × tanh(mean(log(multiplier) × remainingTurns))
-pairTurnScore   = ourAttributed − theirAttributed
-switchScore     = stateScore(after) − stateScore(before) − theirAttributed
-                  forced switches have success = 1
-expectedRoundScore = Σ joint-policy(i,j) × pairTurnScore(i,j)
+health(side)        = Σ clamp(currentHP / maxHP, 0, 1)
+logModifier(slot)   = Σ ln(multiplier) × probability × expectedTurns
+modifier(slot)      = 0.5 × tanh(logModifier(slot))
+modifier(side)      = Σ modifier(living slots)
+
+actorHealthFeature     = ((Δhealth(actor) − Δhealth(foe)) / 6)   ∈ [-1, +1]
+actorModifierFeature   = ((Δmodifier(actor) − Δmodifier(foe)) / 6) ∈ [-1, +1]
+secondaryFeature       = actor-local hazards/screens/weather/terrain ∈ [-1, +1]
+switchRisk, sacrifice  = actor-local, in [0, 1]
+
+conditionalValue    = clamp(
+                        healthWeight × health
+                      + modifierWeight × modifier
+                      + secondaryWeight × secondary
+                      + sacrificeWeight × sacrifice
+                      − switchRiskWeight × switchRisk,
+                      -1, +1)
+
+CTA(move)           = P(executes ∧ hit/succeeds ∧ actor alive at resolution)  ∈ [0, 1]
+moveScore           = CTA × E[conditionalValue | successful move]
+
+CTS(switch)         = P(legal switch completes); forced legal revenge switch = 1
+switchScore         = CTS × E[conditionalValue | completed switch]
+
+PairScore.score     = clamp(ourActionScore − opponentActionScore, -1, +1)
 ```
 
-A guaranteed faster OHKO from current HP has CTA=1, TTK=1, damageScore=+1.
-A 2HKO with CTA=1 scores 0.5. Weather is a Showdown field effect, not a
-blanket 1.5 modifier on every Pokémon. Duration uses Showdown remaining
-turns when exposed; otherwise the estimates in `MODIFIER_TURNS`.
+CTA and CTS are computed from represented branch mass, not editable
+coefficients. Failure/no-op branches contribute zero successful mass; do not
+average them in and then multiply by CTA again. Independent modifiers add in
+log space; a `1×` term does not dilute another effect. Health and modifier
+stay separate, so setup at full HP still has value.
 
-`stateScore` is still `Σ value(ours) − Σ value(theirs)` ∈ [-6, +6] with
-`value = L × clamp(h + 0.5×tanh(M), 0, 1)`.
+`hitsToKill` and raw HP parts are display diagnostics. They do not feed the
+normalized score. `expectedImpact` is the unweighted sum of health, modifier,
+and secondary features. Signed `log1p` is used only when scaling scores for
+the policy / display.
 
-`forcedOutcome` is `win | loss | none`. Signed `log1p` is used only when
-scaling scores for the policy / display; raw values stay in engine output.
-`policyWeight` is QAOA output mass used for ranking and sampling, not
-confidence or a win probability. `winRate` is an empirical terminal-rollout
-frequency with a 95% Wilson interval.
+`ChoiceEvaluation.choiceScore` is our actor-local `moveScore`/`switchScore`.
+`ReplyEvaluation.choiceScore` is the opponent's actor-local score from the
+same scorer (opponent passed as actor). Scenario reordering updates
+`score-weights.json` with bounded elastic updates; reset restores defaults.
+
+Showdown remains authoritative for mechanics, legality, accuracy, and actual
+HP/status/field transitions. `pokeredus/data/effects/*.json` may add an
+optional `valuation` object for future multiplier/turns/probability; absent
+entries are neutral.
+
+`forcedOutcome` is `win | loss | none`. `policyWeight` is QAOA output mass
+used for ranking and sampling, not confidence or a win probability. `winRate`
+is an empirical terminal-rollout frequency with a 95% Wilson interval.
 
 The official `pokemon-showdown` simulator is the rules engine for speed,
 priority, Trick Room, switches, accuracy, healing, status, boosts, field
