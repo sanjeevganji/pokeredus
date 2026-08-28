@@ -1,6 +1,6 @@
 # 005 — Incremental score graph and interpretable live choices
 
-**Status:** TODO  
+**Status:** DONE  
 **Commit:** `a400fd1`  
 **Effort:** L  
 **Risk:** Medium — additive live JSON migration plus dense dashboard UI  
