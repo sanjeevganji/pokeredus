@@ -5,12 +5,14 @@ Random Battle decision engine plus a knowledge-graph team builder.
 The live policy is a one-round official Showdown simulation plus PennyLane
 QAOA, not a search tree or weighted heuristic. Each turn the bot
 builds an immutable observation, updates opponent set beliefs from imported
-Random Battle set data, simulates **one official Showdown round**, scores
-legal actions with CTA/CTS times a weighted actor-local feature vector
-(health, modifier, field, switch-risk, sacrifice), then samples from a
-PennyLane QAOA probability distribution. Scenario reordering can update the
-persisted score weights. A classical softmax exists only as a benchmark
-CLI mode. If the quantum process fails, no battle action is sent.
+Random Battle set data, simulates **one official Showdown round** for every
+legal action pair under each set hypothesis, scores pairs with CTA/CTS times a
+weighted actor-local feature vector (health, modifier, field, switch-risk,
+sacrifice), then transforms each side separately with PennyLane QAOA.
+Opponent replies are weighted from the negative of our pair delta. Scenario
+reordering can update the persisted score weights. A classical softmax exists
+only as a benchmark CLI mode. If the quantum process fails, no battle action
+is sent.
 
 ## Layout
 
