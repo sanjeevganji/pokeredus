@@ -552,7 +552,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 
 .turn-graph {
   width: 100%;
-  height: 120px;
+  height: 132px;
   display: block;
   overflow: visible;
 }
