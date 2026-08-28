@@ -58,12 +58,12 @@ describe('score weights', () => {
     const theirSetup: RankedChoice = {
       id: 'move:swordsdance',
       score: 0.1,
-      features: { ...z, modifier: 0.5 },
+      features: { ...z, modifier: 0.3 },
     };
     const theirDamage: RankedChoice = {
       id: 'move:earthquake',
       score: 0.9,
-      features: { ...z, health: 0.5 },
+      features: { ...z, health: 0.7 },
     };
     const { weights } = elasticUpdate(DEFAULT_WEIGHTS, [theirSetup, theirDamage]);
     expect(weights.modifier).toBeGreaterThan(DEFAULT_WEIGHTS.modifier);
