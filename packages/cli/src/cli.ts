@@ -223,7 +223,7 @@ async function main(): Promise<void> {
           if (gen === decideGen) {
             hud.fromDecision(result, { rescore: !canSend || !send });
             try {
-              forecast.start(obs, {
+              forecast?.start(obs, {
                 policy,
                 seed,
                 shots,
