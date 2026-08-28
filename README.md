@@ -312,9 +312,12 @@ Attribute formula inputs live in `pokeredus/data/config/` (`attribute_formulas.y
 ## Limitations
 
 - Singles Random Battles only.
-- One-round lookahead; no deeper search.
+- One-round lookahead for the sent action; background forecasts roll out
+  realized pair deltas until all-six KO, an unknown hidden-team frontier,
+  or a safety cap. This is not exhaustive search.
 - Chance branches are a small seeded sample, not a full damage-roll enumeration.
 - Finite-shot QAOA is optional; exact `default.qubit` is the correctness default.
+- Forecasting runs outside the live send path and may stay partial if QAOA is slow.
 
 ## Verification
 
