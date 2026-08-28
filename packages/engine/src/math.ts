@@ -326,7 +326,7 @@ function sideKey(ourSide: PlayerSide, ours: boolean): 'p1' | 'p2' {
   return ourSide === 'p1' ? 'p2' : 'p1';
 }
 
-/** Residual value (hazards, screens, status not already in M). Positive is good for us. */
+/** Residual field value (hazards, screens). Status lives in modifierFeature. Positive is good for us. */
 export function secondaryDelta(
   beforeOurs: SlotSnapshot[],
   afterOurs: SlotSnapshot[],
@@ -336,27 +336,42 @@ export function secondaryDelta(
   afterField: FieldSnapshot,
   ourSide: PlayerSide,
 ): number {
-  let s = 0;
-  const nOurs = Math.min(beforeOurs.length, afterOurs.length);
-  for (let i = 0; i < nOurs; i++) {
-    s -= statusBite(afterOurs[i]!.status) - statusBite(beforeOurs[i]!.status);
-  }
-  const nTheirs = Math.min(beforeTheirs.length, afterTheirs.length);
-  for (let i = 0; i < nTheirs; i++) {
-    s += statusBite(afterTheirs[i]!.status) - statusBite(beforeTheirs[i]!.status);
-  }
-  const ourH = sideKey(ourSide, true);
-  const theirH = sideKey(ourSide, false);
+  return actorSecondaryFeature(beforeOurs, afterOurs, beforeTheirs, afterTheirs, beforeField, afterField, ourSide, true);
+}
+
+/** Actor-positive field feature (hazards, screens, weather, terrain). Status is not included. */
+export function actorSecondaryFeature(
+  beforeOurs: SlotSnapshot[],
+  afterOurs: SlotSnapshot[],
+  beforeTheirs: SlotSnapshot[],
+  afterTheirs: SlotSnapshot[],
+  beforeField: FieldSnapshot,
+  afterField: FieldSnapshot,
+  ourSide: PlayerSide,
+  actorOurs: boolean,
+): number {
+  const selfIsP1 = actorOurs ? ourSide === 'p1' : ourSide !== 'p1';
+  const selfKey: 'p1' | 'p2' = selfIsP1 ? 'p1' : 'p2';
+  const foeKey: 'p1' | 'p2' = selfIsP1 ? 'p2' : 'p1';
   const hz = (f: FieldSnapshot, k: 'p1' | 'p2') => (k === 'p1' ? f.hazards_p1 : f.hazards_p2);
-  s -= hazardsBite(hz(afterField, ourH)) - hazardsBite(hz(beforeField, ourH));
-  s += hazardsBite(hz(afterField, theirH)) - hazardsBite(hz(beforeField, theirH));
   const ref = (f: FieldSnapshot, k: 'p1' | 'p2') => (k === 'p1' ? f.reflect_p1 : f.reflect_p2);
   const ls = (f: FieldSnapshot, k: 'p1' | 'p2') => (k === 'p1' ? f.lightscreen_p1 : f.lightscreen_p2);
-  s += 0.08 * Math.sign((ref(afterField, ourH) || 0) - (ref(beforeField, ourH) || 0));
-  s -= 0.08 * Math.sign((ref(afterField, theirH) || 0) - (ref(beforeField, theirH) || 0));
-  s += 0.08 * Math.sign((ls(afterField, ourH) || 0) - (ls(beforeField, ourH) || 0));
-  s -= 0.08 * Math.sign((ls(afterField, theirH) || 0) - (ls(beforeField, theirH) || 0));
-  return s;
+  let s = 0;
+  s -= hazardsBite(hz(afterField, selfKey)) - hazardsBite(hz(beforeField, selfKey));
+  s += hazardsBite(hz(afterField, foeKey)) - hazardsBite(hz(beforeField, foeKey));
+  s += 0.08 * Math.sign((ref(afterField, selfKey) || 0) - (ref(beforeField, selfKey) || 0));
+  s -= 0.08 * Math.sign((ref(afterField, foeKey) || 0) - (ref(beforeField, foeKey) || 0));
+  s += 0.08 * Math.sign((ls(afterField, selfKey) || 0) - (ls(beforeField, selfKey) || 0));
+  s -= 0.08 * Math.sign((ls(afterField, foeKey) || 0) - (ls(beforeField, foeKey) || 0));
+  const weatherOn = (f: FieldSnapshot) => (f.weather ? 1 : 0);
+  const terrainOn = (f: FieldSnapshot) => (f.terrain ? 1 : 0);
+  s += 0.05 * (weatherOn(afterField) - weatherOn(beforeField));
+  s += 0.05 * (terrainOn(afterField) - terrainOn(beforeField));
+  void beforeOurs;
+  void afterOurs;
+  void beforeTheirs;
+  void afterTheirs;
+  return clamp(finiteOrZero(s), -1, 1);
 }
 
 export function roundScore(postScores: number[]): number {
