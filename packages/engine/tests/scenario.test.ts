@@ -88,6 +88,7 @@ describe('scenario helpers', () => {
     const splash = ev.replies.find((r) => r.action.id === 'move:splash');
     expect(eq).toBeTruthy();
     expect(splash).toBeTruthy();
+    expect(eq!.expectedUtility ?? 0).toBeGreaterThan(splash!.expectedUtility ?? 0);
     expect(eq!.probability ?? 0).toBeGreaterThan(splash!.probability ?? 0);
   }, 20_000);
 

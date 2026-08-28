@@ -4,6 +4,8 @@ import * as path from 'node:path';
 import { describe, it, expect, afterEach } from 'vitest';
 import { DEFAULT_WEIGHTS, emptyFeatures, scoredChoice } from '../src/math.js';
 import { emptyBoosts, emptyField, type BattleObservation, type CanonicalSet, type SlotSnapshot } from '../src/observation.js';
+import { elasticUpdate, loadWeights, resetWeights, saveWeights, WEIGHT_HI, WEIGHT_LO, type RankedChoice } from '../src/weights.js';
+import { evaluateJointStatePolicy, evaluateRound } from '../src/evaluate.js';
 
 const tmpFiles: string[] = [];
 afterEach(() => {
