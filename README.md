@@ -197,8 +197,10 @@ the policy / display.
 
 `ChoiceEvaluation.choiceScore` is our actor-local `moveScore`/`switchScore`.
 `ReplyEvaluation.choiceScore` is the opponent's actor-local score from the
-same scorer (opponent passed as actor). Scenario reordering updates
-`score-weights.json` with bounded elastic updates; reset restores defaults.
+same scorer (opponent passed as actor). `expectedUtility` is the
+belief-weighted pair-delta expectation used by the two-sided policy.
+Scenario reordering updates `score-weights.json` with bounded elastic
+updates; reset restores defaults.
 
 Showdown remains authoritative for mechanics, legality, accuracy, and actual
 HP/status/field transitions. `pokeredus/data/effects/*.json` may add an
