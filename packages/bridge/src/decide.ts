@@ -73,31 +73,10 @@ export async function decideAndAct(
   }
 
   let probabilities = probsFromEval(evaluation);
-  let diagnostics = evaluation.diagnostics;
   if (!probabilities) {
-    const scores = evaluation.choices.map((c) => c.scaledChoiceScore);
-    let response;
-    try {
-      response = await opts.process.decide({
-        actions: ids,
-        scores,
-        mode: opts.policy ?? 'quantum',
-        seed: opts.seed,
-        shots: opts.shots ?? null,
-      });
-    } catch (err) {
-      console.error('[pokeredus] quantum policy failed; not sending a choice:', err);
-      throw err;
-    }
-    probabilities = response.probabilities;
-    diagnostics = response.diagnostics;
-    if (probabilities.length !== ids.length) {
-      throw new Error('quantum policy returned a distribution that does not match legal actions');
-    }
-    for (let i = 0; i < evaluation.choices.length; i++) {
-      evaluation.choices[i]!.probability = probabilities[i];
-    }
+    throw new Error('evaluation did not return a policy distribution');
   }
+  const diagnostics = evaluation.diagnostics;
 
   const sampledId = sampleAction(ids, probabilities, opts.rng);
   const choice = evaluation.choices.find((c) => c.action.id === sampledId);
