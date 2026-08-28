@@ -5,11 +5,7 @@ import { BattleTracker } from '../../bridge/src/protocol';
 import type { BattleObservation, RoundEvaluation } from '../../engine/src/observation';
 import { DEFAULT_WEIGHTS, emptyFeatures, scoredChoice, type ScoreWeights } from '../../engine/src/math';
 import { defaultPoolPath, loadPool } from '../../engine/src/pool';
-import { evaluateRound } from '../../engine/src/evaluate';
-import { QuantumPolicyProcess } from '../../engine/src/policy';
-import { estimateWinrate, playTurn } from '../../engine/src/scenario';
-import { elasticUpdate, loadWeights, resetWeights, saveWeights, type ElasticDiagnostics, type RankedChoice } from '../../engine/src/weights';
-import type { EvaluateOptions } from '../../engine/src/evaluate';
+import { evaluateRound, type EvaluateOptions } from '../../engine/src/evaluate';
 
 export interface SavedScenario {
   id: string;
