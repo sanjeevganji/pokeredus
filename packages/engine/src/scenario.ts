@@ -860,7 +860,7 @@ export async function forecastBattle(
         residualHealth,
         residualModifier,
       };
-    } catch (err) {
+    } catch {
       return {
         actionId: rootAction.id,
         cumulativeRealizedDelta: 0,
