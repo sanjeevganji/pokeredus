@@ -414,7 +414,8 @@ export async function forecastBattle(
         const ourId = sampleAction(ourChoices.map((c) => c.id), statePolicy.pOur, rng);
         const ourAct = ourChoices.find((c) => c.id === ourId) ?? ourChoices[0]!;
 
-        const oppId = sampleAction(theirChoices.map((r) => r.id), statePolicy.pTheir, rng);
+        const theirProbs = theirChoices.map((_, j) => statePolicy.evaluation.replies[j]?.probability ?? 0);
+        const oppId = sampleAction(theirChoices.map((r) => r.id), theirProbs, rng);
         const oppAct = theirChoices.find((r) => r.id === oppId) ?? theirChoices[0]!;
 
         const simRes = simulateRound(currentState, ourAct, oppAct, [1 + (turns % 4), 2, 3, 4]);
