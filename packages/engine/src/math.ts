@@ -263,26 +263,42 @@ export function emptyFeatures(): ChoiceFeatures {
   return { health: 0, modifier: 0, secondary: 0, switchRisk: 0, sacrifice: 0 };
 }
 
-export function choiceFeatures(parts: ImpactParts, extras: { secondary: number; switchRisk: number; sacrifice: number }): ChoiceFeatures {
+export function boundFeature(x: number, lo = -1, hi = 1): number {
+  return clamp(Number.isFinite(x) ? x : 0, lo, hi);
+}
+
+export function boundFeatures(f: ChoiceFeatures): ChoiceFeatures {
   return {
+    health: boundFeature(f.health),
+    modifier: boundFeature(f.modifier),
+    secondary: boundFeature(f.secondary),
+    switchRisk: boundFeature(f.switchRisk, 0, 1),
+    sacrifice: boundFeature(f.sacrifice, 0, 1),
+  };
+}
+
+export function choiceFeatures(parts: ImpactParts, extras: { secondary: number; switchRisk: number; sacrifice: number }): ChoiceFeatures {
+  return boundFeatures({
     health: parts.health,
     modifier: parts.modifier,
     secondary: extras.secondary,
     switchRisk: extras.switchRisk,
     sacrifice: extras.sacrifice,
-  };
+  });
 }
 
 export function weightedRaw(features: ChoiceFeatures, weights: ScoreWeights): number {
-  return weights.health * features.health
-    + weights.modifier * features.modifier
-    + weights.secondary * features.secondary
-    + weights.sacrifice * features.sacrifice
-    - weights.switchRisk * features.switchRisk;
+  const f = boundFeatures(features);
+  return weights.health * f.health
+    + weights.modifier * f.modifier
+    + weights.secondary * f.secondary
+    + weights.sacrifice * f.sacrifice
+    - weights.switchRisk * f.switchRisk;
 }
 
 export function scoredChoice(success: number, features: ChoiceFeatures, weights: ScoreWeights): number {
-  return success * weightedRaw(features, weights);
+  const p = clamp(Number.isFinite(success) ? success : 0, 0, 1);
+  return clamp(p * clamp(weightedRaw(features, weights), -1, 1), -1, 1);
 }
 
 export function softmax(scores: number[]): number[] {
