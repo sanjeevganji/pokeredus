@@ -87,6 +87,7 @@ export interface LiveChoice {
   probability?: number;
   policyWeight?: number;
   hamiltonianInput?: number;
+  expectedUtility?: number;
   expectedTerminalScore?: number;
   minTerminalScore?: number;
   maxTerminalScore?: number;
