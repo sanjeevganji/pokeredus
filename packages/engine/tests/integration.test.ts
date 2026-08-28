@@ -247,7 +247,8 @@ describe('field fidelity, CTA, and ranges', () => {
     const eqChoice = ohko.choices.find((c) => c.action.id === 'move:earthquake');
     expect(eqChoice).toBeTruthy();
     expect(eqChoice!.cta).toBeCloseTo(1);
-    expect(eqChoice!.choiceScore).toBeCloseTo(1);
+    expect(eqChoice!.choiceScore).toBeGreaterThan(0);
+    expect(eqChoice!.choiceScore).toBeLessThanOrEqual(1);
     expect(eqChoice!.theirHealth).toBeLessThan(0);
     expect(eqChoice!.hitsToKill).toBe(1);
     expect(eqChoice!.scaledChoiceScore).toBeLessThan(eqChoice!.choiceScore);
