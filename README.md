@@ -208,6 +208,8 @@ entries are neutral.
 `forcedOutcome` is `win | loss | none`. `policyWeight` is QAOA output mass
 used for ranking and sampling, not confidence or a win probability. `winRate`
 is an empirical terminal-rollout frequency with a 95% Wilson interval.
+Reply `availability` is hypothesis mass where the action is legal; do not
+label it confidence.
 
 The official `pokemon-showdown` simulator is the rules engine for speed,
 priority, Trick Room, switches, accuracy, healing, status, boosts, field
