@@ -1067,6 +1067,8 @@ function SetDrawer({
               <option key={c.set.role ?? i} value={i}>
                 {c.set.role || c.set.moves.join('/')}
                 {c.compatible ? '' : ' [incompatible]'}
+                {` · pool frequency ${(c.probability * 100).toFixed(0)}%`}
+                {c.count != null ? ` (n=${c.count})` : ''}
               </option>
             ))}
           </select>
