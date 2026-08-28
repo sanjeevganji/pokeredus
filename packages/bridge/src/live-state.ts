@@ -722,6 +722,8 @@ function toLiveReplies(replies: NonNullable<DecideResult['evaluation']['replies'
     probability: r.probability,
     policyWeight: r.probability,
     hamiltonianInput: r.choiceScore != null ? signedLog1p(r.choiceScore) : undefined,
+    availability: r.availability,
+    expectedUtility: r.expectedUtility,
     expectedHealthDelta: r.expectedHealthDelta,
     expectedModifierDelta: r.expectedModifierDelta,
     ourHealth: r.ourHealth,
