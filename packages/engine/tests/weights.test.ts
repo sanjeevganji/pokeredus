@@ -126,4 +126,78 @@ describe('score weights', () => {
     expect(() => elasticUpdate(DEFAULT_WEIGHTS, [], { lr: Number.NaN })).toThrow(/finite/);
     expect(() => elasticUpdate(DEFAULT_WEIGHTS, [], { lambda: Number.POSITIVE_INFINITY })).toThrow(/finite/);
   });
+
+  it('persisted human corrections change pair deltas, policies, and roundScore', async () => {
+    const garchomp: CanonicalSet = {
+      species: 'Garchomp', level: 80, item: '', ability: 'roughskin',
+      moves: ['earthquake', 'splash'], nature: 'Jolly',
+    };
+    const slot = (set: CanonicalSet, i: number, active: boolean, extra?: Partial<SlotSnapshot>): SlotSnapshot => ({
+      slot: i,
+      speciesId: set.species.toLowerCase().replace(/[^a-z0-9]/g, ''),
+      revealed: true,
+      hp: 250,
+      maxHp: 250,
+      status: '',
+      boosts: emptyBoosts(),
+      fainted: false,
+      active,
+      knownMoves: set.moves,
+      set,
+      hypotheses: active ? [{ set, count: 1, probability: 1 }] : [],
+      modifiers: [],
+      ...extra,
+    });
+    const team = (lead: CanonicalSet): SlotSnapshot[] => {
+      const rest: CanonicalSet[] = Array.from({ length: 5 }, () => ({
+        species: 'Smeargle', level: 100, item: '', ability: 'owntempo', moves: ['splash'], nature: 'Hardy',
+      }));
+      return [slot(lead, 0, true), ...rest.map((s, i) => slot(s, i + 1, false, { revealed: false, hypotheses: [] }))];
+    };
+    const obs: BattleObservation = {
+      turn: 1,
+      format: 'gen9randombattle',
+      ourSide: 'p1',
+      ours: team(garchomp),
+      theirs: team(garchomp),
+      field: emptyField(),
+      legalActions: garchomp.moves.map((moveId) => ({ id: `move:${moveId}`, type: 'move' as const, moveId })),
+      teraUsedOurs: false,
+      teraUsedTheirs: false,
+    };
+    const file = tmp();
+    const before = await evaluateRound(obs, { policy: 'softmax', weights: DEFAULT_WEIGHTS, chanceSeeds: 1 });
+    const eq = before.choices.find((c) => c.action.id === 'move:earthquake')!;
+    const splash = before.choices.find((c) => c.action.id === 'move:splash')!;
+    const ranked: RankedChoice[] = [
+      { id: splash.action.id, score: splash.choiceScore, features: splash.features, success: splash.success },
+      { id: eq.action.id, score: eq.choiceScore, features: eq.features, success: eq.success },
+    ];
+    let w = { ...DEFAULT_WEIGHTS };
+    for (let i = 0; i < 12; i++) w = elasticUpdate(w, ranked).weights;
+    saveWeights(w, file);
+    const after = await evaluateRound(obs, { policy: 'softmax', weights: loadWeights(file), chanceSeeds: 1 });
+    const eqAfter = after.choices.find((c) => c.action.id === 'move:earthquake')!;
+    const splashAfter = after.choices.find((c) => c.action.id === 'move:splash')!;
+    expect(eqAfter.probability ?? 0).toBeLessThan(eq.probability ?? 1);
+    expect(splashAfter.probability ?? 0).toBeGreaterThan(splash.probability ?? 0);
+    const pairBefore = before.pairs?.find((p) => p.ourId === 'move:earthquake' && p.theirId === 'move:splash')?.score;
+    const pairAfter = after.pairs?.find((p) => p.ourId === 'move:earthquake' && p.theirId === 'move:splash')?.score;
+    expect(pairBefore).toBeDefined();
+    expect(pairAfter).toBeDefined();
+    expect(pairAfter).not.toBeCloseTo(pairBefore!, 8);
+    expect(after.roundScore).not.toBeCloseTo(before.roundScore, 8);
+    const hyp = (await import('../src/evaluate.js')).evaluateJointStatePolicy;
+    const joint = await hyp(obs, { policy: 'softmax', weights: loadWeights(file), chanceSeeds: 1 });
+    expect(joint.hypotheses[0]!.probabilities.reduce((s, p) => s + p, 0)).toBeCloseTo(1);
+    const byUtil = [...after.replies].sort((a, b) => (b.expectedUtility ?? 0) - (a.expectedUtility ?? 0));
+    const byProb = [...after.replies].sort((a, b) => (b.probability ?? 0) - (a.probability ?? 0));
+    expect(byUtil.map((r) => r.action.id)).toEqual(byProb.map((r) => r.action.id));
+    const restored = resetWeights(file);
+    expect(restored).toEqual(DEFAULT_WEIGHTS);
+    const again = await evaluateRound(obs, { policy: 'softmax', weights: loadWeights(file), chanceSeeds: 1 });
+    expect(again.roundScore).toBeCloseTo(before.roundScore, 8);
+    expect(again.choices.find((c) => c.action.id === 'move:earthquake')!.probability)
+      .toBeCloseTo(eq.probability ?? 0, 8);
+  }, 40_000);
 });
