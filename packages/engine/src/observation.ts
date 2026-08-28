@@ -118,6 +118,8 @@ export interface Modifier {
   name: string;
   multiplier: number;
   remainingTurns: number;
+  /** Occurrence probability in [0, 1]. Absent means 1 (already realized or guaranteed). */
+  probability?: number;
 }
 
 export interface BattleObservation {
