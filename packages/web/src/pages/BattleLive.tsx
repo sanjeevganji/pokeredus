@@ -18,6 +18,7 @@ import {
   type SetCatalog,
 } from '../lib/games';
 import {
+  computeScoreGraphDomain,
   describeScorePoint,
   expectedStubRange,
   faintTurnsFromEvents,
