@@ -231,6 +231,7 @@ describe('two-sided hypothesis policy', () => {
     expect(res.evaluation.roundScore).toBeGreaterThanOrEqual(-1);
     expect(res.evaluation.roundScore).toBeLessThanOrEqual(1);
     expect(res.evaluation.roundScore).toBeCloseTo(res.evaluation.expectedRoundScore);
+    expect(JSON.stringify(res.evaluation)).not.toContain(res.hypotheses[0]!.key);
   });
 
   it('makes a manual override assumption mass one without erasing public candidates', async () => {
