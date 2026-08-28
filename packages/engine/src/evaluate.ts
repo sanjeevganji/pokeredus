@@ -38,7 +38,7 @@ import {
   type ImpactParts,
   type ScoreWeights,
 } from './math.js';
-import { simulateRound, type ActionEffect, type ActionTelemetry, type RoundSimResult } from './sim.js';
+import { IllegalSimChoiceError, simulateRound, type ActionEffect, type ActionTelemetry, type RoundSimResult } from './sim.js';
 import { legalActionsForEval, legalFromSlots, slotsWithActiveSet } from './actions.js';
 import type { QuantumPolicyProcess } from './policy.js';
 
