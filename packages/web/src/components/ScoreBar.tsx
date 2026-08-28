@@ -1,3 +1,5 @@
+import { displayFraction } from '../lib/live-score';
+
 export interface ScoreParts {
   ourHealth: number;
   theirHealth: number;
@@ -5,7 +7,7 @@ export interface ScoreParts {
   theirModifier: number;
 }
 
-/** |value| of 1 fills origin → edge. Parts are HP/mod deltas already in [-1, 1]. */
+/** |value| of 1 fills origin → edge when no part exceeds that. */
 export const CHOICE_BAR_DOMAIN = 1;
 
 export type FieldDir = 'in' | 'out';
@@ -24,6 +26,18 @@ const RED = 'var(--neon-red)';
 const GREEN = 'var(--neon-green)';
 const YELLOW = 'var(--neon-yellow)';
 
+/** Same origin-centered domain for visual width and ARIA min/max. */
+export function scoreBarDomain(score: number, parts?: Partial<ScoreParts>): number {
+  const abs = [
+    score,
+    parts?.ourHealth,
+    parts?.theirHealth,
+    parts?.ourModifier,
+    parts?.theirModifier,
+  ].filter((v): v is number => v != null && Number.isFinite(v)).map((v) => Math.abs(v));
+  return Math.max(CHOICE_BAR_DOMAIN, ...abs);
+}
+
 /** Center origin: damage/debuff inward, heal/buff outward. Left = us, right = them. */
 export function fieldBarSegments(parts?: Partial<ScoreParts>): FieldSeg[] {
   const segs: FieldSeg[] = [];
@@ -34,14 +48,13 @@ export function fieldBarSegments(parts?: Partial<ScoreParts>): FieldSeg[] {
     kind: 'hp' | 'mod',
   ) => {
     if (!Number.isFinite(raw) || Math.abs(raw) <= 1e-9) return;
-    const v = Math.max(-1, Math.min(1, raw));
-    const hurt = v < 0;
+    const hurt = raw < 0;
     segs.push({
       key,
       side,
       dir: hurt ? 'in' : 'out',
       color: kind === 'hp' ? (hurt ? RED : GREEN) : YELLOW,
-      value: Math.abs(v),
+      value: Math.abs(raw),
       label: kind === 'hp'
         ? (hurt ? `${side} damage` : `${side} heal`)
         : (hurt ? `${side} drop` : `${side} boost`),
@@ -64,10 +77,7 @@ export function ScoreBar({
   label: string;
 }) {
   const segs = fieldBarSegments(parts);
-  const domain = Math.max(
-    CHOICE_BAR_DOMAIN,
-    ...segs.map((s) => s.value),
-  );
+  const domain = scoreBarDomain(score, parts);
   const pct = (v: number) => (v / domain) * 50;
   const arm = (side: FieldSide, dir: FieldDir) => segs.filter((s) => s.side === side && s.dir === dir);
   const oursOut = arm('ours', 'out');
@@ -112,6 +122,34 @@ export function ScoreBar({
           ))}
         </div>
       )}
+    </div>
+  );
+}
+
+/** Visual width uses log displayFraction; aria-valuenow stays the raw weight. */
+export function PolicyMeter({
+  value,
+  label,
+  opponent,
+}: {
+  value: number;
+  label: string;
+  opponent?: boolean;
+}) {
+  const p = Math.max(0, Math.min(1, Number.isFinite(value) ? value : 0));
+  return (
+    <div
+      className={`choice-p${opponent ? ' choice-p-opp' : ''}`}
+      role="meter"
+      aria-label={label}
+      aria-valuemin={0}
+      aria-valuemax={1}
+      aria-valuenow={Number(p.toFixed(4))}
+    >
+      <div
+        className={`choice-p-fill${opponent ? ' choice-p-fill-opp' : ''}`}
+        style={{ width: `${displayFraction(p) * 100}%` }}
+      />
     </div>
   );
 }

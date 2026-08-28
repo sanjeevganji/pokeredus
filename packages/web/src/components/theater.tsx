@@ -106,8 +106,8 @@ function BoostPills({ slot }: { slot: LiveSlot }) {
 function provenanceLabel(slot: LiveSlot): string {
   if (!slot.revealed) return '';
   if (!slot.setComplete || slot.setSource === 'incomplete') return 'Incomplete';
-  if (slot.setSource === 'manual') return 'Manual';
-  if (slot.setSource === 'public') return 'Public';
+  if (slot.setSource === 'manual') return 'Manual assumption';
+  if (slot.setSource === 'public') return 'Public assumption';
   return 'Revealed';
 }
 
