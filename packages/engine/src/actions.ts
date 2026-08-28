@@ -128,8 +128,10 @@ export function slotsWithActiveSet(slots: SlotSnapshot[], set: CanonicalSet | un
 }
 
 function livingRevealedSwitches(slots: SlotSnapshot[], forced: boolean): LegalAction[] {
+  const fielded = slots.find((s) => s.active) ?? (forced ? slots[0] : undefined);
   const out: LegalAction[] = [];
   for (const s of slots) {
+    if (fielded && s.slot === fielded.slot) continue;
     if (s.active || s.fainted || !s.revealed || s.hp <= 0) continue;
     out.push({
       id: actionId({ type: 'switch', slot: s.slot + 1 }),

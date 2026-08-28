@@ -457,7 +457,7 @@ function speciesIdOf(p: AnyPokemon): string {
 
 function snapshotSide(mons: AnyPokemon[], prev: SlotSnapshot[], weather: string): SlotSnapshot[] {
   const used = new Set<AnyPokemon>();
-  return prev.map((slot, i) => {
+  const next = prev.map((slot, i) => {
     const p = mons.find((m) => !used.has(m) && speciesIdOf(m) === slot.speciesId) ?? mons[i];
     if (p) used.add(p);
     if (!p) return { ...slot, modifiers: modifiersFromSlot(slot, weather) };
@@ -469,7 +469,7 @@ function snapshotSide(mons: AnyPokemon[], prev: SlotSnapshot[], weather: string)
       disabled: Boolean(m.disabled),
     })) : slot.moveSlots;
 
-    const next: SlotSnapshot = {
+    const row: SlotSnapshot = {
       ...slot,
       hp: fainted ? 0 : p.hp,
       maxHp: p.maxhp || slot.maxHp,
@@ -491,9 +491,15 @@ function snapshotSide(mons: AnyPokemon[], prev: SlotSnapshot[], weather: string)
       terastallized: Boolean(p.terastallized) || slot.terastallized,
       teraType: (typeof p.terastallized === 'string' && p.terastallized) || slot.teraType,
     };
-    next.modifiers = modifiersFromSlot(next, weather);
-    return next;
+    row.modifiers = modifiersFromSlot(row, weather);
+    return row;
   });
+  if (!next.some((s) => s.active)) {
+    const live = mons.find((m) => m.isActive);
+    const row = live ? next.find((s) => speciesIdOf(live) === s.speciesId) : undefined;
+    if (row) row.active = true;
+  }
+  return next;
 }
 
 function simChoiceFor(a: LegalAction, layout: SimPartyLayout): string {
