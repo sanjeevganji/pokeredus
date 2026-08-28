@@ -281,7 +281,7 @@ async function main(): Promise<void> {
       });
     });
     } finally {
-      forecast.close();
+      forecast?.close();
     }
     return;
   }
