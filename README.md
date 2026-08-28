@@ -6,8 +6,10 @@ The live policy is a one-round official Showdown simulation plus PennyLane
 QAOA, not a search tree or weighted heuristic. Each turn the bot
 builds an immutable observation, updates opponent set beliefs from imported
 Random Battle set data, simulates **one official Showdown round**, scores
-legal actions with explicit CTA/CTS mathematics, then samples from a PennyLane
-QAOA probability distribution. A classical softmax exists only as a benchmark
+legal actions with CTA/CTS times a weighted actor-local feature vector
+(health, modifier, field, switch-risk, sacrifice), then samples from a
+PennyLane QAOA probability distribution. Scenario reordering can update the
+persisted score weights. A classical softmax exists only as a benchmark
 CLI mode. If the quantum process fails, no battle action is sent.
 
 ## Layout
