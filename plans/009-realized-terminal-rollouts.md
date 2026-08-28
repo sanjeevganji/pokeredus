@@ -221,6 +221,8 @@ interface ChoiceForecast {
 interface BattleForecast {
   // existing fields
   outcomeCounts: Record<RolloutOutcome, number>;
+  terminalSamples: number;
+  winRate: number | null;
   frontierReason?: string;
 }
 ```
@@ -306,6 +308,9 @@ Before modifying the loop, create deterministic fixtures:
 8. Turn cap, time cap, cancellation, and error have distinct counts/status.
 9. Two states differing only in modifier duration, item, belief mass, learned
    weight, or valuation metadata do not share a cache key.
+10. Unknown/cap outcomes do not enter `terminalSamples` or the Wilson
+    denominator; zero terminal samples yields a null win rate/interval, and the
+    deprecated `draws` alias exactly matches its documented sum.
 
 Use injected fake policy transforms for functional tests. Keep real QAOA in the
 benchmark only.
