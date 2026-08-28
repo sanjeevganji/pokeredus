@@ -1,6 +1,11 @@
 # 009 — Roll out realized pair deltas to honest terminal/frontier outcomes
 
-**Status:** DONE  
+**Status:** DONE
+
+Functional tests inject softmax/fake policy and a fake clock. The real-QAOA
+benchmark (10s budget) completed 1/8 stratified samples (`partial`,
+keep-opt-in). Live forecasting is behind `--forecast` and never blocks the
+sent action.  
 **Commit:** `b97a334`  
 **Effort:** L  
 **Risk:** High — multi-turn errors compound and can misstate win forecasts  
