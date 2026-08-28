@@ -41,7 +41,7 @@ import {
 } from './math.js';
 import { IllegalSimChoiceError, simulateRound, type ActionEffect, type ActionTelemetry, type RoundSimResult } from './sim.js';
 import { legalActionsForEval, legalFromSlots, slotsWithActiveSet } from './actions.js';
-import type { QuantumPolicyProcess } from './policy.js';
+import { transformSidePolicy, type QuantumPolicyProcess } from './policy.js';
 import {
   loadDefaultValuations,
   valuationOrNeutral,
