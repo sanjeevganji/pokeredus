@@ -83,79 +83,61 @@ function activeIndex(slots: SlotSnapshot[]): number {
   return i >= 0 ? i : 0;
 }
 
-function fracFromEffect(e: ActionEffect): number {
+function hpDeltaFromEffect(e: ActionEffect): number {
   if (!(e.maxHp && e.maxHp > 0) || e.hpBefore == null || e.hpAfter == null) return 0;
-  return (e.hpBefore - e.hpAfter) / e.maxHp;
+  return (e.hpAfter - e.hpBefore) / e.maxHp;
 }
 
-function actorValue(
-  tel: ActionTelemetry,
-  actorOurs: boolean,
-  obs: BattleObservation,
-  afterFoe: SlotSnapshot[],
-): { value: number; parts: ImpactParts; success: number } {
-  const success = cta(tel.executed ? 1 : 0, tel.hit ? 1 : 0, tel.aliveAtExecution ? 1 : 0);
-  const foe = actorOurs ? obs.theirs : obs.ours;
-  const self = actorOurs ? obs.ours : obs.theirs;
-  const foeIdx = activeIndex(foe);
-  const selfIdx = activeIndex(self);
-  const foeSide: 'p1' | 'p2' = actorOurs ? (obs.ourSide === 'p1' ? 'p2' : 'p1') : obs.ourSide;
-  const selfSide = actorOurs ? obs.ourSide : (obs.ourSide === 'p1' ? 'p2' : 'p1');
+function isHazardHp(e: ActionEffect): boolean {
+  if (e.kind === 'hazard') return true;
+  const from = e.from ?? '';
+  return /stealth rock|spikes|toxic spikes|sticky web/.test(from);
+}
 
-  let dmgToFoe = 0;
-  let healSelf = 0;
-  let healFoe = 0;
-  let selfLost = 0;
+function attributedHp(tel: ActionTelemetry, side: 'p1' | 'p2', includeSwitchHazards: boolean): number {
+  let d = 0;
   for (const e of tel.effects) {
-    if (!e.attributed) continue;
-    if (e.kind === 'damage' || e.kind === 'drain') {
-      const frac = Math.max(0, fracFromEffect(e));
-      if (e.side === foeSide) dmgToFoe += frac;
-      if (e.side === selfSide && e.kind === 'damage') selfLost += frac;
-    }
-    if (e.kind === 'recoil' && e.side === selfSide) selfLost += Math.max(0, fracFromEffect(e));
-    if (e.kind === 'heal' || e.kind === 'drain') {
-      if (!(e.maxHp && e.maxHp > 0) || e.hpBefore == null || e.hpAfter == null) continue;
-      const healed = effectiveHeal(e.hpBefore, e.hpAfter, e.maxHp);
-      if (e.side === selfSide) healSelf += healed;
-      if (e.side === foeSide) healFoe += healed;
+    if (e.side !== side) continue;
+    const allow = e.attributed || (includeSwitchHazards && isHazardHp(e));
+    if (!allow) continue;
+    if (e.kind === 'damage' || e.kind === 'heal' || e.kind === 'recoil' || e.kind === 'drain' || e.kind === 'hazard' || (includeSwitchHazards && e.kind === 'residual' && isHazardHp(e))) {
+      d += hpDeltaFromEffect(e);
     }
   }
-  if (tel.hit && dmgToFoe <= 0) {
-    dmgToFoe = Math.max(0, hpFrac(foe, foeIdx) - hpFrac(afterFoe, foeIdx));
-  }
+  return d;
+}
 
-  const ttk = expectedTtk(hpFrac(foe, foeIdx), dmgToFoe);
-  const dmg = tel.hit ? damageScore(success, ttk) : 0;
-  const heal = healSelf - healFoe - selfLost;
+function actionSuccess(action: LegalAction, tel: ActionTelemetry, actorAfter: SlotSnapshot[]): number {
+  if (action.type === 'switch') {
+    return cts(switchCompleted(action, actorAfter), Boolean(action.forced));
+  }
+  return cta(tel.executed ? 1 : 0, tel.hit ? 1 : 0, tel.aliveAtExecution ? 1 : 0);
+}
 
-  const selfSlot = self[selfIdx];
-  const foeSlot = foe[foeIdx];
-  let mod = 0;
-  if (selfSlot && tel.effects.some((e) => e.attributed && (e.kind === 'boost' || e.kind === 'unboost' || e.kind === 'status') && e.side === selfSide)) {
-    mod += modifierDelta(selfSlot.modifiers, slotAfterEffects(selfSlot, tel.effects, selfSide).modifiers);
-  }
-  if (foeSlot && tel.effects.some((e) => e.attributed && (e.kind === 'boost' || e.kind === 'unboost' || e.kind === 'status') && e.side === foeSide)) {
-    mod -= modifierDelta(foeSlot.modifiers, slotAfterEffects(foeSlot, tel.effects, foeSide).modifiers);
-  }
+function switchCompleted(action: LegalAction, actorAfter: SlotSnapshot[]): boolean {
+  const idx = (action.slot ?? 1) - 1;
+  const incoming = actorAfter.find((s) => s.slot === idx) ?? actorAfter[idx];
+  if (incoming?.active && !incoming.fainted && incoming.hp > 0) return true;
+  const active = actorAfter.find((s) => s.active);
+  return Boolean(active && !active.fainted && active.hp > 0);
+}
 
-  const value = finiteOrZero(dmg + heal + mod);
-  const parts = emptyImpactParts();
-  if (actorOurs) {
-    parts.ourHealth = finiteOrZero(heal);
-    parts.theirHealth = finiteOrZero(-dmg);
-    parts.ourModifier = finiteOrZero(mod > 0 ? mod : 0);
-    parts.theirModifier = finiteOrZero(mod < 0 ? mod : 0);
-  } else {
-    parts.ourHealth = finiteOrZero(-heal);
-    parts.theirHealth = finiteOrZero(dmg);
-    parts.ourModifier = finiteOrZero(mod < 0 ? -mod : 0);
-    parts.theirModifier = finiteOrZero(mod > 0 ? -mod : 0);
-  }
-  parts.health = parts.ourHealth - parts.theirHealth;
-  parts.modifier = parts.ourModifier - parts.theirModifier;
-  parts.total = parts.health + parts.modifier;
-  return { value, parts, success };
+function addFeat(dst: ChoiceFeatures, src: ChoiceFeatures, w: number): void {
+  dst.health += src.health * w;
+  dst.modifier += src.modifier * w;
+  dst.secondary += src.secondary * w;
+  dst.switchRisk += src.switchRisk * w;
+  dst.sacrifice += src.sacrifice * w;
+}
+
+function scaleFeat(f: ChoiceFeatures, inv: number): ChoiceFeatures {
+  return boundFeatures({
+    health: f.health * inv,
+    modifier: f.modifier * inv,
+    secondary: f.secondary * inv,
+    switchRisk: f.switchRisk * inv,
+    sacrifice: f.sacrifice * inv,
+  });
 }
 
 function slotAfterEffects(slot: SlotSnapshot, effects: ActionEffect[], side: 'p1' | 'p2'): SlotSnapshot {
@@ -177,25 +159,111 @@ function slotAfterEffects(slot: SlotSnapshot, effects: ActionEffect[], side: 'p1
   return next;
 }
 
-function scoreBranch(
-  obs: BattleObservation,
+function actorFeatures(
+  tel: ActionTelemetry,
   action: LegalAction,
+  actorOurs: boolean,
+  obs: BattleObservation,
   result: RoundSimResult,
-): { pair: number; ourVal: number; theirVal: number; success: number; parts: ImpactParts } {
-  const their = actorValue(result.theirs, false, obs, result.afterOurs);
-  if (action.type === 'switch') {
-    const after = observationStateScore(result.afterOurs, result.afterTheirs);
-    const before = observationStateScore(obs.ours, obs.theirs);
-    const pair = switchScore(after, before, their.value);
-    return { pair, ourVal: pair, theirVal: their.value, success: 1, parts: emptyImpactParts() };
+  valuations: EffectValuationRegistry,
+): { features: ChoiceFeatures; success: number; coverage: string[] } {
+  const self = actorOurs ? obs.ours : obs.theirs;
+  const foe = actorOurs ? obs.theirs : obs.ours;
+  const afterSelf = actorOurs ? result.afterOurs : result.afterTheirs;
+  const afterFoe = actorOurs ? result.afterTheirs : result.afterOurs;
+  const selfIdx = activeIndex(self);
+  const foeIdx = activeIndex(foe);
+  const selfSide = actorOurs ? obs.ourSide : (obs.ourSide === 'p1' ? 'p2' : 'p1');
+  const foeSide: 'p1' | 'p2' = selfSide === 'p1' ? 'p2' : 'p1';
+  const success = actionSuccess(action, tel, afterSelf);
+  const coverage: string[] = [];
+
+  const includeHazards = action.type === 'switch';
+  let selfHp = attributedHp(tel, selfSide, includeHazards);
+  let foeHp = attributedHp(tel, foeSide, includeHazards);
+  if (action.type === 'move' && tel.hit && foeHp === 0) {
+    foeHp = hpFrac(afterFoe, foeIdx) - hpFrac(foe, foeIdx);
   }
-  const our = actorValue(result.ours, true, obs, result.afterTheirs);
+  const health = clamp((selfHp - foeHp) / 6, -1, 1);
+
+  const selfSlot = self[selfIdx];
+  const foeSlot = foe[foeIdx];
+  let selfMod = 0;
+  let foeMod = 0;
+  if (selfSlot) {
+    selfMod = modifierValue(slotAfterEffects(selfSlot, tel.effects, selfSide).modifiers) - modifierValue(selfSlot.modifiers);
+  }
+  if (foeSlot) {
+    foeMod = modifierValue(slotAfterEffects(foeSlot, tel.effects, foeSide).modifiers) - modifierValue(foeSlot.modifiers);
+  }
+  const modifier = clamp((selfMod - foeMod) / 6, -1, 1);
+
+  const fieldTouched = tel.effects.some((e) => e.attributed && (e.kind === 'hazard' || /stealth rock|spikes|reflect|light screen|rain|sun|terrain/.test(e.from ?? '')));
+  const secondary = fieldTouched
+    ? actorSecondaryFeature(obs.ours, result.afterOurs, obs.theirs, result.afterTheirs, obs.field, result.afterField, obs.ourSide, actorOurs)
+    : 0;
+
+  const afterActive = afterSelf[selfIdx];
+  const faint = afterActive && (afterActive.fainted || afterActive.hp <= 0) ? 1 : 0;
+  const switchRisk = faint * hpFrac(self, selfIdx);
+  const sacrifice = faint * Math.max(0, hpFrac(foe, foeIdx) - hpFrac(afterFoe, foeIdx));
+
+  if (action.type === 'move' && action.moveId) {
+    const looked = valuationOrNeutral(valuations, 'moves', action.moveId);
+    const effectful = tel.effects.some((e) => e.attributed && e.kind !== 'damage' && e.kind !== 'recoil' && e.kind !== 'drain' && e.kind !== 'heal');
+    if (looked.coverage && effectful) coverage.push(looked.coverage);
+  }
+
   return {
-    pair: pairTurnScore(our.value, their.value),
-    ourVal: our.value,
-    theirVal: their.value,
-    success: our.success,
-    parts: our.parts,
+    success,
+    coverage,
+    features: boundFeatures({ health, modifier, secondary, switchRisk, sacrifice }),
+  };
+}
+
+export interface RealizedPairScore {
+  ourSuccess: number;
+  theirSuccess: number;
+  ourFeatures: ChoiceFeatures;
+  theirFeatures: ChoiceFeatures;
+  ourScore: number;
+  theirScore: number;
+  pairDelta: number;
+  parts: ImpactParts;
+  residualHealth: number;
+  residualModifier: number;
+  coverage: string[];
+}
+
+export function scoreRealizedPair(
+  before: BattleObservation,
+  ourAction: LegalAction,
+  theirAction: LegalAction,
+  simResult: RoundSimResult,
+  weights: ScoreWeights,
+  valuations: EffectValuationRegistry = loadDefaultValuations(),
+): RealizedPairScore {
+  const our = actorFeatures(simResult.ours, ourAction, true, before, simResult, valuations);
+  const their = actorFeatures(simResult.theirs, theirAction, false, before, simResult, valuations);
+  const ourScore = scoredChoice(our.success, our.features, weights);
+  const theirScore = scoredChoice(their.success, their.features, weights);
+  const beforeMons = valuesOf(before.ours, before.theirs);
+  const afterMons = valuesOf(simResult.afterOurs, simResult.afterTheirs);
+  const parts = impactParts(beforeMons, afterMons);
+  const residualHealth = finiteOrZero(parts.health / 6 - (our.features.health - their.features.health));
+  const residualModifier = finiteOrZero(parts.modifier / 6 - (our.features.modifier - their.features.modifier));
+  return {
+    ourSuccess: our.success,
+    theirSuccess: their.success,
+    ourFeatures: our.features,
+    theirFeatures: their.features,
+    ourScore,
+    theirScore,
+    pairDelta: clamp(ourScore - theirScore, -1, 1),
+    parts,
+    residualHealth,
+    residualModifier,
+    coverage: [...our.coverage, ...their.coverage],
   };
 }
 
