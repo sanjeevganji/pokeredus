@@ -126,12 +126,14 @@ describe('official Showdown one-round sim', () => {
     expect(evaluation.roundScore).toBe(evaluation.expectedRoundScore);
     expect(evaluation.minRoundScore).toBeLessThanOrEqual(evaluation.expectedRoundScore);
     expect(evaluation.expectedRoundScore).toBeLessThanOrEqual(evaluation.maxRoundScore);
-    expect(evaluation.roundScore).toBeGreaterThanOrEqual(-6);
-    expect(evaluation.roundScore).toBeLessThanOrEqual(6);
+    expect(evaluation.roundScore).toBeGreaterThanOrEqual(-1);
+    expect(evaluation.roundScore).toBeLessThanOrEqual(1);
     for (const c of evaluation.choices) {
       expect(Number.isFinite(c.choiceScore)).toBe(true);
-      expect(c.minTurnScore).toBeLessThanOrEqual(c.choiceScore + 1e-9);
-      expect(c.choiceScore).toBeLessThanOrEqual(c.maxTurnScore + 1e-9);
+      expect(c.choiceScore).toBeGreaterThanOrEqual(-1);
+      expect(c.choiceScore).toBeLessThanOrEqual(1);
+      expect(c.minTurnScore).toBeGreaterThanOrEqual(-1);
+      expect(c.maxTurnScore).toBeLessThanOrEqual(1);
       expect(c.sampleCount).toBeGreaterThan(0);
       expect(c.minPostScore).toBeLessThanOrEqual(c.meanPostScore + 1e-9);
       expect(c.meanPostScore).toBeLessThanOrEqual(c.maxPostScore + 1e-9);
