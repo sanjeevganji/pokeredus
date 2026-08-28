@@ -10,7 +10,9 @@ legal action pair under each set hypothesis, scores pairs with CTA/CTS times a
 weighted actor-local feature vector (health, modifier, field, switch-risk,
 sacrifice), then transforms each side separately with PennyLane QAOA.
 Opponent replies are weighted from the negative of our pair delta. Scenario
-reordering can update the persisted score weights. A classical softmax exists
+reordering can update the persisted score weights. A background forecast then
+rolls out realized pair deltas under a frozen sampled world until all-six
+elimination or an unknown hidden-team frontier. A classical softmax exists
 only as a benchmark CLI mode. If the quantum process fails, no battle action
 is sent.
 
