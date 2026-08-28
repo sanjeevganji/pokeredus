@@ -144,7 +144,9 @@ turns when exposed; otherwise the estimates in `MODIFIER_TURNS`.
 
 `forcedOutcome` is `win | loss | none`. Signed `log1p` is used only when
 scaling scores for the policy / display; raw values stay in engine output.
-`probability` is a policy weight, not confidence.
+`policyWeight` is QAOA output mass used for ranking and sampling, not
+confidence or a win probability. `winRate` is an empirical terminal-rollout
+frequency with a 95% Wilson interval.
 
 The official `pokemon-showdown` simulator is the rules engine for speed,
 priority, Trick Room, switches, accuracy, healing, status, boosts, field
