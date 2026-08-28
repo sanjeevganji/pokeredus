@@ -20,6 +20,9 @@ import {
 import {
   baseActionId,
   computeScoreGraphDomain,
+  describeScorePoint,
+  expectedStubRange,
+  faintTurnsFromEvents,
   formatConnect,
   formatKO,
   formatPercent,
@@ -29,12 +32,13 @@ import {
   getLatestSettledScore,
   getRecommendedActionId,
   isTeraAction,
-  normalizeMass,
   playableChoices,
+  rawPolicyWeight,
+  TOP_CHOICES,
   workingHitsToKill,
 } from '../lib/live-score';
 import { importScenario } from '../lib/scenarios';
-import { ScoreBar } from '../components/ScoreBar';
+import { PolicyMeter, ScoreBar } from '../components/ScoreBar';
 import { Bench, FieldBadges, SideFieldBadges, actionLabel, prettySpecies } from '../components/theater';
 
 export default function BattleLive() {
