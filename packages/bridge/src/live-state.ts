@@ -91,13 +91,20 @@ export interface LiveChoice {
   expectedTerminalScore?: number;
   minTerminalScore?: number;
   maxTerminalScore?: number;
-  winRate?: number;
-  winRateLow?: number;
-  winRateHigh?: number;
+  winRate?: number | null;
+  winRateLow?: number | null;
+  winRateHigh?: number | null;
   wins?: number;
   losses?: number;
+  /** @deprecated Compatibility alias: unknownFrontiers + turnCaps + timeCaps. */
   draws?: number;
+  /** @deprecated Compatibility alias: turnCaps + timeCaps. */
   capped?: number;
+  unknownFrontiers?: number;
+  turnCaps?: number;
+  timeCaps?: number;
+  errors?: number;
+  expectedCumulativeDelta?: number;
   samples?: number;
 }
 
