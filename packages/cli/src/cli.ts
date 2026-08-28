@@ -219,7 +219,20 @@ async function main(): Promise<void> {
           shots,
           logPath: send && canSend ? logPath : undefined,
         }).then((result) => {
-          if (gen === decideGen) hud.fromDecision(result, { rescore: !canSend || !send });
+          if (gen === decideGen) {
+            hud.fromDecision(result, { rescore: !canSend || !send });
+            try {
+              forecast.start(obs, {
+                policy,
+                seed,
+                shots,
+                weights: loadWeights(),
+                chanceSeeds: 1,
+              });
+            } catch (err) {
+              console.error('[pokeredus] forecast failed to start:', err);
+            }
+          }
         }).catch((err) => {
           console.error('[pokeredus] engine/quantum failed:', err);
           if (gen === decideGen) hud.patch({ status: 'error', error: err instanceof Error ? err.message : String(err) });
