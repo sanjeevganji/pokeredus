@@ -93,7 +93,8 @@
         "damage_on_switch": "type_effectiveness",
         "base_damage_fraction": 0.125
       },
-      "tags": ["move", "hazard", "entry_hazard"]
+      "tags": ["move", "hazard", "entry_hazard"],
+      "valuation": { "multiplier": 0.88, "expectedTurns": 8 }
     },
     "spikes": {
       "attribute_type": "field",
