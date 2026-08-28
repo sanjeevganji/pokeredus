@@ -135,12 +135,12 @@ describe('simulator state reconstruction', () => {
 
   it('does not refill a consumed item from the assumed set', () => {
     const carp = setOf('Magikarp', ['splash'], { ability: 'swiftswim', item: 'leftovers', nature: 'Hardy' });
-    const ours = team([carp], 0, [{ item: '', hp: 100, maxHp: 200 }]);
-    const after = simulateRound(obsOf(ours, team([foe], 0)), splash, splash, SEED);
-    const me = after.afterOurs.find((s) => s.active)!;
-    expect(me.item).toBe('');
-    expect(me.hp).toBe(me.maxHp / 2 || me.hp);
-    expect(me.hp).toBeLessThanOrEqual(Math.round(me.maxHp * 0.5) + 1);
+    const consumed = team([carp], 0, [{ item: '', hp: 100, maxHp: 200 }]);
+    const holding = team([carp], 0, [{ item: 'leftovers', hp: 100, maxHp: 200 }]);
+    const afterEmpty = simulateRound(obsOf(consumed, team([foe], 0)), splash, splash, SEED);
+    const afterHeld = simulateRound(obsOf(holding, team([foe], 0)), splash, splash, SEED);
+    expect(afterEmpty.afterOurs.find((s) => s.active)?.item).toBe('');
+    expect(afterEmpty.afterOurs.find((s) => s.active)!.hp).toBeLessThan(afterHeld.afterOurs.find((s) => s.active)!.hp);
   });
 
   it('restores already-terastallized defensive typing and one-use legality', () => {

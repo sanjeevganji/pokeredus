@@ -103,6 +103,91 @@ describe('BattleTracker — transcript → observation', () => {
     const obs = tracker.toObservation(pool, []);
     expect(obs.teraUsedOurs).toBe(true);
     expect(obs.teraUsedTheirs).toBe(false);
+    expect(obs.ours.find((s) => s.speciesId === 'garchomp')?.terastallized).toBe(true);
+  });
+});
+
+describe('BattleTracker — reconstructed live facts', () => {
+  it('emits moveSlots, trapped, and request PP/disabled for our active', () => {
+    const tracker = new BattleTracker();
+    tracker.apply({
+      type: 'request',
+      json: {
+        side: {
+          id: 'p1', name: 'me',
+          pokemon: [
+            { ident: 'p1: Garchomp', details: 'Garchomp, L80', condition: '100/100', active: true, moves: [], baseAbility: 'Rough Skin', item: 'Leftovers' },
+            { ident: 'p1: Toxapex', details: 'Toxapex, L80', condition: '100/100', active: false, moves: [], baseAbility: '', item: '' },
+          ],
+        },
+        active: [{
+          trapped: true,
+          moves: [
+            { move: 'Earthquake', id: 'earthquake', pp: 10, maxpp: 16, disabled: false },
+            { move: 'Outrage', id: 'outrage', pp: 0, maxpp: 16, disabled: false },
+            { move: 'Swords Dance', id: 'swordsdance', pp: 8, maxpp: 16, disabled: true },
+          ],
+        }],
+      },
+    });
+    const obs = tracker.toObservation(miniPool, []);
+    const us = obs.ours.find((s) => s.active);
+    expect(us?.trapped).toBe(true);
+    expect(us?.moveSlots).toEqual(expect.arrayContaining([
+      { id: 'earthquake', pp: 10, maxpp: 16, disabled: false },
+      { id: 'outrage', pp: 0, maxpp: 16, disabled: true },
+      { id: 'swordsdance', pp: 8, maxpp: 16, disabled: true },
+    ]));
+  });
+
+  it('clears a consumed item while keeping the revealed fact for beliefs', () => {
+    const tracker = new BattleTracker();
+    tracker.applyLine('|switch|p2a: Garchomp|Garchomp, L78, M|100/100');
+    tracker.applyLine('|-item|p2a: Garchomp|Leftovers');
+    tracker.applyLine('|-enditem|p2a: Garchomp|Leftovers|[from] item: Leftovers');
+    const obs = tracker.toObservation(miniPool, []);
+    const foe = obs.theirs.find((s) => s.speciesId === 'garchomp');
+    expect(foe?.item).toBe('');
+    expect(foe?.set?.item.toLowerCase().replace(/[^a-z0-9]/g, '')).toBe('leftovers');
+  });
+
+  it('clears choice lock on switch-out and when a later request lists multiple enabled moves', () => {
+    const tracker = new BattleTracker();
+    tracker.apply({
+      type: 'request',
+      json: {
+        side: {
+          id: 'p1', name: 'me',
+          pokemon: [
+            { ident: 'p1: Garchomp', details: 'Garchomp, L80', condition: '100/100', active: true, moves: [], baseAbility: '', item: 'Choice Scarf' },
+            { ident: 'p1: Toxapex', details: 'Toxapex, L80', condition: '100/100', active: false, moves: [], baseAbility: '', item: '' },
+          ],
+        },
+        active: [{
+          moves: [
+            { move: 'Earthquake', id: 'earthquake', pp: 10, maxpp: 16, disabled: false },
+            { move: 'Outrage', id: 'outrage', pp: 8, maxpp: 16, disabled: true },
+            { move: 'Stone Edge', id: 'stoneedge', pp: 8, maxpp: 16, disabled: true },
+          ],
+        }],
+      },
+    });
+    expect(tracker.toObservation(miniPool, []).ours.find((s) => s.active)?.choiceLock).toBe('earthquake');
+    tracker.applyLine('|switch|p1a: Toxapex|Toxapex, L80|100/100');
+    expect(tracker.toObservation(miniPool, []).ours.find((s) => s.active)?.choiceLock).toBeUndefined();
+  });
+
+  it('decrements screen durations once per new turn and clears them on sideend', () => {
+    const tracker = new BattleTracker();
+    tracker.applyLine('|switch|p1a: Alakazam|Alakazam, L80, M|100/100');
+    tracker.applyLine('|switch|p2a: Garchomp|Garchomp, L80, M|100/100');
+    tracker.applyLine('|-sidestart|p1: Player|move: Reflect');
+    tracker.applyLine('|turn|1');
+    expect(tracker.toObservation(pool, []).field.reflect_p1).toBe(5);
+    tracker.applyLine('|turn|2');
+    expect(tracker.toObservation(pool, []).field.reflect_p1).toBe(4);
+    tracker.applyLine('|-sideend|p1: Player|Reflect');
+    expect(tracker.toObservation(pool, []).field.reflect_p1).toBe(0);
   });
 });
 
