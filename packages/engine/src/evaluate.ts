@@ -426,7 +426,6 @@ function mixActor(
   for (const { w, cell } of cells) {
     if (!(w > 0)) continue;
     const ctaMass = whose === 'ours' ? cell.success : (cell.w > 0 ? cell.theirSuccessW / cell.w : 0);
-    if (whose === 'ours') console.log('mixActor row', { w, ctaMass, whose, successField: cell.success });
     const feat = whose === 'ours' ? cell.ourFeatures : cell.theirFeatures;
     z.w += w;
     z.successW += w * ctaMass;
