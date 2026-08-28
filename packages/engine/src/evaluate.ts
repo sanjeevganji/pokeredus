@@ -76,6 +76,41 @@ export function theirActions(obs: BattleObservation, hyp: CanonicalSet | undefin
   return legalFromSlots(slotsWithActiveSet(obs.theirs, hyp), observationTera(obs).theirs);
 }
 
+/** Active-slot simulation assumptions. Public hypotheses on the slot are left for display. */
+export function simulationAssumptions(active: SlotSnapshot | undefined): SetHypothesis[] {
+  if (!active) throw new Error('no complete simulation assumption for the opponent active');
+  if (active.setSource === 'manual') {
+    if (!setIsComplete(active.set)) throw new Error('manual override has no complete set');
+    return [{ set: active.set!, count: 1, probability: 1 }];
+  }
+  if (active.hypotheses?.length) {
+    const mass = active.hypotheses.reduce((s, h) => s + h.probability, 0);
+    if (!(mass > 0) || !Number.isFinite(mass)) {
+      throw new Error('hypothesis mass is zero or non-finite');
+    }
+    return active.hypotheses.map((h) => ({ ...h, probability: h.probability / mass }));
+  }
+  if (setIsComplete(active.set)) {
+    return [{ set: active.set!, count: 1, probability: 1 }];
+  }
+  throw new Error('no complete simulation assumption for the opponent active');
+}
+
+function hypothesisKey(set: CanonicalSet): string {
+  return canonicalizeSet(set);
+}
+
+function theirSetsForHyp(obs: BattleObservation, hypSet: CanonicalSet): CanonicalSet[] {
+  return obs.theirs.map((s) => {
+    if (s.active) return hypSet;
+    if (!s.revealed) return s.set ?? placeholderSet();
+    if (s.setSource === 'manual' && s.set) return s.set;
+    if (setIsComplete(s.set)) return s.set!;
+    if (s.hypotheses.length) return s.hypotheses[0]!.set;
+    return s.set ?? placeholderSet();
+  });
+}
+
 function hpFrac(slots: SlotSnapshot[], index: number): number {
   const s = slots[index];
   if (!s || s.fainted || s.maxHp <= 0) return 0;
