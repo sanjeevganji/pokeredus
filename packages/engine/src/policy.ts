@@ -211,3 +211,79 @@ export function sampleAction(ids: string[], probs: number[], rng: () => number =
   }
   return ids[ids.length - 1]!;
 }
+
+export interface SidePolicyContext {
+  actor: 'ours' | 'theirs';
+  /** Present when transforming a hypothesis-conditional opponent policy. Do not put set contents here. */
+  hypothesis?: boolean;
+}
+
+export interface SidePolicyOptions {
+  policy?: PolicyMode;
+  seed?: number;
+  shots?: number | null;
+  refineFallback?: 'throw' | 'softmax';
+}
+
+function actorLabel(ctx: SidePolicyContext): string {
+  return ctx.hypothesis ? `${ctx.actor} hypothesis` : ctx.actor;
+}
+
+function normalizeSideProbs(probs: number[], ids: string[], ctx: SidePolicyContext): number[] {
+  if (probs.length !== ids.length) {
+    throw new Error(`${actorLabel(ctx)} policy length ${probs.length}, expected ${ids.length}`);
+  }
+  if (probs.some((p) => typeof p !== 'number' || !Number.isFinite(p) || p < 0)) {
+    throw new Error(`${actorLabel(ctx)} policy has non-finite or negative mass`);
+  }
+  const sum = probs.reduce((a, b) => a + b, 0);
+  if (!(sum > 0)) {
+    throw new Error(`${actorLabel(ctx)} policy has zero total mass`);
+  }
+  return probs.map((p) => p / sum);
+}
+
+/** Shared validated transform: actor-positive scores in, normalized probabilities out. */
+export async function transformSidePolicy(
+  process: QuantumPolicyProcess | undefined,
+  ids: string[],
+  scores: number[],
+  opts: SidePolicyOptions,
+  ctx: SidePolicyContext,
+): Promise<{ probs: number[]; diagnostics: Record<string, unknown> }> {
+  if (!ids.length) return { probs: [], diagnostics: { mode: 'empty' } };
+  if (scores.length !== ids.length) {
+    throw new Error(`${actorLabel(ctx)} score length ${scores.length}, expected ${ids.length}`);
+  }
+  if (scores.some((s) => !Number.isFinite(s))) {
+    throw new Error(`${actorLabel(ctx)} scores must be finite`);
+  }
+
+  const useSoftmax = !process || opts.policy === 'softmax';
+  if (useSoftmax) {
+    return { probs: normalizeSideProbs(softmax(scores), ids, ctx), diagnostics: { mode: 'softmax' } };
+  }
+
+  try {
+    const res = await process.decide({
+      actions: ids,
+      scores: scores.map(signedLog1p),
+      mode: opts.policy ?? 'quantum',
+      seed: opts.seed,
+      shots: opts.shots ?? null,
+    });
+    return {
+      probs: normalizeSideProbs(res.probabilities, ids, ctx),
+      diagnostics: res.diagnostics ?? { mode: 'quantum' },
+    };
+  } catch (err) {
+    if (opts.refineFallback === 'throw') {
+      const msg = err instanceof Error ? err.message : String(err);
+      throw new Error(`${actorLabel(ctx)} policy failed: ${msg}`);
+    }
+    return {
+      probs: normalizeSideProbs(softmax(scores), ids, ctx),
+      diagnostics: { mode: 'softmax', fallback: true },
+    };
+  }
+}
