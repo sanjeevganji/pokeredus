@@ -202,8 +202,10 @@ npx tsx packages/cli/src/cli.ts live --battle <roomid> --policy quantum --dry-ru
 
 The live CLI overwrites `live-state.json` (or `$POKELINK_STATE`) each event and
 decision. Open **Games** in the web UI, then **Attach** (or **Open battle**) to
-reach `/games/live` for `roundScore`, ranked choice bars, 6v6 HP, and field
-badges. Use **Connect & detect** to list battles on your Showdown account.
+reach `/games/live` for cumulative battle score, a live forecast graph,
+ranked choice rows (QAOA policy weight, expected TTK, win intervals),
+6v6 HP, and field badges. Use **Connect & detect** to list battles on
+your Showdown account.
 
 ## Decision log
 
