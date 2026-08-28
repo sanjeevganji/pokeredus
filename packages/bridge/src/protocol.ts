@@ -809,6 +809,18 @@ function resolveOverrides(overrides?: SetOverridesStore | string): SetOverridesS
   return overrides ?? { version: 1, overrides: {} };
 }
 
+function moveSlotsFromMoves(moves: Array<RequestMove | string> | undefined): MoveSlotSnapshot[] | undefined {
+  if (!moves?.length) return undefined;
+  const out: MoveSlotSnapshot[] = [];
+  for (const m of moves) {
+    if (!m || typeof m === 'string') continue;
+    const id = m.id || toId(m.move || '');
+    if (!id || typeof m.pp !== 'number') continue;
+    out.push({ id, pp: m.pp, maxpp: m.maxpp ?? m.pp, disabled: Boolean(m.disabled) });
+  }
+  return out.length ? out : undefined;
+}
+
 function moveIdsFromPokemon(p: RequestPokemon): string[] {
   const ids: string[] = [];
   for (const m of p.moves ?? []) {
