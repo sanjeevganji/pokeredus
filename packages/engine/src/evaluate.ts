@@ -526,6 +526,7 @@ export async function evaluateTwoSidedPolicy(
   hypotheses: HypothesisPolicy[];
   roundScore: number;
   diagnostics: TwoSidedPolicyDiagnostics;
+  transformDiagnostics: Record<string, unknown>;
 }> {
   const n = ourActions.length;
   let pOur = n ? ourActions.map(() => 1 / n) : [];
