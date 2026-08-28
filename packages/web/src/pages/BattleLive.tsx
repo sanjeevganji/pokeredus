@@ -183,6 +183,11 @@ export default function BattleLive() {
         </button>
       </header>
 
+      {live.schemaIncompatible && (
+        <p className="theater-alert theater-alert-error" role="alert">
+          Live snapshot schema v{live.schemaVersion} is newer than this UI supports. Update PokeRedus to view this battle.
+        </p>
+      )}
       {live.error && <p className="theater-alert theater-alert-error" role="alert">{live.error}</p>}
       {live.warnings?.map((w) => <p key={w} className="theater-alert theater-alert-error" role="alert">{w}</p>)}
       {(live.ours ?? []).concat(live.theirs ?? []).some((s) => s.revealed && s.setComplete === false) && (
