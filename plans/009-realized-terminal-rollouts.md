@@ -303,7 +303,7 @@ Before modifying the loop, create deterministic fixtures:
 4. A manual set override is never resampled from public hypotheses.
 5. Exhaust all revealed opponent combatants while one hidden slot remains;
    assert `unknown-frontier`, zero fabricated switches, and no win.
-6. Faint all six known opponent slots; assert `win` and utility `+1`.
+6. Reveal and faint all six opponent slots; assert `win` and utility `+1`.
 7. Faint all six of ours; assert `loss` and utility `-1`.
 8. Turn cap, time cap, cancellation, and error have distinct counts/status.
 9. Two states differing only in modifier duration, item, belief mass, learned
