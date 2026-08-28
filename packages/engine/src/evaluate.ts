@@ -745,8 +745,24 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
     }
   }
 
-  if (legal.length && !branches.length) {
+  if (legal.length && !branches.length && hyps.length) {
     throw new Error(`illegal sim choice: no legal opponent replies under any set hypothesis (${hypothesisUnavailable} unavailable)`);
+  }
+
+  if (!branches.length) {
+    const empty = assemble(legal, [], new Map(), [], legal.map(() => (legal.length ? 1 / legal.length : 0)), [], weights);
+    return {
+      choices: empty.choices,
+      replies: [],
+      roundScore: 0,
+      expectedRoundScore: 0,
+      minRoundScore: 0,
+      maxRoundScore: 0,
+      forcedOutcome: 'none',
+      mateProbability: 0,
+      pairs: [],
+      diagnostics: hypothesisUnavailable ? { hypothesisUnavailable } : undefined,
+    };
   }
 
   const cells = new Map<string, PairCell>();

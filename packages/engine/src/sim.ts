@@ -496,7 +496,10 @@ function snapshotSide(mons: AnyPokemon[], prev: SlotSnapshot[], weather: string)
   });
   if (!next.some((s) => s.active)) {
     const live = mons.find((m) => m.isActive);
-    const row = live ? next.find((s) => speciesIdOf(live) === s.speciesId) : undefined;
+    const byLive = live ? next.find((s) => speciesIdOf(live) === s.speciesId) : undefined;
+    const byPrev = next.find((s) => s.slot === prev.find((p) => p.active)?.slot);
+    const byHp = next.find((s) => !s.fainted && s.hp > 0 && s.revealed);
+    const row = byLive ?? byPrev ?? byHp;
     if (row) row.active = true;
   }
   return next;
