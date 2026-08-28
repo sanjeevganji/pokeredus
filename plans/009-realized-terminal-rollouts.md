@@ -166,7 +166,9 @@ type RolloutOutcome =
   | 'error';
 ```
 
-- `win`: all six opponent slots are known and fainted.
+- `win`: every one of the six opponent slots is revealed/known and fainted,
+  including slots that were unrevealed earlier in the rollout. If any slot
+  remains unrevealed, the rollout cannot be a win.
 - `loss`: all six of ours are fainted.
 - `unknown-frontier`: the next legal state requires an unrevealed species/set,
   or all revealed opponent combatants are exhausted while unrevealed slots
@@ -229,11 +231,22 @@ compatibility:
 - `draws = unknownFrontiers + turnCaps + timeCaps`;
 - `capped = turnCaps + timeCaps`;
 - label these compatibility aggregates as deprecated in types;
-- do not include cancelled/error samples in Wilson denominator.
+- UI, tests, policy, and ranking logic must read `outcomeCounts`; `draws` is
+  only a compatibility alias and must not regain decision semantics.
 
-`winRate` remains wins divided by completed statistical samples
-`wins + losses + unknownFrontiers + turnCaps + timeCaps`, with the existing
-Wilson interval and explicit sample count. It is empirical under represented
+`winRate` is the empirical terminal win rate:
+
+```text
+terminalSamples = wins + losses
+winRate = wins / terminalSamples
+```
+
+The Wilson interval uses the same `terminalSamples` denominator. When
+`terminalSamples == 0`, both `winRate` and its interval are `null`/absent, not
+zero. `unknown-frontier`, `turn-cap`, and `time-cap` are neutral unresolved
+outcomes and appear only in `outcomeCounts`, completion/resolution diagnostics,
+and `expectedCumulativeDelta`; they are neither wins nor Bernoulli failures.
+Cancelled/error samples are also excluded. This is empirical under represented
 beliefs, not QAOA confidence.
 
 Set `BattleForecast.status` to:
@@ -340,7 +353,8 @@ Add one pure classifier called:
 
 Order:
 
-1. all-six opponent fainted → win;
+1. all six opponent slots are known and fainted → win; any unrevealed slot
+   prevents this classification even if every revealed opponent is fainted;
 2. all-six ours fainted → loss;
 3. forced active replacement exists among revealed living slots → continue;
 4. replacement requires an unrevealed slot → unknown frontier;
