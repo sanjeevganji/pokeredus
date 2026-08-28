@@ -698,10 +698,10 @@ function assemble(
 
   for (let i = 0; i < legal.length; i++) {
     const action = legal[i]!;
-    const mixed = mixActor(hypotheses.flatMap((h) => h.actions.map((reply, j) => {
+    const mixed = mixActor(hypotheses.flatMap((h) => h.actions.flatMap((reply, j) => {
       const cell = cells.get(cellKey(h.key, action.id, reply.id));
       return cell ? [{ w: h.probability * (h.probabilities[j] ?? 0), cell }] : [];
-    }).flat()), 'ours');
+    })), 'ours');
     const ours = branches.filter((b) => b.action.id === action.id);
     const range = rangeFromBranches(ours);
     const success = clamp(mixed.success, 0, 1);
