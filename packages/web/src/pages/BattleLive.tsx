@@ -344,7 +344,7 @@ function ScoreStrip({ state }: { state: LiveState }) {
         </div>
       </div>
 
-      <TurnGraph points={points} currentEval={ev} isLegacy={isLegacy} />
+      <TurnGraph points={points} currentEval={ev} isLegacy={isLegacy} events={state.events} />
 
       <details className="score-disclosure">
         <summary>How this score is calculated</summary>
