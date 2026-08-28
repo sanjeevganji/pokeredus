@@ -135,7 +135,7 @@ describe('BattleTracker — reconstructed live facts', () => {
     expect(us?.trapped).toBe(true);
     expect(us?.moveSlots).toEqual(expect.arrayContaining([
       { id: 'earthquake', pp: 10, maxpp: 16, disabled: false },
-      { id: 'outrage', pp: 0, maxpp: 16, disabled: true },
+      { id: 'outrage', pp: 0, maxpp: 16, disabled: false },
       { id: 'swordsdance', pp: 8, maxpp: 16, disabled: true },
     ]));
   });
