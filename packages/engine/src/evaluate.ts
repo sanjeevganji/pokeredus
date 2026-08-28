@@ -285,6 +285,257 @@ interface PairCell {
   ourHAfter: number;
   turnScore: number;
   theirVal: number;
+  ourFeatures: ChoiceFeatures;
+  theirFeatures: ChoiceFeatures;
+  ourSuccessW: number;
+  theirSuccessW: number;
+  ourFeatAcc: ChoiceFeatures;
+  theirFeatAcc: ChoiceFeatures;
+}
+
+interface Branch {
+  action: LegalAction;
+  reply: LegalAction;
+  w: number;
+  turnScore: number;
+  post: number;
+  parts: ImpactParts;
+  success: number;
+  ourFaint: number;
+  theirHpLost: number;
+  ourRemain: number;
+  pWin: number;
+  pLoss: number;
+  theirHBefore: number;
+  theirHAfter: number;
+  ourHBefore: number;
+  ourHAfter: number;
+  theirVal: number;
+}
+
+function emptyCell(action: LegalAction, reply: LegalAction): PairCell {
+  return {
+    action, reply, w: 0, parts: emptyImpactParts(), success: 0, post: 0,
+    ourFaint: 0, theirHpLost: 0, ourRemain: 0,
+    pWin: 0, pLoss: 0, theirHBefore: 0, theirHAfter: 0, ourHBefore: 0, ourHAfter: 0,
+    turnScore: 0, theirVal: 0,
+    ourFeatures: emptyFeatures(), theirFeatures: emptyFeatures(),
+    ourSuccessW: 0, theirSuccessW: 0,
+    ourFeatAcc: emptyFeatures(), theirFeatAcc: emptyFeatures(),
+  };
+}
+
+function pairKey(ourId: string, theirId: string): string {
+  return `${ourId}\t${theirId}`;
+}
+
+function addParts(dst: ImpactParts, src: ImpactParts, w: number): void {
+  dst.health += src.health * w;
+  dst.modifier += src.modifier * w;
+  dst.total += src.total * w;
+  dst.ourHealth += src.ourHealth * w;
+  dst.theirHealth += src.theirHealth * w;
+  dst.ourModifier += src.ourModifier * w;
+  dst.theirModifier += src.theirModifier * w;
+}
+
+function scaleParts(p: ImpactParts, inv: number): ImpactParts {
+  return {
+    health: p.health * inv,
+    modifier: p.modifier * inv,
+    total: p.total * inv,
+    ourHealth: p.ourHealth * inv,
+    theirHealth: p.theirHealth * inv,
+    ourModifier: p.ourModifier * inv,
+    theirModifier: p.theirModifier * inv,
+  };
+}
+
+function meanCell(cell: PairCell): PairCell {
+  const inv = cell.w > 0 ? 1 / cell.w : 0;
+  return {
+    ...cell,
+    parts: scaleParts(cell.parts, inv),
+    success: cell.ourSuccessW * inv,
+    post: cell.post * inv,
+    ourFaint: cell.ourFaint * inv,
+    theirHpLost: cell.theirHpLost * inv,
+    ourRemain: cell.ourRemain * inv,
+    pWin: cell.pWin * inv,
+    pLoss: cell.pLoss * inv,
+    theirHBefore: cell.theirHBefore * inv,
+    theirHAfter: cell.theirHAfter * inv,
+    ourHBefore: cell.ourHBefore * inv,
+    ourHAfter: cell.ourHAfter * inv,
+    turnScore: cell.turnScore * inv,
+    theirVal: cell.theirVal * inv,
+    ourFeatures: cell.ourSuccessW > 0 ? scaleFeat(cell.ourFeatAcc, 1 / cell.ourSuccessW) : emptyFeatures(),
+    theirFeatures: cell.theirSuccessW > 0 ? scaleFeat(cell.theirFeatAcc, 1 / cell.theirSuccessW) : emptyFeatures(),
+  };
+}
+
+function mixActor(
+  cells: Array<{ w: number; cell: PairCell }>,
+  whose: 'ours' | 'theirs',
+): { features: ChoiceFeatures; success: number; parts: ImpactParts; post: number; turn: number; theirVal: number; htk: { tb: number; ta: number; ob: number; oa: number } } {
+  const z = {
+    featAcc: emptyFeatures(),
+    parts: emptyImpactParts(),
+    successW: 0, post: 0, turn: 0, theirVal: 0, tb: 0, ta: 0, ob: 0, oa: 0, w: 0,
+  };
+  for (const { w, cell } of cells) {
+    if (!(w > 0)) continue;
+    const ctaMass = whose === 'ours' ? cell.success : (cell.w > 0 ? cell.theirSuccessW / cell.w : 0);
+    const feat = whose === 'ours' ? cell.ourFeatures : cell.theirFeatures;
+    z.w += w;
+    z.successW += w * ctaMass;
+    addFeat(z.featAcc, feat, w * ctaMass);
+    addParts(z.parts, cell.parts, w);
+    z.post += cell.post * w;
+    z.turn += cell.turnScore * w;
+    z.theirVal += cell.theirVal * w;
+    z.tb += cell.theirHBefore * w;
+    z.ta += cell.theirHAfter * w;
+    z.ob += cell.ourHBefore * w;
+    z.oa += cell.ourHAfter * w;
+  }
+  const inv = z.w > 0 ? 1 / z.w : 0;
+  return {
+    features: z.successW > 0 ? scaleFeat(z.featAcc, 1 / z.successW) : emptyFeatures(),
+    success: z.w > 0 ? z.successW / z.w : 0,
+    parts: scaleParts(z.parts, inv),
+    post: z.post * inv,
+    turn: z.turn * inv,
+    theirVal: z.theirVal * inv,
+    htk: { tb: z.tb * inv, ta: z.ta * inv, ob: z.ob * inv, oa: z.oa * inv },
+  };
+}
+
+function rangeFromBranches(rows: Branch[]): {
+  minTurn: number; maxTurn: number; minPost: number; maxPost: number; n: number;
+} {
+  const turns = rows.map((b) => b.turnScore);
+  const posts = rows.map((b) => b.post);
+  const t = scoreExtrema(turns);
+  const p = scoreExtrema(posts);
+  return { minTurn: t.min, maxTurn: t.max, minPost: p.min, maxPost: p.max, n: rows.length };
+}
+
+function unweightedImpact(f: ChoiceFeatures): number {
+  return finiteOrZero(f.health + f.modifier + f.secondary);
+}
+
+function assemble(
+  legal: LegalAction[],
+  replies: LegalAction[],
+  cells: Map<string, PairCell>,
+  branches: Branch[],
+  pOur: number[],
+  pTheir: number[],
+  weights: ScoreWeights,
+): { choices: ChoiceEvaluation[]; replies: ReplyEvaluation[]; postScores: number[]; forcedRows: Array<Array<{ pWin: number; pLoss: number }>>; pairs: PairScore[] } {
+  const choices: ChoiceEvaluation[] = [];
+  const postScores: number[] = [];
+  const forcedRows: Array<Array<{ pWin: number; pLoss: number }>> = [];
+  const pairs: PairScore[] = [];
+
+  for (let i = 0; i < legal.length; i++) {
+    const action = legal[i]!;
+    const mixed = mixActor(replies.flatMap((reply, j) => {
+      const cell = cells.get(pairKey(action.id, reply.id));
+      return cell ? [{ w: pTheir[j] ?? 0, cell }] : [];
+    }), 'ours');
+    const ours = branches.filter((b) => b.action.id === action.id);
+    const range = rangeFromBranches(ours);
+    const success = clamp(mixed.success, 0, 1);
+    const raw = scoredChoice(success, mixed.features, weights);
+    postScores.push(mixed.post);
+    choices.push({
+      action,
+      success,
+      cta: action.type === 'move' ? success : undefined,
+      cts: action.type === 'switch' ? success : undefined,
+      expectedImpact: unweightedImpact(mixed.features),
+      expectedHealthDelta: mixed.parts.health,
+      expectedModifierDelta: mixed.parts.modifier,
+      ourHealth: finiteOrZero(mixed.htk.oa - mixed.htk.ob),
+      theirHealth: finiteOrZero(mixed.htk.ta - mixed.htk.tb),
+      ourModifier: mixed.parts.ourModifier,
+      theirModifier: mixed.parts.theirModifier,
+      hitsToKill: hitsToKill(mixed.htk.tb, mixed.htk.ta),
+      choiceScore: raw,
+      scaledChoiceScore: signedLog1p(raw),
+      meanPostScore: mixed.post,
+      minTurnScore: range.minTurn,
+      maxTurnScore: range.maxTurn,
+      minPostScore: range.minPost,
+      maxPostScore: range.maxPost,
+      sampleCount: range.n,
+      features: mixed.features,
+      probability: pOur[i],
+    });
+    forcedRows.push(replies.map((reply) => {
+      const cell = cells.get(pairKey(action.id, reply.id));
+      return { pWin: cell?.pWin ?? 0, pLoss: cell?.pLoss ?? 0 };
+    }));
+  }
+
+  const replyEvals: ReplyEvaluation[] = replies.map((reply, j) => {
+    const mixed = mixActor(legal.flatMap((action, i) => {
+      const cell = cells.get(pairKey(action.id, reply.id));
+      return cell ? [{ w: pOur[i] ?? 0, cell }] : [];
+    }), 'theirs');
+    const raw = scoredChoice(mixed.success, mixed.features, weights);
+    const rows = branches.filter((b) => b.reply.id === reply.id);
+    const range = rangeFromBranches(rows);
+    return {
+      action: reply,
+      success: mixed.success,
+      cta: reply.type === 'move' ? mixed.success : undefined,
+      cts: reply.type === 'switch' ? mixed.success : undefined,
+      expectedImpact: unweightedImpact(mixed.features),
+      hitsToKillUs: hitsToKill(mixed.htk.ob, mixed.htk.oa),
+      choiceScore: raw,
+      expectedHealthDelta: mixed.parts.health,
+      expectedModifierDelta: mixed.parts.modifier,
+      ourHealth: finiteOrZero(mixed.htk.oa - mixed.htk.ob),
+      theirHealth: finiteOrZero(mixed.htk.ta - mixed.htk.tb),
+      ourModifier: mixed.parts.ourModifier,
+      theirModifier: mixed.parts.theirModifier,
+      features: mixed.features,
+      probability: pTheir[j],
+      minTurnScore: range.minTurn,
+      maxTurnScore: range.maxTurn,
+      meanPostScore: mixed.post,
+      minPostScore: range.minPost,
+      maxPostScore: range.maxPost,
+      sampleCount: range.n,
+    };
+  });
+
+  for (const action of legal) {
+    for (const reply of replies) {
+      const cell = cells.get(pairKey(action.id, reply.id));
+      if (!cell) continue;
+      const ourScore = scoredChoice(cell.success, cell.ourFeatures, weights);
+      const theirCta = cell.w > 0 ? cell.theirSuccessW / cell.w : 0;
+      const theirScore = scoredChoice(theirCta, cell.theirFeatures, weights);
+      pairs.push({ ourId: action.id, theirId: reply.id, score: clamp(ourScore - theirScore, -1, 1) });
+    }
+  }
+
+  return { choices, replies: replyEvals, postScores, forcedRows, pairs };
+}
+  theirHpLost: number;
+  ourRemain: number;
+  pWin: number;
+  pLoss: number;
+  theirHBefore: number;
+  theirHAfter: number;
+  ourHBefore: number;
+  ourHAfter: number;
+  turnScore: number;
+  theirVal: number;
 }
 
 interface Branch {
