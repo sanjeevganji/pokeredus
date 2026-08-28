@@ -312,21 +312,22 @@ export async function handleScenarioRequest(
 
     if (action === 'rank') {
       const side = body.side === 'theirs' ? 'theirs' : 'ours';
-      const order = Array.isArray(body.order) ? body.order.map(String) : [];
-      const ev = await evaluateRound(s.observation, evalOpts());
-      const rows = side === 'ours' ? ev.choices : ev.replies;
-      const ranked = order.map((oid) => {
-        const row = rows.find((r) => r.action.id === oid);
-        if (!row || !row.features) return null;
-        return { id: oid, score: row.choiceScore, features: row.features };
-      }).filter((x): x is NonNullable<typeof x> => Boolean(x));
-      const nextW = elasticUpdate(loadWeights(weightsPath), ranked);
-      saveWeights(nextW, weightsPath);
-      if (side === 'ours') s.rankOurs = order;
-      else s.rankTheirs = order;
+      const before = loadWeights(weightsPath);
+      const out = await applyScenarioRank({
+        observation: s.observation,
+        side,
+        order: body.order,
+        weightsPath,
+        evalOpts: evalOpts(),
+      });
+      if (out.status !== 200) {
+        sendJson(res, out.body, out.status);
+        return;
+      }
+      if (side === 'ours') s.rankOurs = out.order;
+      else s.rankTheirs = out.order;
       writeScenario(s);
-      const ev2 = await evaluateRound(s.observation, evalOpts());
-      sendJson(res, { eval: publicEval(ev2), weights: nextW, scenario: s });
+      sendJson(res, { ...out.body, scenario: s, weightsBefore: before });
       return;
     }
 
