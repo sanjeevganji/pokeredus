@@ -196,8 +196,8 @@ describe('two-sided hypothesis policy', () => {
   const common = asSet('Blissey', ['splash']);
   const rareSet = asSet('Blissey', ['splash', 'earthquake'], { item: 'leftovers' });
 
-  async function evalGrid(extra?: Partial<SlotSnapshot>, nOur = 1) {
-    const ourMoves = nOur === 1 ? ['tackle'] : Array.from({ length: nOur }, (_, i) => `move${i}`);
+  async function evalGrid(extra?: Partial<SlotSnapshot>) {
+    const ourMoves = ['tackle'];
     const obs = fixtureObs({
       ourMoves,
       theirHyps: [
