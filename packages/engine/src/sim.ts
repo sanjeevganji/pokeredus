@@ -725,17 +725,25 @@ export function simulateRound(
   seed: number[],
   theirSets?: CanonicalSet[],
 ): RoundSimResult {
-  const root = createBattle(obs, seed, theirSets);
-  const battle = cloneBattle(root);
-  const ourChoice = simChoice(our);
-  const oppChoice = simChoice(opp);
+  const prepared = prepareBattle(obs, seed, theirSets);
+  const battle = cloneBattle(prepared.battle);
+  const ourChoice = simChoiceFor(our, prepared.ours);
+  const oppChoice = simChoiceFor(opp, prepared.theirs);
   const p1Choice = obs.ourSide === 'p1' ? ourChoice : oppChoice;
   const p2Choice = obs.ourSide === 'p1' ? oppChoice : ourChoice;
   const logStart = battle.log?.length ?? 0;
   try {
     battle.makeChoices(p1Choice, p2Choice);
-  } catch {
-    // illegal in this hypothesized state — treat as no-op branch
+  } catch (err) {
+    const oursActive = obs.ours.find((s) => s.active) ?? obs.ours[0];
+    const theirsActive = obs.theirs.find((s) => s.active) ?? obs.theirs[0];
+    throw new IllegalSimChoiceError({
+      ourActionId: our.id,
+      oppActionId: opp.id,
+      ours: { slot: oursActive?.slot ?? -1, speciesId: oursActive?.speciesId ?? '' },
+      theirs: { slot: theirsActive?.slot ?? -1, speciesId: theirsActive?.speciesId ?? '' },
+      cause: err,
+    });
   }
   const roundLog = (battle.log ?? []).slice(logStart);
   const { ours, theirs } = parseRoundLog(roundLog, obs.ourSide);
