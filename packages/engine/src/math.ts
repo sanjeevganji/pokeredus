@@ -355,10 +355,6 @@ export function actorSecondaryFeature(
   const terrainOn = (f: FieldSnapshot) => (f.terrain ? 1 : 0);
   s += 0.05 * (weatherOn(afterField) - weatherOn(beforeField));
   s += 0.05 * (terrainOn(afterField) - terrainOn(beforeField));
-  void beforeOurs;
-  void afterOurs;
-  void beforeTheirs;
-  void afterTheirs;
   return clamp(finiteOrZero(s), -1, 1);
 }
 
