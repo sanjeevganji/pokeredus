@@ -6,8 +6,11 @@ import {
   appendDecisionLog,
   QuantumPolicyProcess,
   loadWeights,
+  forecastBattle,
+  type ForecastOptions,
   type RoundEvaluation,
 } from '@pokeredus/engine';
+import type { LiveStateWriter } from './live-state.js';
 
 export interface DecideClient {
   send(msg: string): void;
