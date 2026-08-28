@@ -288,8 +288,8 @@ function ScoreStrip({ state }: { state: LiveState }) {
     const delta = formatSigned(sampledChoice.choiceScore, 2);
     const minD = sampledChoice.minTurnScore != null ? formatSigned(sampledChoice.minTurnScore, 2) : delta;
     const maxD = sampledChoice.maxTurnScore != null ? formatSigned(sampledChoice.maxTurnScore, 2) : delta;
-    thisActionValue = `${actionName} (${delta})`;
-    thisActionStatus = `Observed range: ${minD} to ${maxD}`;
+    thisActionValue = delta;
+    thisActionStatus = `${actionName} · best ${maxD} · worst ${minD}`;
   } else if (ev?.sampledAction) {
     thisActionValue = actionLabel(ev.sampledAction, state.ours);
     thisActionStatus = ev.roundScore != null ? `Expected ${formatSigned(ev.roundScore, 2)}` : 'Waiting for decision';
