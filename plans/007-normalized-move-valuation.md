@@ -412,10 +412,10 @@ feed the normalized score.
 ### 4. Apply weights in the shared score path
 
 Delete the `_weights` placeholder. The function that produces each
-`ChoiceEvaluation.choiceScore`, `ReplyEvaluation.choiceScore`, and
-`PairScore.score` must reuse the existing `weightedRaw`/`scoredChoice` helpers.
-Do not add a second weighted scorer. Assert that `PairScore.score` equals
-`scoreRealizedPair(...).pairDelta` for a deterministic branch.
+`ChoiceEvaluation.choiceScore` and `ReplyEvaluation.choiceScore` must reuse the
+existing `weightedRaw`/`scoredChoice` helpers. `PairScore.score` is the clamped
+difference of those actor-local action scores returned by
+`scoreRealizedPair(...).pairDelta`. Do not add a second weighted scorer.
 
 Assert:
 
