@@ -38,6 +38,7 @@ function speciesId(set: CanonicalSet): string {
 }
 
 function ourSlots(team: CanonicalSet[]): SlotSnapshot[] {
+  const n = team.length;
   const padded = [...team];
   while (padded.length < 6) padded.push({
     species: 'Smeargle', level: 100, item: '', ability: 'owntempo', moves: ['splash'], nature: 'Hardy',
@@ -45,7 +46,7 @@ function ourSlots(team: CanonicalSet[]): SlotSnapshot[] {
   return padded.slice(0, 6).map((set, i) => ({
     slot: i,
     speciesId: speciesId(set),
-    revealed: true,
+    revealed: i < n,
     hp: 250,
     maxHp: 250,
     status: '',
