@@ -182,7 +182,8 @@
         "damage_reduction": 0.5,
         "applies_to": "physical"
       },
-      "tags": ["move", "screen"]
+      "tags": ["move", "screen"],
+      "valuation": { "multiplier": 0.5, "expectedTurns": 5 }
     },
     "lightscreen": {
       "attribute_type": "field",
