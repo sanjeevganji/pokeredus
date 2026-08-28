@@ -1,6 +1,6 @@
 # 007 — Normalize move valuation and learn from human reordering
 
-**Status:** TODO  
+**Status:** DONE  
 **Commit:** `b97a334`  
 **Effort:** L  
 **Risk:** High — these values directly drive both side policies  
