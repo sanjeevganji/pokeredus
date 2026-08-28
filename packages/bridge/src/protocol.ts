@@ -613,12 +613,18 @@ export class BattleTracker {
 
       case '-item': {
         const mon = this.findMon(ev.side, ev.identity);
-        if (mon && ev.item) mon.item = ev.item;
+        if (mon && ev.item) {
+          mon.item = ev.item;
+          mon.revealedItem = ev.item;
+        }
         break;
       }
       case '-enditem': {
         const mon = this.findMon(ev.side, ev.identity);
-        if (mon && ev.item && !mon.item) mon.item = ev.item;
+        if (mon) {
+          if (ev.item) mon.revealedItem = mon.revealedItem ?? ev.item;
+          mon.item = '';
+        }
         break;
       }
       case '-ability': {
