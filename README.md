@@ -152,6 +152,36 @@ switchScore         = CTS × E[conditionalValue | completed switch]
 PairScore.score     = clamp(ourActionScore − opponentActionScore, -1, +1)
 ```
 
+Each turn the engine scores every legal our action against every legal
+opponent reply under each active-set hypothesis. Chance branches average only
+inside a specific `(hypothesis, our action, opponent action)` cell. Belief
+mass `P(h)` is applied afterward.
+
+Opponent policy uses **our** pair delta with the sign flipped once (`-D`).
+Both sides use the same transform `T` (QAOA live; softmax only as an explicit
+benchmark):
+
+```
+P_ours starts uniform
+opponentUtility(j|h) = Σ_i P_ours(i) × (−D(i,j,h))
+P_theirs(j|h)        = T(legal replies under h, opponentUtility)
+ourUtility(i)        = Σ_h P(h) × Σ_j P_theirs(j|h) × D(i,j,h)
+P_ours(i)            = T(our actions, ourUtility)
+roundScore           = Σ_i P_ours(i) × ourUtility(i)   ∈ [-1, +1]
+```
+
+Two iterations is the default. Every legal our action stays in the
+distribution; there is no 32-pair joint cap. Display opponent probabilities
+are the belief-weighted mix of the conditional policies and sum to one.
+`availability` is the hypothesis mass where that reply is legal; it is not
+policy mass or confidence.
+
+`ChoiceEvaluation.expectedUtility` is the final `E[D]`.
+`ReplyEvaluation.expectedUtility` is opponent-perspective `E[-D]`.
+`choiceScore` on both rows remains the actor-local value used by Scenario
+reordering. A compatible manual set override is the simulation assumption
+with mass one; public hypotheses stay on the observation for display.
+
 CTA and CTS are computed from represented branch mass, not editable
 coefficients. Failure/no-op branches contribute zero successful mass; do not
 average them in and then multiply by CTA again. Independent modifiers add in
