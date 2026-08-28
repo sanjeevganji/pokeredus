@@ -2,11 +2,16 @@ import { describe, it, expect } from 'vitest';
 import { type MonValue } from '../src/observation.js';
 import {
   cta, cts, impact, impactParts, hitsToKill, pokemonValue, stateScore, choiceScore, roundScore, mateFromForced, signedLog1p, clamp,
-  damageScore, expectedTtk, effectiveHeal, modifierValue, modifierDelta, switchScore, pairTurnScore,
+  expectedTtk, effectiveHeal, modifierValue, modifierDelta, switchScore, pairTurnScore,
+  logModifier, actorHealthFeature, actorModifierFeature, scoredChoice, DEFAULT_WEIGHTS, emptyFeatures, TEAM_SIZE,
 } from '../src/math.js';
 
 function mon(side: 'ours' | 'theirs', h: number, L = 1, M = 0, revealed = true): MonValue {
   return { side, revealed, h, L, M };
+}
+
+function six(side: 'ours' | 'theirs', h = 1, L = 1, M = 0): MonValue[] {
+  return Array.from({ length: TEAM_SIZE }, () => mon(side, h, L, M));
 }
 
 describe('stateScore', () => {
@@ -21,6 +26,13 @@ describe('stateScore', () => {
   it('fainted pokemon contribute 0', () => {
     expect(pokemonValue(mon('ours', 1, 0, 5))).toBe(0);
   });
+
+  it('a positive setup modifier retains positive value at full HP', () => {
+    const full = pokemonValue(mon('ours', 1, 1, 0));
+    const setup = pokemonValue(mon('ours', 1, 1, Math.log(2) * 6));
+    expect(setup).toBeGreaterThan(full);
+    expect(modifierValue([{ name: 'boost:atk', multiplier: 2, remainingTurns: 6 }])).toBeGreaterThan(0);
+  });
 });
 
 describe('CTA / CTS', () => {
@@ -31,13 +43,66 @@ describe('CTA / CTS', () => {
   });
 
   it('forced switch CTS is 1', () => {
-    expect(cts(0, 0, true)).toBe(1);
+    expect(cts(false, true)).toBe(1);
+    expect(cts(true, true)).toBe(1);
   });
 
-  it('CTS uses epsilon when stay score is 0', () => {
-    const v = cts(1, 0, false);
-    expect(v).toBeGreaterThan(0.5);
-    expect(v).toBeLessThanOrEqual(1);
+  it('unforced CTS is 1 iff the switch completed', () => {
+    expect(cts(true, false)).toBe(1);
+    expect(cts(false, false)).toBe(0);
+  });
+});
+
+describe('logModifier composition', () => {
+  it('two independent 1.5× modifiers for two turns compose as 1.5^(2+2)', () => {
+    const mods = [
+      { name: 'a', multiplier: 1.5, remainingTurns: 2 },
+      { name: 'b', multiplier: 1.5, remainingTurns: 2 },
+    ];
+    expect(Math.exp(logModifier(mods))).toBeCloseTo(1.5 ** 4);
+  });
+
+  it('a neutral 1× modifier does not dilute another modifier', () => {
+    const strong = [{ name: 'a', multiplier: 2, remainingTurns: 3 }];
+    const withNeutral = [...strong, { name: 'n', multiplier: 1, remainingTurns: 5 }];
+    expect(logModifier(withNeutral)).toBeCloseTo(logModifier(strong));
+    expect(modifierValue(withNeutral)).toBeCloseTo(modifierValue(strong));
+  });
+
+  it('branch mass and metadata-only probability are not squared', () => {
+    const realized = { name: 'burn', multiplier: 0.5, remainingTurns: 3, probability: 1 };
+    const metadata = { name: 'burn', multiplier: 0.5, remainingTurns: 3, probability: 0.3 };
+    expect(0.3 * logModifier([realized])).toBeCloseTo(logModifier([metadata]));
+    expect(logModifier([metadata])).not.toBeCloseTo(0.3 * 0.3 * Math.log(0.5) * 3);
+  });
+});
+
+describe('normalized health / modifier features', () => {
+  it('six-Pokémon health delta is /6 and bounded to [-1, +1]', () => {
+    const before = [...six('ours'), ...six('theirs')];
+    const after = [...six('ours'), mon('theirs', 0, 0), ...six('theirs').slice(1)];
+    const f = actorHealthFeature(before, after, 'ours');
+    expect(f).toBeCloseTo(1 / 6);
+    expect(f).toBeGreaterThanOrEqual(-1);
+    expect(f).toBeLessThanOrEqual(1);
+    const wipe = actorHealthFeature(before, [...six('ours'), ...six('theirs', 0, 0)], 'ours');
+    expect(wipe).toBeCloseTo(1);
+  });
+
+  it('swapping ours/theirs negates the actor-local health delta', () => {
+    const before = [...six('ours'), ...six('theirs')];
+    const after = [...six('ours'), mon('theirs', 0, 0), ...six('theirs').slice(1)];
+    const ours = actorHealthFeature(before, after, 'ours');
+    const theirs = actorHealthFeature(before, after, 'theirs');
+    expect(theirs).toBeCloseTo(-ours);
+  });
+
+  it('empty and no-op branches are finite zero', () => {
+    const mons = [...six('ours'), ...six('theirs')];
+    expect(actorHealthFeature(mons, mons, 'ours')).toBe(0);
+    expect(actorModifierFeature(mons, mons, 'ours')).toBe(0);
+    expect(Number.isFinite(actorHealthFeature([], [], 'ours'))).toBe(true);
+    expect(pairTurnScore(Number.NaN, 1)).toBe(0);
   });
 });
 
@@ -74,30 +139,53 @@ describe('impact and choice/round', () => {
     expect(parts.theirModifier).toBeCloseTo(0);
   });
 
-  it('damage heal and modifier deltas are scaled to 1', () => {
-    const ko = impactParts([mon('ours', 1), mon('theirs', 1)], [mon('ours', 1), mon('theirs', 0)]);
-    expect(ko.theirHealth).toBeCloseTo(-1);
-    expect(ko.health).toBeCloseTo(1);
-    expect(ko.total).toBeCloseTo(1);
-    const boost = impactParts(
-      [mon('ours', 1, 1, 0), mon('theirs', 1)],
-      [mon('ours', 1, 1, 80), mon('theirs', 1)],
-    );
-    expect(boost.ourModifier).toBeCloseTo(0.5);
-    expect(Math.abs(boost.ourModifier)).toBeLessThanOrEqual(1);
-    expect(Math.abs(boost.ourHealth)).toBeLessThanOrEqual(1);
-  });
-
-  it('hitsToKill is ceil of remaining over expected damage', () => {
+  it('hitsToKill is a display diagnostic', () => {
     expect(hitsToKill(1, 0.4)).toBe(2);
     expect(hitsToKill(1, 0)).toBe(1);
     expect(hitsToKill(0.5, 0.5)).toBeNull();
     expect(hitsToKill(0.5, 0.8)).toBeNull();
+    expect(expectedTtk(1, 1)).toBe(1);
+    expect(expectedTtk(1, 0)).toBeNull();
   });
 
   it('roundScore is the uniform mean', () => {
     expect(roundScore([1, 3, 5])).toBe(3);
     expect(roundScore([])).toBe(0);
+  });
+});
+
+describe('weighted scoredChoice', () => {
+  const z = emptyFeatures();
+
+  it('80% hit with conditional value 0.5 yields 0.4', () => {
+    expect(scoredChoice(0.8, { ...z, health: 0.5 }, DEFAULT_WEIGHTS)).toBeCloseTo(0.4);
+  });
+
+  it('faint-before-action has CTA and score zero', () => {
+    expect(cta(1, 1, 0)).toBe(0);
+    expect(scoredChoice(0, { ...z, health: 1 }, DEFAULT_WEIGHTS)).toBe(0);
+  });
+
+  it('default weights preserve expected sign', () => {
+    expect(scoredChoice(1, { ...z, health: 0.2 }, DEFAULT_WEIGHTS)).toBeGreaterThan(0);
+    expect(scoredChoice(1, { ...z, modifier: 0.2 }, DEFAULT_WEIGHTS)).toBeGreaterThan(0);
+    expect(scoredChoice(1, { ...z, secondary: 0.2 }, DEFAULT_WEIGHTS)).toBeGreaterThan(0);
+    expect(scoredChoice(1, { ...z, sacrifice: 0.2 }, DEFAULT_WEIGHTS)).toBeGreaterThan(0);
+    expect(scoredChoice(1, { ...z, switchRisk: 0.5 }, DEFAULT_WEIGHTS)).toBeLessThan(0);
+  });
+
+  it('changing one weight changes only rows with that feature', () => {
+    const healthRow = { ...z, health: 0.3 };
+    const modRow = { ...z, modifier: 0.3 };
+    const boosted = { ...DEFAULT_WEIGHTS, health: 2 };
+    expect(scoredChoice(1, healthRow, boosted)).not.toBe(scoredChoice(1, healthRow, DEFAULT_WEIGHTS));
+    expect(scoredChoice(1, modRow, boosted)).toBe(scoredChoice(1, modRow, DEFAULT_WEIGHTS));
+  });
+
+  it('min/mean/max stay within [-1, +1]', () => {
+    const huge = scoredChoice(1, { health: 4, modifier: 4, secondary: 4, switchRisk: 0, sacrifice: 4 }, DEFAULT_WEIGHTS);
+    expect(huge).toBeLessThanOrEqual(1);
+    expect(scoredChoice(1, { ...z, health: -4 }, DEFAULT_WEIGHTS)).toBeGreaterThanOrEqual(-1);
   });
 });
 
@@ -131,23 +219,6 @@ describe('signedLog1p', () => {
 });
 
 describe('score contract helpers', () => {
-  it('OHKO with CTA 1 scores +1', () => {
-    expect(expectedTtk(1, 1)).toBe(1);
-    expect(damageScore(1, 1)).toBe(1);
-  });
-
-  it('2HKO with CTA 1 scores 0.5', () => {
-    expect(expectedTtk(1, 0.5)).toBe(2);
-    expect(damageScore(1, 2)).toBe(0.5);
-  });
-
-  it('empty or no-damage branches are finite 0', () => {
-    expect(damageScore(1, null)).toBe(0);
-    expect(damageScore(0, 1)).toBe(0);
-    expect(expectedTtk(1, 0)).toBeNull();
-    expect(pairTurnScore(Number.NaN, 1)).toBe(0);
-  });
-
   it('healing excludes overheal', () => {
     expect(effectiveHeal(80, 120, 100)).toBeCloseTo(0.2);
     expect(effectiveHeal(100, 100, 100)).toBe(0);
