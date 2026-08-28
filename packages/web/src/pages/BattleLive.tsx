@@ -651,7 +651,13 @@ function OurChoiceList({
     });
   }, [choices, slots]);
   const recommendedId = useMemo(() => getRecommendedActionId(ranked), [ranked]);
-  const visible = showAll || ranked.length <= TOP_CHOICES ? ranked : ranked.slice(0, TOP_CHOICES);
+  const visible = useMemo(() => {
+    if (showAll || ranked.length <= TOP_CHOICES) return ranked;
+    const top = ranked.slice(0, TOP_CHOICES);
+    if (!sampledId || top.some((c) => c.id === sampledId)) return top;
+    const extra = ranked.find((c) => c.id === sampledId);
+    return extra ? [...top, extra] : top;
+  }, [showAll, ranked, sampledId]);
   const foeHp = hpFrac(foe);
   const baseTotal = settledScore ?? 0;
 
