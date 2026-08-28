@@ -615,7 +615,6 @@ export async function evaluateTwoSidedPolicy(
   let legalPairCount = 0;
   for (const g of grids) legalPairCount += n * g.actions.length;
   const hypothesisMass = grids.reduce((s, g) => s + g.probability, 0);
-  void lastDiag;
 
   return {
     pOur,
@@ -623,6 +622,7 @@ export async function evaluateTwoSidedPolicy(
     hypotheses,
     roundScore,
     diagnostics: { iterations: iters, maxPolicyDelta, hypothesisMass, legalPairCount },
+    transformDiagnostics: lastDiag,
   };
 }
 
