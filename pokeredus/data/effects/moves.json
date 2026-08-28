@@ -8,7 +8,8 @@
         "stages": 2,
         "target": "self"
       },
-      "tags": ["move", "setup", "stat_boost"]
+      "tags": ["move", "setup", "stat_boost"],
+      "valuation": { "multiplier": 2, "expectedTurns": 6 }
     },
     "dragondance": {
       "effects": [
