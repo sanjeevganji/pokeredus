@@ -370,10 +370,8 @@ export async function forecastBattle(
       // Root action step:
       // Sample opponent reply conditional on rootAction from root policy
       const oppReplies = rootPolicy.evaluation.replies.map((r) => r.action);
-      const oppProbs = rootPolicy.evaluation.replies.map((r) => {
-        const key = `${rootAction.id}\t${r.action.id}`;
-        return rootPolicy.jointProbs.get(key) ?? 0;
-      });
+      // ponytail: display-marginal sampling until plan 009 draws a hypothesis then a conditional reply
+      const oppProbs = rootPolicy.evaluation.replies.map((r) => r.probability ?? 0);
       const oppSum = oppProbs.reduce((a, b) => a + b, 0);
       const chosenOppId = oppSum > 0
         ? sampleAction(oppReplies.map((r) => r.id), oppProbs, rng)
