@@ -708,6 +708,7 @@ function toLiveChoices(ev: DecideResult['evaluation'], probabilities?: number[])
       probability: p,
       policyWeight: p,
       hamiltonianInput: c.scaledChoiceScore,
+      expectedUtility: c.expectedUtility,
     };
   });
 }
