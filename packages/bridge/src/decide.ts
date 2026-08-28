@@ -8,6 +8,7 @@ import {
   loadWeights,
   forecastBattle,
   type ForecastOptions,
+  type BattleForecast,
   type RoundEvaluation,
 } from '@pokeredus/engine';
 
