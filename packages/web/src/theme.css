@@ -662,6 +662,10 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   font-weight: 500;
 }
 
+.score-disclosure summary:hover {
+  color: var(--neon-cyan);
+}
+
 .score-disclosure summary:focus-visible,
 .theater-log summary:focus-visible {
   outline: 2px solid var(--neon-cyan);
