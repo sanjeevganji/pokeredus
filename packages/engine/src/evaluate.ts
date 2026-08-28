@@ -12,26 +12,24 @@ import type {
 } from './observation.js';
 import { observationTera } from './observation.js';
 import {
-  choiceFeatures,
+  actorSecondaryFeature,
+  boundFeatures,
+  clamp,
   cta,
   DEFAULT_WEIGHTS,
-  damageScore,
-  effectiveHeal,
+  emptyFeatures,
   emptyImpactParts,
-  expectedTtk,
   finiteOrZero,
   hitsToKill,
   impactParts,
   mateFromForced,
-  modifierDelta,
+  modifierValue,
   modifiersFromSlot,
   observationStateScore,
-  pairTurnScore,
-  pokemonValue,
+  scoredChoice,
   signedLog1p,
   slotToMonValue,
   softmax,
-  switchScore,
   weightedMean,
   scoreExtrema,
   type ChoiceFeatures,
@@ -41,6 +39,11 @@ import {
 import { IllegalSimChoiceError, simulateRound, type ActionEffect, type ActionTelemetry, type RoundSimResult } from './sim.js';
 import { legalActionsForEval, legalFromSlots, slotsWithActiveSet } from './actions.js';
 import type { QuantumPolicyProcess } from './policy.js';
+import {
+  loadDefaultValuations,
+  valuationOrNeutral,
+  type EffectValuationRegistry,
+} from './effect-valuation.js';
 
 const CHANCE_SEEDS = 4;
 const REFINE_ITERS = 2;
