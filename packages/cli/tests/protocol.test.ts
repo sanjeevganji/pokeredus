@@ -143,12 +143,12 @@ describe('BattleTracker — reconstructed live facts', () => {
   it('clears a consumed item while keeping the revealed fact for beliefs', () => {
     const tracker = new BattleTracker();
     tracker.applyLine('|switch|p2a: Garchomp|Garchomp, L78, M|100/100');
-    tracker.applyLine('|-item|p2a: Garchomp|Leftovers');
-    tracker.applyLine('|-enditem|p2a: Garchomp|Leftovers|[from] item: Leftovers');
+    tracker.applyLine('|-item|p2a: Garchomp|Loaded Dice');
+    tracker.applyLine('|-enditem|p2a: Garchomp|Loaded Dice|[from] item: Loaded Dice');
     const obs = tracker.toObservation(miniPool, []);
     const foe = obs.theirs.find((s) => s.speciesId === 'garchomp');
     expect(foe?.item).toBe('');
-    expect(foe?.set?.item.toLowerCase().replace(/[^a-z0-9]/g, '')).toBe('leftovers');
+    expect(foe?.set?.item.toLowerCase().replace(/[^a-z0-9]/g, '')).toBe('loadeddice');
   });
 
   it('clears choice lock on switch-out and when a later request lists multiple enabled moves', () => {
