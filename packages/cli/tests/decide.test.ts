@@ -160,7 +160,6 @@ describe('decideAndAct', () => {
 
 describe('LiveForecastSession', () => {
   it('start returns without waiting for the forecast and ignores stale turn patches', async () => {
-    const { LiveForecastSession } = await import('@pokeredus/bridge');
     const patched: number[] = [];
     const hud = {
       state: { turn: 1, room: 'battle-x' },
