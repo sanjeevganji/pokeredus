@@ -297,7 +297,7 @@ Usage:
   pokeredus render-pack --pack <pack.json>
   pokeredus export-pack [--template <pack.json>] [--out <path>] [--mini]
   pokeredus score --replay <transcript.txt> [--pool <pool.json>] [--policy quantum|softmax] [--dry-run]
-  pokeredus live  --battle <roomid> [--policy quantum|softmax] [--dry-run]
+  pokeredus live  --battle <roomid> [--policy quantum|softmax] [--dry-run] [--forecast]
 
 Flags:
   --pack <f>          Knowledge Pack JSON.
