@@ -110,4 +110,53 @@ export async function decideAndAct(
   return { evaluation, probabilities, sampledId, sent, diagnostics, teraOurs, teraTheirs };
 }
 
+export interface LiveForecastSink {
+  state: { turn: number; room: string };
+  patchForecast: (forecast: import('@pokeredus/engine').BattleForecast) => void;
+}
+
+/** Background forecast that never blocks decideAndAct. Stale turn/room patches are ignored. */
+export class LiveForecastSession {
+  private abort?: AbortController;
+  private gen = 0;
+
+  constructor(
+    private readonly process: QuantumPolicyProcess,
+    private readonly hud: LiveForecastSink,
+  ) {}
+
+  start(obs: BattleObservation, opts?: Omit<ForecastOptions, 'refine' | 'signal' | 'onProgress'>): void {
+    this.abort?.abort();
+    this.abort = new AbortController();
+    const gen = ++this.gen;
+    const turn = obs.turn;
+    const room = this.hud.state.room;
+    const signal = this.abort.signal;
+    void forecastBattle(obs, {
+      ...opts,
+      refine: this.process,
+      signal,
+      onProgress: (partial) => {
+        if (gen !== this.gen || this.hud.state.turn !== turn || this.hud.state.room !== room) return;
+        this.hud.patchForecast(partial);
+      },
+    }).then((final) => {
+      if (gen !== this.gen || this.hud.state.turn !== turn || this.hud.state.room !== room) return;
+      this.hud.patchForecast(final);
+    }).catch(() => {
+      /* keep the live decision; ignore forecast failures */
+    });
+  }
+
+  cancel(): void {
+    this.abort?.abort();
+    this.gen++;
+  }
+
+  close(): void {
+    this.cancel();
+    this.process.close();
+  }
+}
+
 export type { CanonicalSet };
