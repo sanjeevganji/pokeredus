@@ -648,7 +648,8 @@ function OurChoiceList({
       return bTerm - aTerm;
     });
   }, [choices, slots]);
-  const sampledBase = sampledId ? baseActionId(sampledId) : '';
+  const recommendedId = useMemo(() => getRecommendedActionId(ranked), [ranked]);
+  const visible = showAll || ranked.length <= TOP_CHOICES ? ranked : ranked.slice(0, TOP_CHOICES);
   const foeHp = hpFrac(foe);
   const baseTotal = settledScore ?? 0;
 
