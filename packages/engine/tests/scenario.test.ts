@@ -297,7 +297,10 @@ describe('realized pair scoring in rollouts', () => {
       return 0.3;
     };
     const f = await forecastBattle(o, {
-      ...soft,
+      policy: 'quantum',
+      refine: forceIds('tackle', 'earthquake'),
+      chanceSeeds: 1,
+      timeBudgetMs: 60_000,
       pairDelta,
       rolloutsPerChoice: 1,
       maxTurns: 2,
