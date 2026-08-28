@@ -8,7 +8,8 @@
         "stages": -1,
         "target": "opponent"
       },
-      "tags": ["ability", "on_switch_in", "stat_drop"]
+      "tags": ["ability", "on_switch_in", "stat_drop"],
+      "valuation": { "multiplier": 0.67, "expectedTurns": 6 }
     },
     "levitate": {
       "attribute_type": "immunity",

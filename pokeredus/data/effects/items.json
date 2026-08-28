@@ -67,7 +67,8 @@
         "amount_fraction": 0.0625,
         "trigger": "turn_end"
       },
-      "tags": ["item", "recovery"]
+      "tags": ["item", "recovery"],
+      "valuation": { "multiplier": 1.0625, "expectedTurns": 4 }
     },
     "rockyhelmet": {
       "attribute_type": "event",
