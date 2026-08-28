@@ -396,8 +396,14 @@ track:
 - metadata coverage warnings.
 
 Aggregate conditional feature means first, multiply by CTA/CTS once, and clamp
-the final score. Opponent action scoring must call the same function with an
-actor-perspective sign, not a copied formula.
+the final score. Opponent action scoring must call the same function with
+opponent side/foe inputs so it emits actor-local features; do not copy the
+formula or negate an already actor-local vector.
+
+Export that function as `scoreRealizedPair`. It returns both actor-local
+scores/features and our-perspective `pairDelta`. `evaluateRound` calls it before
+aggregation; plan 009 calls the same function after each concrete rollout
+round.
 
 Keep `hitsToKill` and raw HP parts only as diagnostics/UI fields. They must not
 feed the normalized score.
@@ -406,7 +412,9 @@ feed the normalized score.
 
 Delete the `_weights` placeholder. The function that produces each
 `ChoiceEvaluation.choiceScore`, `ReplyEvaluation.choiceScore`, and
-`PairScore.score` must call the shared weighted feature helper.
+`PairScore.score` must reuse the existing `weightedRaw`/`scoredChoice` helpers.
+Do not add a second weighted scorer. Assert that `PairScore.score` equals
+`scoreRealizedPair(...).pairDelta` for a deterministic branch.
 
 Assert:
 
@@ -445,7 +453,8 @@ In `weights.ts`:
 
 - compute model scores from current weights and supplied features;
 - update adjacent inversions in the human order;
-- keep actor-local switch-risk sign handling in one shared scoring helper;
+- consume already actor-local features for either list; do not flip opponent
+  features in `weights.ts` or the rank handler;
 - validate finite `lr` and `lambda`;
 - retain default shrinkage and hard weight bounds;
 - return optional diagnostics (`lossBefore`, `lossAfter`, changed keys,
@@ -458,8 +467,8 @@ Tests must prove:
 1. a human-preferred setup move moved above a raw-damage move increases the
    responsible modifier contribution;
 2. an opponent-side correction follows opponent perspective, not ours;
-3. repeated corrections monotonically reduce the aggregate adjacent inversion
-   loss until convergence or a bound;
+3. repeated corrections reduce aggregate adjacent inversion loss until
+   convergence, a bound, or an explicitly reported shrinkage-dominated step;
 4. weights remain finite and within bounds after 1,000 synthetic corrections;
 5. save/load round-trips and reset restores defaults;
 6. the same input and starting weights produce the same output.
@@ -469,7 +478,8 @@ Tests must prove:
 In `scenario-handlers.ts`:
 
 1. evaluate with current weights;
-2. choose our or opponent actor-perspective rows;
+2. choose our or opponent rows, which `evaluate.ts` already emits in
+   actor-local feature space;
 3. validate `order` as an exact permutation;
 4. run the elastic update;
 5. atomically save;
@@ -492,7 +502,7 @@ asserts:
 ## Verification
 
 ```bash
-npx vitest run packages/engine/tests/math.test.ts packages/engine/tests/weights.test.ts packages/engine/tests/integration.test.ts packages/cli/tests/scenario-rank.test.ts
+npx vitest run packages/engine/tests/math.test.ts packages/engine/tests/weights.test.ts packages/engine/tests/integration.test.ts packages/web/server/scenario-rank.test.ts
 npm run typecheck --workspace @pokeredus/engine --workspace @pokeredus/bridge --workspace @pokeredus/web
 ```
 
@@ -510,6 +520,10 @@ Expected:
 - a valid human reorder changes persisted weights and the reevaluated ranking;
 - reset restores defaults;
 - no new dependency or UI component is added.
+
+This plan guarantees that learned weights change normalized
+`choiceScore`/`PairScore.score`. Plan 008 must separately prove the same
+persisted weights change `P_ours`, `P_theirs(*|h)`, and `roundScore`.
 
 ## Drift checks
 
@@ -533,7 +547,8 @@ the request/type path.
 - If an effect is already fully represented in HP/state, omit its metadata
   contribution and add a regression test; never double count.
 - If a correction cannot reduce inversion loss because every responsible
-  weight is at a bound, return that diagnostic instead of exceeding bounds.
+  weight is at a bound or regularization dominates the step, return that
+  diagnostic instead of exceeding bounds or claiming success.
 - If changing weights still cannot change `choiceScore`, STOP and trace the
   shared scorer before touching policy code.
 - If JSON location differs between source and packaged runtime, inject one
