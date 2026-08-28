@@ -207,6 +207,7 @@ async function main(): Promise<void> {
         lastEvalKey = key;
         decideBusy = true;
         const gen = ++decideGen;
+        forecast.cancel();
         hud.patch({ status: 'deciding' });
         if (send && canSend) console.log(`\n=== turn ${obs.turn} (your move) ===`);
         else console.log(`\n=== turn ${obs.turn} (eval) ===`);
