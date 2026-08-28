@@ -543,7 +543,9 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 }
 
 .legend-settled { background: var(--neon-cyan); }
-.legend-expected { background: var(--neon-purple); border-top: 1px dashed var(--neon-purple); }
+.legend-expected { background: transparent; border-top: 2px dashed var(--neon-purple); height: 0; }
+.legend-switch { background: var(--neon-yellow); height: 8px; width: 8px; }
+.legend-tera { background: var(--neon-pink); height: 8px; width: 8px; transform: rotate(45deg); }
 .legend-box { display: inline-block; width: 10px; height: 8px; }
 .legend-envelope { background: rgba(0, 212, 255, 0.15); border: 1px solid rgba(0, 212, 255, 0.3); }
 
