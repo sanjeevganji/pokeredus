@@ -19,6 +19,7 @@ import {
   loadWeights,
   modifiersFromSlot,
   observationStateScore,
+  signedLog1p,
 } from '@pokeredus/engine';
 import type { DecideResult } from './decide.js';
 import type { BattleEvent, BattleTracker } from './protocol.js';
