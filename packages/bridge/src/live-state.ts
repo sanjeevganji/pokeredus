@@ -303,7 +303,7 @@ export class LiveStateWriter {
   constructor(opts: { path?: string; room: string; dryRun: boolean; policy: string }) {
     this.path = opts.path || defaultLiveStatePath();
     this.state = {
-      schemaVersion: 2,
+      schemaVersion: LIVE_SCHEMA_VERSION,
       ts: nowIso(),
       status: 'connecting',
       room: opts.room,
