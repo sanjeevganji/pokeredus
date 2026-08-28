@@ -274,10 +274,12 @@ describe('realized pair scoring in rollouts', () => {
 
   it('cumulative delta equals the sum of two realized pair deltas', async () => {
     const o = obs(carp, wall);
-    let round = 0;
-    const pairDelta = (_our: string, their: string) => {
-      if (round <= 1) return their === 'move:earthquake' ? -0.4 : 0.2;
-      return their === 'move:recover' ? 0.3 : 0.1;
+    o.theirs[1] = slot(garchomp, 1, false);
+    o.theirs[1]!.revealed = true;
+    o.theirs[1]!.hypotheses = [{ set: garchomp, count: 1, probability: 1 }];
+    const pairDelta = (_our: string, their: string, hyp: string) => {
+      if (hyp.includes('blissey')) return their === 'move:earthquake' ? -0.4 : 0.2;
+      return 0.3;
     };
     const f = await forecastBattle(o, {
       ...soft,
@@ -286,15 +288,8 @@ describe('realized pair scoring in rollouts', () => {
       maxTurns: 2,
       seed: 1,
       simulate: (state) => {
-        round++;
-        if (round === 1) {
-          const recover = { ...wall, moves: ['recover'] };
-          const afterTheirs = state.theirs.map((s) => s.active
-            ? { ...s, knownMoves: ['recover'], set: recover, hypotheses: [{ set: recover, count: 1, probability: 1 }] }
-            : s);
-          return passthrough({ ...state, theirs: afterTheirs });
-        }
-        return passthrough(state);
+        const theirs = state.theirs.map((s) => ({ ...s, active: s.slot === 1 }));
+        return passthrough({ ...state, theirs });
       },
     });
     const recs = sampleRecords(f).filter((r) => r.actionId === 'move:tackle');

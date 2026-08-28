@@ -270,31 +270,33 @@ describe('field fidelity, CTA, and ranges', () => {
       { id: 'move:flamethrower', type: 'move', moveId: 'flamethrower', tera: false },
       { id: 'move:flamethrower:tera', type: 'move', moveId: 'flamethrower', tera: true },
     ];
-    const policy = new QuantumPolicyProcess({ timeoutMs: 40_000 });
-    try {
-      const forecast = await forecastBattle(obs, {
-        rolloutsPerChoice: 2,
-        maxTurns: 4,
-        seed: 42,
-        chanceSeeds: 1,
-        refine: policy,
-        policy: 'quantum',
-      });
-      expect(forecast.status).toBe('complete');
-      expect(forecast.choices.length).toBe(2);
-      const teraChoice = forecast.choices.find((c) => c.actionId.includes(':tera'));
-      expect(teraChoice).toBeTruthy();
-      expect(teraChoice!.samples).toBe(2);
-      let weightSum = 0;
-      for (const c of forecast.choices) {
-        expect(c.policyWeight).toBeDefined();
-        weightSum += c.policyWeight!;
-        // policyWeight should be distinct from winRate/confidence
-        expect(Number.isFinite(c.policyWeight)).toBe(true);
-      }
-      expect(weightSum).toBeCloseTo(1, 4);
-    } finally {
-      policy.close();
+    const policy = {
+      decide: async (req: { actions: string[] }) => ({
+        probabilities: req.actions.map(() => 1),
+        diagnostics: { mode: 'quantum', n_qubits: 1 },
+      }),
+    } as unknown as QuantumPolicyProcess;
+    const forecast = await forecastBattle(obs, {
+      rolloutsPerChoice: 2,
+      maxTurns: 4,
+      seed: 42,
+      chanceSeeds: 1,
+      refine: policy,
+      policy: 'quantum',
+      timeBudgetMs: 60_000,
+    });
+    expect(forecast.status).toBe('complete');
+    expect(forecast.choices.length).toBe(2);
+    const teraChoice = forecast.choices.find((c) => c.actionId.includes(':tera'));
+    expect(teraChoice).toBeTruthy();
+    expect(teraChoice!.samples).toBe(2);
+    let weightSum = 0;
+    for (const c of forecast.choices) {
+      expect(c.policyWeight).toBeDefined();
+      weightSum += c.policyWeight!;
+      expect(Number.isFinite(c.policyWeight)).toBe(true);
+      expect(c.draws).toBe(c.unknownFrontiers + c.turnCaps + c.timeCaps);
     }
+    expect(weightSum).toBeCloseTo(1, 4);
   }, 60_000);
 });
