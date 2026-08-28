@@ -71,7 +71,7 @@ export default function BattleLive() {
     let timer: ReturnType<typeof setInterval> | undefined;
 
     async function poll() {
-      if (inFlightRef.current || document.hidden) return;
+      if (inFlightRef.current) return;
       inFlightRef.current = true;
       try {
         const data = await getLiveState(ac.signal);
