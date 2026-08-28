@@ -24,8 +24,8 @@ function tmp(): string {
 }
 
 const z = emptyFeatures();
-const setupF: ChoiceFeatures = { ...z, modifier: 0.5 };
-const damageF: ChoiceFeatures = { ...z, health: 0.5 };
+const setupF: ChoiceFeatures = { ...z, modifier: 0.3 };
+const damageF: ChoiceFeatures = { ...z, health: 0.7 };
 
 const obs = {
   turn: 1,
