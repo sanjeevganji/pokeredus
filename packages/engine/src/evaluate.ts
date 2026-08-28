@@ -32,8 +32,6 @@ import {
   scoredChoice,
   signedLog1p,
   slotToMonValue,
-  softmax,
-  weightedMean,
   scoreExtrema,
   type ChoiceFeatures,
   type ImpactParts,
