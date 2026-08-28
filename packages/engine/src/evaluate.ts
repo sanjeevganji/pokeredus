@@ -52,6 +52,7 @@ const JOINT_CAP = 32;
 export interface EvaluateOptions {
   chanceSeeds?: number;
   weights?: ScoreWeights;
+  valuations?: EffectValuationRegistry;
   refine?: QuantumPolicyProcess;
   policy?: PolicyMode;
   seed?: number;
