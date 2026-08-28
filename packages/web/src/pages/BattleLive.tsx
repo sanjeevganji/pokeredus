@@ -680,6 +680,7 @@ function OurChoiceList({
           const range = formatScoreRange(c.minTurnScore, c.maxTurnScore, c.choiceScore);
           const projected = baseTotal + c.choiceScore;
           const interval = formatWilsonInterval(c.winRateLow, c.winRateHigh);
+          const forecastBits = [interval, c.samples != null ? `n=${c.samples}` : ''].filter(Boolean).join(', ');
 
           return (
             <li
