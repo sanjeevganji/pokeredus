@@ -229,15 +229,17 @@ In `protocol.ts`:
 - clear a consumed item's current value on `|-enditem|` while retaining enough
   revealed fact information for belief filtering;
 - carry `terastallized` separately from `teraType`;
-- clear choice lock when the request once again exposes multiple usable moves
-  or the Pokémon switches out;
+- clear choice lock on switch-out or when a later request explicitly no longer
+  encodes a single locked move; do not infer unlock from move count alone;
 - reset boosts and temporary lock/trap state on switch as Showdown does;
-- decrement inferred screen/field durations once per new turn and clear them on
-  explicit end events.
+- decrement only screen/field durations already set by protocol state once per
+  new turn and clear them on explicit end events.
 
 The protocol does not reveal every duration or trap source. Keep unknown values
-unknown and expose an assumption diagnostic if a default duration is used.
-Do not claim inferred duration is observed truth.
+unknown and expose an assumption diagnostic rather than inventing a default or
+extended duration. If weather, terrain, or Trick Room duration must survive
+rollouts, add the smallest optional `remainingTurns` fields to `FieldSnapshot`;
+absence means unknown. Do not claim inferred duration is observed truth.
 
 ### 5. Make forced/revenge legality shared
 
