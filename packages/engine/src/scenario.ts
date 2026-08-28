@@ -6,7 +6,7 @@ import type {
   RoundEvaluation,
   SlotSnapshot,
 } from './observation.js';
-import { observationTera, placeholderSet } from './observation.js';
+import { observationTera } from './observation.js';
 import { legalFromSlots } from './actions.js';
 import { sampleAction, type QuantumPolicyProcess } from './policy.js';
 import {
