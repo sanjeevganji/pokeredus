@@ -236,12 +236,12 @@ function requireWritable(filePath: string): SetOverridesStore {
   return store;
 }
 
-function atomicWrite(filePath: string, store: SetOverridesStore): void {
+/** Windows-safe temp/backup/rename. Callers pass the final file body. */
+export function atomicWriteFile(filePath: string, body: string): void {
   const dir = path.dirname(filePath);
   if (dir && dir !== '.') fs.mkdirSync(dir, { recursive: true });
   const tmp = `${filePath}.${process.pid}.tmp`;
   const bak = `${filePath}.bak`;
-  const body = JSON.stringify(store, null, 2) + '\n';
   fs.writeFileSync(tmp, body, 'utf8');
   try {
     // ponytail: Windows cannot atomic-replace; park the previous file then restore it if the new rename fails.
@@ -253,6 +253,10 @@ function atomicWrite(filePath: string, store: SetOverridesStore): void {
     try { fs.unlinkSync(tmp); } catch { /* ignore */ }
     throw err;
   }
+}
+
+function atomicWrite(filePath: string, store: SetOverridesStore): void {
+  atomicWriteFile(filePath, JSON.stringify(store, null, 2) + '\n');
 }
 
 export function saveSetOverride(
