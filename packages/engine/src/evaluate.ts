@@ -365,8 +365,8 @@ function emptyCell(action: LegalAction, reply: LegalAction, hypKey: string, hypP
   };
 }
 
-function pairKey(ourId: string, theirId: string): string {
-  return `${ourId}\t${theirId}`;
+function cellKey(hypKey: string, ourId: string, theirId: string): string {
+  return `${hypKey}\n${ourId}\n${theirId}`;
 }
 
 function addParts(dst: ImpactParts, src: ImpactParts, w: number): void {
