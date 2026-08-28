@@ -717,10 +717,7 @@ function OurChoiceList({
                   {c.winRate != null && (
                     <span className="choice-win-rate">
                       Win forecast {formatPercent(c.winRate, 0)}
-                      {(() => {
-                        const bits = [interval, c.samples != null ? `n=${c.samples}` : ''].filter(Boolean);
-                        return bits.length ? ` (${bits.join(', ')})` : '';
-                      })()}
+                      {forecastBits ? ` (${forecastBits})` : ''}
                     </span>
                   )}
                 </div>
