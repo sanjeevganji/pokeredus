@@ -30,12 +30,12 @@ const obs = {
   turn: 1, format: 'gen9randombattle', ourSide: 'p1' as const, ours: ourTeam, theirs: theirTeam, field: emptyField(),
   legalActions: [{ id: 'move:earthquake', type: 'move' as const, moveId: 'earthquake' }], teraUsedOurs: false, teraUsedTheirs: false,
 };
-const sim = simulateRound(obs, { id: 'move:earthquake', type: 'move', moveId: 'earthquake' }, { id: 'move:splash', type: 'move', moveId: 'splash' }, [1, 2, 3, 4]);
-console.log('sim splash', {
-  weWin: sim.weWin, theyWin: sim.theyWin, pHit: sim.pHit, pExecute: sim.pExecute, alive: sim.aliveAtExecution,
-  theirHp: sim.afterTheirs[0]!.hp, ourHp: sim.afterOurs[0]!.hp,
-  ourActive: sim.afterOurs.find((s) => s.active)?.speciesId,
-  theirActive: sim.afterTheirs.find((s) => s.active)?.speciesId,
+const theirSets = obs.theirs.map((s) => (s.active ? carp : { species: 'smeargle', level: 100, item: '', ability: 'owntempo', moves: ['splash'], nature: 'hardy' }));
+const sim2 = simulateRound(obs, { id: 'move:earthquake', type: 'move', moveId: 'earthquake' }, { id: 'move:splash', type: 'move', moveId: 'splash' }, [1, 2, 3, 4], theirSets);
+console.log('sim with theirSets', {
+  weWin: sim2.weWin, theyWin: sim2.theyWin, pHit: sim2.pHit, pExecute: sim2.pExecute, alive: sim2.aliveAtExecution,
+  theirHp: sim2.afterTheirs[0]!.hp, ourHp: sim2.afterOurs[0]!.hp,
+  ourTel: sim2.ours, theirTel: sim2.theirs,
 });
 const ev = await evaluateRound(obs, { chanceSeeds: 1, policy: 'softmax' });
 console.log(JSON.stringify({
