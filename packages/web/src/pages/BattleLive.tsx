@@ -400,16 +400,18 @@ function ScoreStrip({ state }: { state: LiveState }) {
   );
 }
 
-const GRAPH_LAYOUT = { w: 600, h: 120, l: 48, r: 24, t: 16, b: 28 };
+const GRAPH_LAYOUT = { w: 600, h: 132, l: 48, r: 24, t: 16, b: 36 };
 
 function TurnGraph({
   points,
   currentEval,
   isLegacy,
+  events,
 }: {
   points: LiveScorePoint[];
   currentEval?: LiveEval;
   isLegacy?: boolean;
+  events?: { ts: string; text: string }[];
 }) {
   const { w, h, l, r, t, b } = GRAPH_LAYOUT;
   const innerW = w - l - r;
@@ -438,8 +440,9 @@ function TurnGraph({
   );
 
   const count = points.length;
+  const faintTurns = useMemo(() => faintTurnsFromEvents(events), [events]);
+  const stub = useMemo(() => expectedStubRange(points), [points]);
 
-  // Build envelope polygon for points with sample bounds
   const hasEnvelope = points.some((p) => p.samples > 0 && Math.abs(p.maxTotal - p.minTotal) > 1e-4);
   const envelopePath = useMemo(() => {
     if (!hasEnvelope || count === 0) return '';
@@ -463,18 +466,20 @@ function TurnGraph({
     return points.map((p, i) => `${xAt(i, count).toFixed(2)},${yAt(p.maxTotal).toFixed(2)}`).join(' ');
   }, [hasEnvelope, count, points, xAt, yAt]);
 
-  // Settled line
-  const settledPoints = points.filter((p) => p.status === 'settled');
   const settledLine = useMemo(() => {
-    if (points.length === 0) return '';
-    return points.map((p, i) => `${xAt(i, count).toFixed(2)},${yAt(p.cumulativeTotal).toFixed(2)}`).join(' ');
+    const settled = points
+      .map((p, i) => (p.status === 'settled' ? `${xAt(i, count).toFixed(2)},${yAt(p.cumulativeTotal).toFixed(2)}` : null))
+      .filter((pt): pt is string => pt != null);
+    return settled.join(' ');
   }, [points, count, xAt, yAt]);
 
-  // Expected line (dashed, showing expectedTotal)
   const expectedLine = useMemo(() => {
-    if (points.length === 0) return '';
-    return points.map((p, i) => `${xAt(i, count).toFixed(2)},${yAt(p.expectedTotal).toFixed(2)}`).join(' ');
-  }, [points, count, xAt, yAt]);
+    if (!stub) return '';
+    const from = points[stub.from]!;
+    const to = points[stub.to]!;
+    const yFrom = from.status === 'settled' ? from.cumulativeTotal : from.expectedTotal;
+    return `${xAt(stub.from, count).toFixed(2)},${yAt(yFrom).toFixed(2)} ${xAt(stub.to, count).toFixed(2)},${yAt(to.expectedTotal).toFixed(2)}`;
+  }, [stub, points, count, xAt, yAt]);
 
   const latestPoint = points[points.length - 1];
 
@@ -484,10 +489,19 @@ function TurnGraph({
         <span className="caption-title">
           {isLegacy ? 'Legacy round score series' : 'Battle Score Timeline'}
         </span>
+        {latestPoint && (
+          <span className="graph-latest">
+            Latest {formatSigned(latestPoint.status === 'settled' ? latestPoint.cumulativeTotal : latestPoint.expectedTotal, 2)}
+            {latestPoint.status === 'forecast' ? ` · expected ${formatSigned(latestPoint.expectedTotal, 2)}` : ''}
+            {hasEnvelope ? ` · range ${formatSigned(latestPoint.minTotal, 2)} to ${formatSigned(latestPoint.maxTotal, 2)}` : ''}
+          </span>
+        )}
         <div className="graph-legend" aria-hidden="true">
           <span className="legend-item"><span className="legend-line legend-settled" /> Settled score</span>
           <span className="legend-item"><span className="legend-line legend-expected" /> Expected total</span>
           {hasEnvelope && <span className="legend-item"><span className="legend-box legend-envelope" /> Min/Max range</span>}
+          <span className="legend-item"><span className="legend-line legend-switch" /> Switch</span>
+          <span className="legend-item"><span className="legend-line legend-tera" /> Tera</span>
         </div>
       </figcaption>
 
@@ -502,11 +516,10 @@ function TurnGraph({
           <title>{`Score timeline graph (+${maxAbs} to -${maxAbs})`}</title>
           <desc>
             {latestPoint
-              ? `Current score total ${formatSigned(latestPoint.cumulativeTotal, 2)}, range ${formatSigned(latestPoint.minTotal, 2)} to ${formatSigned(latestPoint.maxTotal, 2)}`
-              : 'No points recorded yet.'}
+              ? `Current score total ${formatSigned(latestPoint.cumulativeTotal, 2)}, expected ${formatSigned(latestPoint.expectedTotal, 2)}, range ${formatSigned(latestPoint.minTotal, 2)} to ${formatSigned(latestPoint.maxTotal, 2)}`
+              : 'No points recorded yet. Waiting for first decision.'}
           </desc>
 
-          {/* Grid lines and labels */}
           <line className="turn-graph-grid" x1={l} y1={t} x2={w - r} y2={t} vectorEffect="non-scaling-stroke" />
           <text className="turn-graph-axis-text" x={l - 6} y={t + 4} textAnchor="end">+{maxAbs}</text>
 
@@ -516,7 +529,6 @@ function TurnGraph({
           <line className="turn-graph-grid" x1={l} y1={t + innerH} x2={w - r} y2={t + innerH} vectorEffect="non-scaling-stroke" />
           <text className="turn-graph-axis-text" x={l - 6} y={t + innerH + 4} textAnchor="end">−{maxAbs}</text>
 
-          {/* Envelope */}
           {hasEnvelope && envelopePath && (
             <>
               <path d={envelopePath} className="turn-graph-envelope" />
@@ -525,7 +537,6 @@ function TurnGraph({
             </>
           )}
 
-          {/* Expected line (dashed) */}
           {expectedLine && (
             <polyline
               className="turn-graph-line-expected"
@@ -535,7 +546,6 @@ function TurnGraph({
             />
           )}
 
-          {/* Settled line (solid) */}
           {settledLine && (
             <polyline
               className="turn-graph-line-settled"
@@ -545,13 +555,14 @@ function TurnGraph({
             />
           )}
 
-          {/* Point markers */}
           {points.map((p, i) => {
             const x = xAt(i, count);
-            const y = yAt(p.status === 'settled' && p.realizedDelta != null ? p.cumulativeTotal : p.expectedTotal);
+            const y = yAt(p.status === 'settled' ? p.cumulativeTotal : p.expectedTotal);
             const isLatest = i === count - 1;
             const isSwitch = p.actionKind === 'switch';
             const isTera = p.tera;
+            const faint = faintTurns.has(p.turn);
+            const kindLabel = isTera ? 'tera' : isSwitch ? 'sw' : 'mv';
 
             return (
               <g key={`${p.sequence}-${p.turn}-${i}`} className="turn-graph-point">
@@ -562,45 +573,41 @@ function TurnGraph({
                     width={6}
                     height={6}
                     className={`turn-graph-marker-switch${isLatest ? ' marker-latest' : ''}`}
-                  >
-                    <title>{`Seq ${p.sequence} (T${p.turn} Switch): Total ${formatSigned(p.cumulativeTotal, 2)}`}</title>
-                  </rect>
+                  />
                 ) : isTera ? (
                   <polygon
                     points={`${x},${y - 4} ${x + 3.5},${y} ${x},${y + 4} ${x - 3.5},${y}`}
                     className={`turn-graph-marker-tera${isLatest ? ' marker-latest' : ''}`}
-                  >
-                    <title>{`Seq ${p.sequence} (T${p.turn} Tera Move): Total ${formatSigned(p.cumulativeTotal, 2)}`}</title>
-                  </polygon>
+                  />
                 ) : (
                   <circle
                     cx={x}
                     cy={y}
                     r={isLatest ? 3.5 : 2.5}
                     className={`turn-graph-dot${p.status === 'forecast' ? ' dot-forecast' : ' dot-settled'}${isLatest ? ' dot-latest' : ''}`}
-                  >
-                    <title>{`Seq ${p.sequence} (T${p.turn}): Total ${formatSigned(p.cumulativeTotal, 2)}, expected ${formatSigned(p.expectedTotal, 2)}`}</title>
-                  </circle>
+                  />
                 )}
-                {/* Sparse X-axis label */}
+                {faint && (
+                  <text className="turn-graph-faint" x={x} y={y - 7} textAnchor="middle">×</text>
+                )}
                 {(count <= 8 || i % Math.ceil(count / 8) === 0 || isLatest) && (
-                  <text className="turn-graph-x-text" x={x} y={t + innerH + 16} textAnchor="middle">
-                    T{p.turn}
-                  </text>
+                  <>
+                    <text className="turn-graph-x-text" x={x} y={t + innerH + 14} textAnchor="middle">
+                      T{p.turn}
+                    </text>
+                    <text className="turn-graph-x-kind" x={x} y={t + innerH + 26} textAnchor="middle">
+                      {p.sequence}·{kindLabel}
+                    </text>
+                  </>
                 )}
               </g>
             );
           })}
         </svg>
 
-        {/* Visually hidden accessibility list for screen readers */}
         <ol className="sr-only">
           {points.map((p) => (
-            <li key={p.sequence}>
-              Decision sequence {p.sequence}, Turn {p.turn}, {p.actionKind} {p.actionId}
-              {p.tera ? ' (Terastallized)' : ''}, status {p.status}, settled total {formatSigned(p.cumulativeTotal, 2)},
-              expected total {formatSigned(p.expectedTotal, 2)}, range {formatSigned(p.minTotal, 2)} to {formatSigned(p.maxTotal, 2)}.
-            </li>
+            <li key={p.sequence}>{describeScorePoint(p)}</li>
           ))}
         </ol>
       </div>
