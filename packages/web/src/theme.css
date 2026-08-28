@@ -589,6 +589,18 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   font-family: var(--font-mono);
 }
 
+.turn-graph-x-kind {
+  fill: var(--fg-dim);
+  font-size: 8px;
+  font-family: var(--font-mono);
+}
+
+.turn-graph-faint {
+  fill: var(--neon-red);
+  font-size: 9px;
+  font-family: var(--font-mono);
+}
+
 .turn-graph-envelope {
   fill: rgba(0, 212, 255, 0.12);
 }
