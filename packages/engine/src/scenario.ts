@@ -905,7 +905,6 @@ export async function forecastBattle(
       }
       samplesByAction.get(rootAction.id)!.push(rec);
       allRecords.push(rec);
-      outcomeCounts[rec.outcome]++;
       totalSamples++;
     }
 
