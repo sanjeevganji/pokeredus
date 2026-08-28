@@ -194,6 +194,39 @@ describe('LiveStateWriter', () => {
     );
   });
 
+  it('marks the prior forecast unresolved when no previous observation exists', () => {
+    const file = tmpPath();
+    const hud = new LiveStateWriter({ path: file, room: 'battle-gen9randombattle-5', dryRun: true, policy: 'softmax' });
+    hud.fromDecision({
+      evaluation: {
+        choices: [{
+          action: { id: 'move:earthquake', type: 'move', moveId: 'earthquake' },
+          success: 1, cta: 1, expectedImpact: 1, expectedHealthDelta: 1, expectedModifierDelta: 0,
+          ourHealth: 0, theirHealth: -1, ourModifier: 0, theirModifier: 0,
+          hitsToKill: 1, choiceScore: 0.8, scaledChoiceScore: 0.8, meanPostScore: 0.5,
+          minTurnScore: 0.5, maxTurnScore: 1.0, minPostScore: 0.5, maxPostScore: 0.5, sampleCount: 2,
+          features: { health: 1, modifier: 0, secondary: 0, switchRisk: 0, sacrifice: 0 },
+        }],
+        replies: [],
+        roundScore: 0.8, expectedRoundScore: 0.8, minRoundScore: 0.5, maxRoundScore: 1.0,
+        forcedOutcome: 'none',
+        mateProbability: 0,
+      },
+      probabilities: [1],
+      sampledId: 'move:earthquake',
+      sent: false,
+    });
+    expect(hud.state.points![0]!.status).toBe('forecast');
+    expect(hud.state.points![0]!.realizedDelta).toBeUndefined();
+
+    hud.fromObservation(obs());
+    expect(hud.state.points![0]!.status).toBe('unresolved');
+    expect(hud.state.points![0]!.realizedDelta).toBeUndefined();
+    expect(hud.state.points![0]!.cumulativeTotal).not.toBe(
+      hud.state.points![0]!.expectedTotal,
+    );
+  });
+
   it('records a start point and a sync point when turns advance without a decision', () => {
     const file = tmpPath();
     const hud = new LiveStateWriter({ path: file, room: 'battle-gen9randombattle-4', dryRun: true, policy: 'softmax' });
