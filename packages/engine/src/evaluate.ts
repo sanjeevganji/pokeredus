@@ -10,7 +10,9 @@ import type {
   SetHypothesis,
   SlotSnapshot,
 } from './observation.js';
-import { observationTera } from './observation.js';
+import { observationTera, placeholderSet } from './observation.js';
+import { canonicalizeSet } from './beliefs.js';
+import { setIsComplete } from './set-overrides.js';
 import {
   actorSecondaryFeature,
   boundFeatures,
