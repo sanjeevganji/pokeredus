@@ -270,16 +270,14 @@ describe('two-sided hypothesis policy', () => {
     const help = res.evaluation.replies.find((r) => r.action.id === 'move:splash')!;
     expect(hurt.expectedUtility ?? 0).toBeGreaterThan(help.expectedUtility ?? 0);
     expect(hurt.probability ?? 0).toBeGreaterThan(help.probability ?? 0);
-    expect(res.evaluation.choices[0]!.expectedUtility).toBeCloseTo(res.evaluation.roundScore, 8);
-
-    const flipped = await evaluateJointStatePolicy(obs, {
-      policy: 'softmax',
-      pairDelta: (_o, theirId) => (theirId === 'move:earthquake' ? 0.8 : -0.8),
-    });
-    const hurt2 = flipped.evaluation.replies.find((r) => r.action.id === 'move:earthquake')!;
-    const help2 = flipped.evaluation.replies.find((r) => r.action.id === 'move:splash')!;
-    expect(hurt2.expectedUtility ?? 0).toBeLessThan(help2.expectedUtility ?? 0);
-    expect(flipped.evaluation.choices[0]!.expectedUtility).toBeCloseTo(-(res.evaluation.choices[0]!.expectedUtility ?? 0), 5);
+    expect(hurt.expectedUtility).toBeCloseTo(0.8, 5);
+    expect(help.expectedUtility).toBeCloseTo(-0.8, 5);
+    const ourU = res.evaluation.choices[0]!.expectedUtility ?? 0;
+    expect(ourU).toBeCloseTo(res.evaluation.roundScore, 8);
+    expect(ourU).toBeCloseTo(
+      (hurt.probability ?? 0) * -0.8 + (help.probability ?? 0) * 0.8,
+      5,
+    );
   });
 
   it('represents every our action when the pair count exceeds 32', async () => {
