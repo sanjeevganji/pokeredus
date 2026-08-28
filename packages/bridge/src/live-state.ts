@@ -548,6 +548,7 @@ export class LiveStateWriter {
 
   patchForecast(forecast: BattleForecast): void {
     if (!this.state.eval || forecast.turn !== this.state.turn) return;
+    if (this.state.room && forecast.diagnostics?.room && forecast.diagnostics.room !== this.state.room) return;
     this.state.eval.forecast = forecast;
     for (const choice of this.state.eval.choices) {
       const cf = forecast.choices.find((c) => c.actionId === choice.id);
@@ -559,9 +560,14 @@ export class LiveStateWriter {
         choice.losses = cf.losses;
         choice.draws = cf.draws;
         choice.capped = cf.capped;
+        choice.unknownFrontiers = cf.unknownFrontiers;
+        choice.turnCaps = cf.turnCaps;
+        choice.timeCaps = cf.timeCaps;
+        choice.errors = cf.errors;
         choice.expectedTerminalScore = cf.expectedTerminalScore;
         choice.minTerminalScore = cf.minTerminalScore;
         choice.maxTerminalScore = cf.maxTerminalScore;
+        choice.expectedCumulativeDelta = cf.expectedCumulativeDelta;
         choice.samples = cf.samples;
       }
     }
