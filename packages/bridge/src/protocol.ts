@@ -392,10 +392,14 @@ interface TrackedMon {
   lastMove?: string;
   revealedMoves: string[];
   item?: string;
+  revealedItem?: string;
   ability?: string;
   level?: number;
   teraType?: string;
+  terastallized?: boolean;
   choiceLock?: string;
+  trapped?: boolean;
+  moveSlots?: MoveSlotSnapshot[];
   tauntTurns: number;
   fainted: boolean;
   active: boolean;
