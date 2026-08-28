@@ -4,13 +4,12 @@ export const EPS = 1e-9;
 
 /**
  * Score contract (our perspective: positive favors us).
- * damageScore = CTA / expectedTTK, CTA = P(executes)×P(hit|executes)×P(alive at resolve).
- * expectedTTK is ≥1 from the target's current HP and damage on hitting branches.
- * Healing is restored HP / max HP, excluding overheal; residuals are not the selected move.
- * modifierValue = 0.5 × tanh(mean(log(multiplier) × expectedRemainingTurns)).
- * pairTurnScore = our attributed action − opponent attributed action.
- * switchScore = stateScore(after) − stateScore(before) − attributedOpponentActionScore.
- * signedLog1p is Hamiltonian/display only.
+ * CTA/CTS are branch-mass probabilities, not editable coefficients.
+ * moveScore = CTA × E[weighted actor-local features | success], clamped to [-1, +1].
+ * switchScore = CTS × E[weighted actor-local features | completed switch].
+ * logModifier = Σ ln(multiplier) × probability × expectedTurns (no average).
+ * actor features are (Δactor − Δfoe) / 6 for health and slot modifiers.
+ * signedLog1p is Hamiltonian/display only. hitsToKill is a UI diagnostic.
  */
 
 /** Documented duration estimates when Showdown does not expose remaining turns. */
