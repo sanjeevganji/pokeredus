@@ -847,6 +847,12 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
   const mate = mateFromForced(final.forcedRows);
   const expected = expectedFromPolicy(legal, replies, cells, refined.pOur, refined.pTheir);
   const roundExt = scoreExtrema(branches.map((b) => b.turnScore));
+  const coverageList = [...coverage];
+  const diag: Record<string, unknown> = {
+    ...refined.diagnostics,
+    ...(hypothesisUnavailable ? { hypothesisUnavailable } : {}),
+    ...(coverageList.length ? { unvaluedEffects: coverageList } : {}),
+  };
   return {
     choices: final.choices,
     replies: final.replies,
@@ -857,8 +863,6 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
     forcedOutcome: mate.forcedOutcome,
     mateProbability: mate.mateProbability,
     pairs: final.pairs,
-    diagnostics: (hypothesisUnavailable || refined.diagnostics)
-      ? { ...refined.diagnostics, ...(hypothesisUnavailable ? { hypothesisUnavailable } : {}) }
-      : undefined,
+    diagnostics: Object.keys(diag).length ? diag : undefined,
   };
 }
