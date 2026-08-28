@@ -4,6 +4,7 @@ import {
   emptyField,
   estimateWinrate,
   evaluateRound,
+  evaluateJointStatePolicy,
   flipObservation,
   forecastBattle,
   playTurn,

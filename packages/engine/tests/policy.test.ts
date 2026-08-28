@@ -1,5 +1,17 @@
 import { describe, it, expect, afterEach } from 'vitest';
-import { QuantumPolicyProcess, sampleAction } from '../src/policy.js';
+import { QuantumPolicyProcess, sampleAction, transformSidePolicy } from '../src/policy.js';
+import {
+  emptyBoosts,
+  emptyField,
+  placeholderSet,
+  placeholderSlot,
+  type BattleObservation,
+  type CanonicalSet,
+  type LegalAction,
+  type SlotSnapshot,
+} from '../src/observation.js';
+import { evaluateJointStatePolicy, evaluateRound, simulationAssumptions } from '../src/evaluate.js';
+import { softmax } from '../src/math.js';
 
 describe('QuantumPolicyProcess hardening', () => {
   let proc: QuantumPolicyProcess | null = null;
