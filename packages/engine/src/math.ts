@@ -174,7 +174,43 @@ export function effectiveHeal(hpBefore: number, hpAfter: number, maxHp: number):
 }
 
 export function modifierValue(mods: Modifier[]): number {
-  return 0.5 * Math.tanh(meanModifier(mods));
+  return 0.5 * Math.tanh(logModifier(mods));
+}
+
+export function sideHealth(mons: MonValue[], side: 'ours' | 'theirs'): number {
+  let s = 0;
+  for (const m of mons) {
+    if (m.side !== side) continue;
+    if (m.L <= 0) continue;
+    s += clamp(m.h, 0, 1);
+  }
+  return s;
+}
+
+export function sideModifier(mons: MonValue[], side: 'ours' | 'theirs'): number {
+  let s = 0;
+  for (const m of mons) {
+    if (m.side !== side) continue;
+    if (m.L <= 0) continue;
+    s += 0.5 * Math.tanh(m.M);
+  }
+  return s;
+}
+
+/** Actor-positive health feature: ((Δactor − Δfoe) / 6) ∈ [-1, +1]. */
+export function actorHealthFeature(before: MonValue[], after: MonValue[], actorSide: 'ours' | 'theirs'): number {
+  const foe: 'ours' | 'theirs' = actorSide === 'ours' ? 'theirs' : 'ours';
+  const dActor = sideHealth(after, actorSide) - sideHealth(before, actorSide);
+  const dFoe = sideHealth(after, foe) - sideHealth(before, foe);
+  return clamp((dActor - dFoe) / TEAM_SIZE, -1, 1);
+}
+
+/** Actor-positive modifier feature: ((Δactor − Δfoe) / 6) ∈ [-1, +1]. */
+export function actorModifierFeature(before: MonValue[], after: MonValue[], actorSide: 'ours' | 'theirs'): number {
+  const foe: 'ours' | 'theirs' = actorSide === 'ours' ? 'theirs' : 'ours';
+  const dActor = sideModifier(after, actorSide) - sideModifier(before, actorSide);
+  const dFoe = sideModifier(after, foe) - sideModifier(before, foe);
+  return clamp((dActor - dFoe) / TEAM_SIZE, -1, 1);
 }
 
 export function modifierDelta(before: Modifier[], after: Modifier[]): number {
