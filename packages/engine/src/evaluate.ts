@@ -355,9 +355,9 @@ interface Branch {
   theirVal: number;
 }
 
-function emptyCell(action: LegalAction, reply: LegalAction): PairCell {
+function emptyCell(action: LegalAction, reply: LegalAction, hypKey: string, hypProbability: number): PairCell {
   return {
-    action, reply, w: 0, parts: emptyImpactParts(), success: 0, post: 0,
+    action, reply, hypKey, hypProbability, w: 0, parts: emptyImpactParts(), success: 0, post: 0,
     ourFaint: 0, theirHpLost: 0, ourRemain: 0,
     pWin: 0, pLoss: 0, theirHBefore: 0, theirHAfter: 0, ourHBefore: 0, ourHAfter: 0,
     turnScore: 0, theirVal: 0,
