@@ -158,6 +158,8 @@ async function main(): Promise<void> {
     hud.patch({ status: 'connecting' });
     const pool = loadPool(flags['pool'] ?? defaultPoolPath());
     const overridesPath = defaultSetOverridesPath();
+    const forecastProc = new QuantumPolicyProcess();
+    const forecast = new LiveForecastSession(forecastProc, hud);
     await withPolicy(async (proc) => {
       const client = new ShowdownClient({
         url: flags['url'],
