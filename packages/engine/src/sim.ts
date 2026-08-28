@@ -313,12 +313,21 @@ function applyField(battle: AnyBattle, field: FieldSnapshot): void {
   const weather = showdownWeather(field.weather);
   if (weather) requireFn(f, 'setWeather', 'field.setWeather')(weather, 'debug');
   else if (idOf(f.weather) && typeof f.clearWeather === 'function') f.clearWeather();
+  if (weather && typeof field.weatherTurns === 'number' && f.weatherState) {
+    f.weatherState.duration = field.weatherTurns;
+  }
   const terrain = showdownTerrain(field.terrain);
   if (terrain) requireFn(f, 'setTerrain', 'field.setTerrain')(terrain, 'debug');
   else if (idOf(f.terrain) && typeof f.clearTerrain === 'function') f.clearTerrain();
+  if (terrain && typeof field.terrainTurns === 'number' && f.terrainState) {
+    f.terrainState.duration = field.terrainTurns;
+  }
   const hasTR = Boolean(f.pseudoWeather && ('trickroom' in f.pseudoWeather));
   if (field.trickroom && !hasTR) requireFn(f, 'addPseudoWeather', 'field.addPseudoWeather')('trickroom', 'debug');
   else if (!field.trickroom && hasTR && typeof f.removePseudoWeather === 'function') f.removePseudoWeather('trickroom');
+  if (field.trickroom && typeof field.trickroomTurns === 'number' && f.pseudoWeather?.trickroom && typeof f.pseudoWeather.trickroom === 'object') {
+    (f.pseudoWeather.trickroom as { duration?: number }).duration = field.trickroomTurns;
+  }
   applySideField(battle.p1, field.hazards_p1, field.reflect_p1, field.lightscreen_p1, 'p1');
   applySideField(battle.p2, field.hazards_p2, field.reflect_p2, field.lightscreen_p2, 'p2');
 }
