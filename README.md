@@ -279,6 +279,7 @@ npx tsx packages/cli/src/cli.ts live --battle <roomid> --policy quantum --dry-ru
 ```
 
 `--dry-run` logs the sampled choice and never sends it. The launcher default is dry-run; `--send` turns that off.
+`--forecast` starts a second QAOA process for background terminal rollouts; it is opt-in because a full stratified cycle currently exceeds the default 10s budget on this machine. The sent action never waits on it.
 
 The live CLI overwrites `live-state.json` (or `$POKELINK_STATE`) each event and
 decision. Open **Games** in the web UI, then **Attach** (or **Open battle**) to

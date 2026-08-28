@@ -1,6 +1,6 @@
 # 009 — Roll out realized pair deltas to honest terminal/frontier outcomes
 
-**Status:** TODO  
+**Status:** DONE  
 **Commit:** `b97a334`  
 **Effort:** L  
 **Risk:** High — multi-turn errors compound and can misstate win forecasts  

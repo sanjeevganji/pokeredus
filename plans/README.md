@@ -38,12 +38,12 @@ Dependency graph:
 | 001-pokelink-battle-theater | Full-page battle theater exists | DONE |
 | 002-correct-battle-scoring | Field/Tera telemetry and ranges were implemented; active-state fidelity, normalized valuation, and policy semantics remain | PARTIAL — remainder superseded by 006–008 |
 | 003-discovered-set-overrides | Validated store, protocol application, API, provenance, and drawer exist; 35 focused tests pass | DONE |
-| 004-terminal-qaoa-rollouts | Rollout loop, cache, Wilson intervals, QAOA calls, and progress exist; realized scoring/belief/frontier semantics remain incorrect | PARTIAL — remainder superseded by 006, 008, 009 |
+| 004-terminal-qaoa-rollouts | Rollout loop, cache, Wilson intervals, QAOA calls, and progress exist; remainder superseded by 006/008/009 | PARTIAL — remainder superseded by 006, 008, 009 |
 | 005-live-forecast-ui | Versioned points, cumulative/expected graph, log policy meters, choice rows, set drawer, quiet polling, and v1 compatibility | DONE |
 | 006-simulator-state-fidelity | Faithful active/state reconstruction and legal revenge switches | TODO |
 | 007-normalized-move-valuation | Normalized CTA/CTS valuation, editable effect values, and human reordering learning | TODO |
 | 008-two-sided-round-policy | Belief-correct adversarial policies over every legal pair | DONE |
-| 009-realized-terminal-rollouts | Realized terminal rollouts with neutral hidden frontiers | TODO |
+| 009-realized-terminal-rollouts | Realized pair-delta rollouts, frozen worlds, unknown-frontier, +1/-1 terminals; live forecast opt-in (`--forecast`) | DONE |
 
 ## Decided contracts
 
