@@ -1010,13 +1010,7 @@ async function evaluateRoundCore(obs: BattleObservation, opts?: EvaluateOptions)
   }
 
   const cells = new Map<string, PairCell>();
-  for (const [k, v] of pairAcc) {
-    const m = meanCell(v);
-    if (v.action.moveId === 'earthquake') {
-      console.log('meanCell', k, { w: v.w, ourSW: v.ourSuccessW, accSuccess: v.success, meanSuccess: m.success, turn: m.turnScore });
-    }
-    cells.set(k, m);
-  }
+  for (const [k, v] of pairAcc) cells.set(k, meanCell(v));
 
   const policy = await evaluateTwoSidedPolicy(legal, grids, cells, opts ?? {});
   const final = assemble(legal, policy.hypotheses, cells, branches, policy.pOur, policy.ourUtility, weights);
