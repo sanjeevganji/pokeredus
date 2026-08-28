@@ -11,7 +11,7 @@ export * from './weights.js';
 export * from './scenario.js';
 export * from './generate-pool.js';
 export * from './randbats.js';
-export * from './set-overrides.js';
+export * from './effect-valuation.js';
 export {
   computeDamage,
   computeHp,
