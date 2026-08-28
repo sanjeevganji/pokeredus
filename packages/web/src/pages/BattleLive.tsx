@@ -89,7 +89,6 @@ export default function BattleLive() {
 
     function start() {
       if (timer) return;
-      void poll();
       timer = setInterval(() => { void poll(); }, 250);
     }
     function stop() {
@@ -99,9 +98,13 @@ export default function BattleLive() {
     }
     function onVisibilityChange() {
       if (document.hidden) stop();
-      else start();
+      else {
+        void poll();
+        start();
+      }
     }
 
+    void poll();
     if (!document.hidden) start();
     document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
