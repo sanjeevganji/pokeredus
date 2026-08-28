@@ -187,8 +187,7 @@ describe('score weights', () => {
     expect(pairAfter).toBeDefined();
     expect(pairAfter).not.toBeCloseTo(pairBefore!, 8);
     expect(after.roundScore).not.toBeCloseTo(before.roundScore, 8);
-    const hyp = (await import('../src/evaluate.js')).evaluateJointStatePolicy;
-    const joint = await hyp(obs, { policy: 'softmax', weights: loadWeights(file), chanceSeeds: 1 });
+    const joint = await evaluateJointStatePolicy(obs, { policy: 'softmax', weights: loadWeights(file), chanceSeeds: 1 });
     expect(joint.hypotheses[0]!.probabilities.reduce((s, p) => s + p, 0)).toBeCloseTo(1);
     const byUtil = [...after.replies].sort((a, b) => (b.expectedUtility ?? 0) - (a.expectedUtility ?? 0));
     const byProb = [...after.replies].sort((a, b) => (b.probability ?? 0) - (a.probability ?? 0));
