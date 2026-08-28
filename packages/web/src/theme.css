@@ -1217,7 +1217,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   }
 }
 
-@media (max-width: 375px) {
+@media (max-width: 480px) {
   .metrics-grid {
     grid-template-columns: 1fr;
   }
