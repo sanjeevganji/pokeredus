@@ -13,7 +13,9 @@ class MockClient {
 }
 
 class MockPolicy {
+  calls = 0;
   async decide() {
+    this.calls += 1;
     return { probabilities: [1], diagnostics: { mode: 'softmax' } };
   }
   start() {}
