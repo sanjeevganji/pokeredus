@@ -194,6 +194,11 @@ export interface ReplyEvaluation {
   theirModifier?: number;
   features?: ChoiceFeaturesView;
   probability?: number;
+  /** Belief-weighted display marginal; not availability or confidence. */
+  availability?: number;
+  /** Opponent-perspective E[-D] on hypotheses where the action is legal. */
+  expectedUtility?: number;
+  hypothesisCount?: number;
   minTurnScore?: number;
   maxTurnScore?: number;
   meanPostScore?: number;
