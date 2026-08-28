@@ -664,7 +664,7 @@ function OurChoiceList({
 
       <ol className="choice-ol">
         {visible.map((c, i) => {
-          const isSampled = sampledBase !== '' && (c.id === sampledId || baseActionId(c.id) === sampledBase);
+          const isSampled = sampledId != null && c.id === sampledId;
           const isRecommended = recommendedId != null && c.id === recommendedId;
           const p = rawPolicyWeight(c);
           const ttk = workingHitsToKill(c.hitsToKill, foeHp, c.theirHealth);
