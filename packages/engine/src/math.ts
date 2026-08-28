@@ -62,7 +62,7 @@ export function slotToMonValue(slot: SlotSnapshot, side: 'ours' | 'theirs'): Mon
     revealed: slot.revealed,
     h: slot.fainted ? 0 : clamp(slot.hp / maxHp, 0, 1),
     L: slot.fainted || slot.hp <= 0 ? 0 : 1,
-    M: meanModifier(slot.modifiers),
+    M: logModifier(slot.modifiers),
   };
 }
 
