@@ -667,8 +667,10 @@ export async function forecastBattle(
           seed: opts.seed,
           shots: opts.shots ?? null,
         });
+        const raw = policyRes.probabilities;
+        const sum = raw.reduce((a, b) => a + b, 0);
         for (let i = 0; i < choiceForecasts.length; i++) {
-          choiceForecasts[i]!.policyWeight = policyRes.probabilities[i];
+          choiceForecasts[i]!.policyWeight = sum > 0 ? (raw[i] ?? 0) / sum : raw[i];
         }
       } catch {
         // leave undefined
