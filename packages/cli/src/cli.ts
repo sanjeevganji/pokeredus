@@ -309,6 +309,7 @@ Flags:
   --decision-log <f>  Append-only JSONL decision records.
   --live-state <f>    HUD snapshot JSON for the PokeRedus game-state screen.
   --dry-run           Log the chosen move but never send it.
+  --forecast          Opt-in background terminal forecast (second QAOA process; does not block the sent action).
 `);
 }
 
