@@ -33,7 +33,8 @@ policy weight.
 in the web UI. **PokeRedus** is the web team-builder and knowledge-graph
 pipeline. Open the web UI and use **Games** to detect battles on your Showdown
 account and attach the live engine. Attach opens `/games/live`, a full-page
-theater for eval scores, 6v6 benches, and turn bars.
+theater for cumulative battle score, win forecast, 6v6 benches, and ranked
+choices.
 
 ## Terminal launcher
 
