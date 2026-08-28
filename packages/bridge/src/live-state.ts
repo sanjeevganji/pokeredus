@@ -110,6 +110,8 @@ export interface LiveReply {
   probability?: number;
   policyWeight?: number;
   hamiltonianInput?: number;
+  availability?: number;
+  expectedUtility?: number;
   expectedHealthDelta?: number;
   expectedModifierDelta?: number;
   ourHealth?: number;
