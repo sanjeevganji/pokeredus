@@ -309,6 +309,8 @@ export function scoreRealizedPair(
 interface PairCell {
   action: LegalAction;
   reply: LegalAction;
+  hypKey: string;
+  hypProbability: number;
   w: number;
   parts: ImpactParts;
   success: number;
