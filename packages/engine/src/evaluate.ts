@@ -698,15 +698,16 @@ function assemble(
 
   for (let i = 0; i < legal.length; i++) {
     const action = legal[i]!;
-    const mixed = mixActor(hypotheses.flatMap((h) => h.actions.map((reply, j) => {
+    const mixRows = hypotheses.flatMap((h) => h.actions.map((reply, j) => {
       const cell = cells.get(cellKey(h.key, action.id, reply.id));
       if (!cell) {
         throw new Error(`missing cell ${JSON.stringify({ hyp: h.key, our: action.id, their: reply.id, keys: [...cells.keys()] })}`);
       }
       const w = h.probability * (h.probabilities[j] ?? 0);
-      console.log('mix', reply.id, { w, cellSuccess: cell.success, ourSW: cell.ourSuccessW, cellW: cell.w });
-      return [{ w, cell }];
-    })), 'ours');
+      return { w, cell };
+    }));
+    console.log('mixRows', mixRows.length, mixRows.map((r) => ({ w: r.w, arr: Array.isArray(r), success: r.cell.success })));
+    const mixed = mixActor(mixRows, 'ours');
     console.log('mixed.success', mixed.success, 'features', mixed.features);
     const ours = branches.filter((b) => b.action.id === action.id);
     const range = rangeFromBranches(ours);
