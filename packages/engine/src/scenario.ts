@@ -338,7 +338,7 @@ export async function forecastBattle(
       diagnostics: {
         cacheHits,
         cacheMisses,
-        omittedPairs: rootPolicy.omittedPairs,
+        legalPairCount: rootPolicy.diagnostics.legalPairCount,
         rolloutsRequested: rolloutsPerChoice * rootActions.length,
         rolloutsCompleted: totalSamples,
       },
