@@ -22,6 +22,7 @@ import {
   type LegalAction,
   type RoundSimResult,
   type BattleForecast,
+  type QuantumPolicyProcess,
 } from '../src/index.js';
 
 const garchomp: CanonicalSet = {
