@@ -1078,9 +1078,9 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 }
 
 .set-prov {
-  min-height: 28px;
+  min-height: 44px;
   font-size: 0.7rem;
-  padding: 2px 6px;
+  padding: 2px 8px;
   border-color: var(--fg-dim);
   color: var(--fg-secondary);
   background: transparent;
