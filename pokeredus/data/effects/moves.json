@@ -258,7 +258,8 @@
             "damage_per_turn": 0.0625,
             "physical_damage_mult": 0.5
           },
-          "duration": null
+          "duration": null,
+          "valuation": { "multiplier": 0.5, "expectedTurns": 3, "probabilityOverride": 0.3 }
         }
       ],
       "tags": ["move", "status", "burn"],
