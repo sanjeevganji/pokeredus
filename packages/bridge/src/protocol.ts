@@ -865,7 +865,7 @@ function factsFromMon(m: TrackedMon, ours: boolean): RevealedFacts {
   return {
     species: m.speciesId,
     moves,
-    item: m.item,
+    item: m.revealedItem ?? (m.item || undefined),
     ability: m.ability,
     level: m.level,
     teraType: m.teraType,
