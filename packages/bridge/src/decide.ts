@@ -113,7 +113,7 @@ export async function decideAndAct(
 
 export interface LiveForecastSink {
   state: { turn: number; room: string };
-  patchForecast: (forecast: import('@pokeredus/engine').BattleForecast) => void;
+  patchForecast: (forecast: BattleForecast) => void;
 }
 
 /** Background forecast that never blocks decideAndAct. Stale turn/room patches are ignored. */
