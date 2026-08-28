@@ -541,10 +541,6 @@ function emptyTel(): ActionTelemetry {
   };
 }
 
-function toId(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
 function sideOf(ident: string): PlayerSide {
   return ident.trim().startsWith('p1') ? 'p1' : 'p2';
 }
