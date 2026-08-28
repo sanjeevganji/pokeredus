@@ -1194,7 +1194,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   .lab-layout { grid-template-columns: 1fr; }
 }
 
-@media (max-width: 800px) {
+@media (max-width: 768px) {
   .theater-body {
     grid-template-columns: 1fr;
     grid-template-areas:
@@ -1206,9 +1206,12 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   .metrics-grid {
     grid-template-columns: 1fr 1fr;
   }
+  button, .btn-primary, .btn-secondary, .btn-danger, .set-prov, .choice-toggle-btn, .bench-chip {
+    min-height: 44px;
+  }
 }
 
-@media (max-width: 600px) {
+@media (max-width: 375px) {
   .metrics-grid {
     grid-template-columns: 1fr;
   }
@@ -1217,9 +1220,6 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   }
   .form-row, .move-grid, .slot-picks {
     grid-template-columns: 1fr;
-  }
-  button, .btn-primary, .btn-secondary, .btn-danger, .set-prov, .choice-toggle-btn {
-    min-height: 44px;
   }
 }
 
