@@ -232,7 +232,13 @@ Add to `ReplyEvaluation`:
 
 - `availability`: hypothesis mass where the action is legal;
 - `probability`: the display marginal above;
+- `expectedUtility`: opponent-perspective `E[-D]` for policy/display
+  diagnostics, separate from actor-local `choiceScore`;
 - optionally `hypothesisCount` for diagnostics.
+
+Add `expectedUtility` to `ChoiceEvaluation` for our final belief- and
+reply-weighted `E[D]`. Preserve plan 007's actor-local `choiceScore` on both
+types because the Scenario reordering and `elasticUpdate` train that value.
 
 Do not expose full hidden sets in live JSON. Internal hypothesis keys must not
 leak unrevealed species.
@@ -366,7 +372,9 @@ with the fixture instead of silently raising live latency.
 
 For each our action:
 
-- `choiceScore` is its final expected normalized utility across hypotheses and
+- `choiceScore` remains plan 007's actor-local action value used for human
+  correction;
+- `expectedUtility` is its final normalized `E[D]` across hypotheses and
   conditional replies;
 - `probability` is `P_ours`;
 - ranges include all represented compatible branches for that action;
@@ -374,7 +382,9 @@ For each our action:
 
 For each unioned opponent action:
 
-- `choiceScore` is opponent-perspective expected utility conditioned on the
+- `choiceScore` remains plan 007's opponent actor-local action value used for
+  human correction;
+- `expectedUtility` is opponent-perspective `E[-D]` conditioned on the
   hypotheses where it exists;
 - `probability` is the belief-weighted display marginal;
 - `availability` is separate;
