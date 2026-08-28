@@ -1118,8 +1118,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  box-shadow: -4px 0 24px rgba(0, 0, 0, 0.5);
+  gap: 16px;
 }
 
 .drawer-head {
