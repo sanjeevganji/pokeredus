@@ -92,10 +92,10 @@ export function cta(pExecute: number, pHit: number, aliveAtExecution: number): n
   return clamp(pExecute * pHit * aliveAtExecution, 0, 1);
 }
 
-export function cts(afterSwitch: number, stay: number, forced: boolean, eps = EPS): number {
+/** Branch-mass CTS. A forced legal switch is 1; otherwise 1 iff the switch completed. */
+export function cts(completed: boolean, forced: boolean): number {
   if (forced) return 1;
-  const denom = Math.max(Math.abs(stay), eps);
-  return sigmoid((afterSwitch - stay) / denom);
+  return completed ? 1 : 0;
 }
 
 export interface ImpactParts {
