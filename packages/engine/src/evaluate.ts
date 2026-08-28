@@ -725,15 +725,15 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
   const legal = obs.legalActions.length ? obs.legalActions : legalActionsForEval(obs);
   const chanceN = opts?.chanceSeeds ?? CHANCE_SEEDS;
   const weights = opts?.weights ?? DEFAULT_WEIGHTS;
+  const valuations = opts?.valuations ?? loadDefaultValuations();
   const theirIdx = activeIndex(obs.theirs);
   const ourIdx = activeIndex(obs.ours);
-  const ourActive = obs.ours[ourIdx];
-  const ourRemain = ourActive ? pokemonValue(slotToMonValue(ourActive, 'ours')) : 0;
 
   const pairAcc = new Map<string, PairCell>();
   const replyById = new Map<string, LegalAction>();
   const branches: Branch[] = [];
   let hypothesisUnavailable = 0;
+  const coverage = new Set<string>();
 
   const rawHyps: SetHypothesis[] = (obs.theirs.find((s) => s.active)?.hypotheses?.length
     ? obs.theirs.find((s) => s.active)!.hypotheses
@@ -770,50 +770,47 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
             }
             throw err;
           }
-          const before = valuesOf(obs.ours, obs.theirs);
-          const after = valuesOf(result.afterOurs, result.afterTheirs);
           const w = hyp.probability / chanceN;
-          const snapParts = impactParts(before, after);
-          const scored = scoreBranch(obs, action, result);
+          const scored = scoreRealizedPair(obs, action, reply, result, weights, valuations);
+          for (const c of scored.coverage) coverage.add(c);
           const ourAfter = result.afterOurs[ourIdx];
           const ourFaint = ourAfter && (ourAfter.fainted || ourAfter.hp <= 0) ? 1 : 0;
           const theirHpLost = Math.max(0, hpFrac(obs.theirs, theirIdx) - hpFrac(result.afterTheirs, theirIdx));
           const post = observationStateScore(result.afterOurs, result.afterTheirs);
           branches.push({
-            action, reply, w, turnScore: scored.pair, post, parts: scored.parts, success: scored.success,
-            ourFaint, theirHpLost, ourRemain,
+            action, reply, w, turnScore: scored.pairDelta, post, parts: scored.parts, success: scored.ourSuccess,
+            ourFaint, theirHpLost, ourRemain: hpFrac(obs.ours, ourIdx),
             pWin: result.weWin ? 1 : 0, pLoss: result.theyWin ? 1 : 0,
             theirHBefore: hpFrac(obs.theirs, theirIdx),
             theirHAfter: hpFrac(result.afterTheirs, theirIdx),
             ourHBefore: hpFrac(obs.ours, ourIdx),
             ourHAfter: hpFrac(result.afterOurs, ourIdx),
-            theirVal: scored.theirVal,
+            theirVal: scored.theirScore,
           });
           let cell = pairAcc.get(key);
           if (!cell) {
-            cell = {
-              action, reply, w: 0, parts: emptyImpactParts(), success: 0, post: 0,
-              ourFaint: 0, theirHpLost: 0, ourRemain: 0,
-              pWin: 0, pLoss: 0, theirHBefore: 0, theirHAfter: 0, ourHBefore: 0, ourHAfter: 0,
-              turnScore: 0, theirVal: 0,
-            };
+            cell = emptyCell(action, reply);
             pairAcc.set(key, cell);
           }
           cell.w += w;
-          addParts(cell.parts, scored.parts.total !== 0 || scored.parts.health !== 0 ? scored.parts : snapParts, w);
-          cell.success += scored.success * w;
+          addParts(cell.parts, scored.parts, w);
+          cell.success += scored.ourSuccess * w;
           cell.post += post * w;
           cell.ourFaint += ourFaint * w;
           cell.theirHpLost += theirHpLost * w;
-          cell.ourRemain += ourRemain * w;
+          cell.ourRemain += hpFrac(obs.ours, ourIdx) * w;
           cell.pWin += (result.weWin ? 1 : 0) * w;
           cell.pLoss += (result.theyWin ? 1 : 0) * w;
           cell.theirHBefore += hpFrac(obs.theirs, theirIdx) * w;
           cell.theirHAfter += hpFrac(result.afterTheirs, theirIdx) * w;
           cell.ourHBefore += hpFrac(obs.ours, ourIdx) * w;
           cell.ourHAfter += hpFrac(result.afterOurs, ourIdx) * w;
-          cell.turnScore += scored.pair * w;
-          cell.theirVal += scored.theirVal * w;
+          cell.turnScore += scored.pairDelta * w;
+          cell.theirVal += scored.theirScore * w;
+          cell.ourSuccessW += scored.ourSuccess * w;
+          cell.theirSuccessW += scored.theirSuccess * w;
+          addFeat(cell.ourFeatAcc, scored.ourFeatures, scored.ourSuccess * w);
+          addFeat(cell.theirFeatAcc, scored.theirFeatures, scored.theirSuccess * w);
         }
       }
     }
