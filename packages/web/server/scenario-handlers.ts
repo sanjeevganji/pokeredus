@@ -6,6 +6,9 @@ import type { BattleObservation, RoundEvaluation } from '../../engine/src/observ
 import { DEFAULT_WEIGHTS, emptyFeatures, scoredChoice, type ScoreWeights } from '../../engine/src/math';
 import { defaultPoolPath, loadPool } from '../../engine/src/pool';
 import { evaluateRound, type EvaluateOptions } from '../../engine/src/evaluate';
+import { QuantumPolicyProcess } from '../../engine/src/policy';
+import { estimateWinrate, playTurn } from '../../engine/src/scenario';
+import { elasticUpdate, loadWeights, resetWeights, saveWeights, type ElasticDiagnostics, type RankedChoice } from '../../engine/src/weights';
 
 export interface SavedScenario {
   id: string;
