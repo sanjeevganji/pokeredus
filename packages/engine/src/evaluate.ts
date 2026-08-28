@@ -630,7 +630,6 @@ function displayReplyMass(hypotheses: HypothesisPolicy[]): {
   replies: LegalAction[];
   probability: number[];
   availability: number[];
-  expectedUtility: number[];
   hypothesisCount: number[];
 } {
   const byId = new Map<string, LegalAction>();
@@ -651,7 +650,6 @@ function displayReplyMass(hypotheses: HypothesisPolicy[]): {
     replies,
     probability: replies.map((a) => mass.get(a.id) ?? 0),
     availability: replies.map((a) => avail.get(a.id) ?? 0),
-    expectedUtility: replies.map(() => 0),
     hypothesisCount: replies.map((a) => hypCount.get(a.id) ?? 0),
   };
 }
