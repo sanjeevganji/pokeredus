@@ -112,7 +112,9 @@ npm run train
   renormalized as moves, item, ability, level, and Tera are revealed.
 - An empty candidate set fails visibly; the bot does not invent a set.
 - Unrevealed opponent slots are neutral full-health placeholders so early
-  scores are not falsely favorable.
+  scores are not falsely favorable. A rollout that needs a hidden species
+  stops at an `unknown-frontier`; it does not switch in Smeargle, copy the
+  active set, or call that a win, loss, or ordinary draw.
 
 Generate the pool from the official generator:
 
