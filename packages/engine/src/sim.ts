@@ -10,7 +10,9 @@ const require = createRequire(import.meta.url);
 type AnyField = {
   weather?: string | { id?: string };
   terrain?: string | { id?: string };
-  pseudoWeather?: Record<string, unknown>;
+  weatherState?: { duration?: number };
+  terrainState?: { duration?: number };
+  pseudoWeather?: Record<string, { duration?: number } | unknown>;
   setWeather?: (s: string, source?: unknown) => unknown;
   clearWeather?: () => unknown;
   setTerrain?: (s: string, source?: unknown) => unknown;
@@ -47,12 +49,48 @@ type AnyPokemon = {
   status: string;
   boosts: Record<string, number>;
   item?: string;
+  lastItem?: string;
   ability?: string;
   moveSlots?: Array<{ id: string; pp: number; disabled?: boolean }>;
   isActive?: boolean;
   species?: { id: string };
   sethp?: (s: string | number) => void;
+  terastallized?: string;
+  teraType?: string;
+  canTerastallize?: string | false | null;
+  trapped?: boolean | string;
+  apparentType?: string;
+  addedType?: string;
 };
+
+const BOOST_KEYS = ['atk', 'def', 'spa', 'spd', 'spe', 'accuracy', 'evasion'] as const;
+
+interface SimPartyLayout {
+  packedTeam: string;
+  packedIndexBySlot: Map<number, number>;
+  slotByPackedIndex: number[];
+}
+
+export class IllegalSimChoiceError extends Error {
+  readonly ourActionId: string;
+  readonly oppActionId: string;
+  constructor(opts: {
+    ourActionId: string;
+    oppActionId: string;
+    ours: { slot: number; speciesId: string };
+    theirs: { slot: number; speciesId: string };
+    cause: unknown;
+  }) {
+    const msg = opts.cause instanceof Error ? opts.cause.message : String(opts.cause);
+    super(
+      `illegal sim choice ${opts.ourActionId} vs ${opts.oppActionId} ` +
+      `(ours slot ${opts.ours.slot} ${opts.ours.speciesId}, theirs slot ${opts.theirs.slot} ${opts.theirs.speciesId}): ${msg}`,
+    );
+    this.name = 'IllegalSimChoiceError';
+    this.ourActionId = opts.ourActionId;
+    this.oppActionId = opts.oppActionId;
+  }
+}
 
 type PSModule = {
   Battle: new (opts: { formatid: string; seed?: number[] }) => AnyBattle;
