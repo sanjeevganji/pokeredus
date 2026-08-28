@@ -102,9 +102,6 @@ describe('forecast benchmark', () => {
       const requested = (forecast.diagnostics?.rolloutsRequested as number) ?? (legal.length * 2);
       const completed = (forecast.diagnostics?.rolloutsCompleted as number) ?? forecast.totalSamples;
       const frontiers = forecast.outcomeCounts['unknown-frontier'] ?? 0;
-      const transformMode = forecast.choices.length
-        ? (forecast.diagnostics as Record<string, unknown> | undefined)
-        : undefined;
       const quantum = JSON.stringify(forecast.diagnostics ?? {}).includes('softmax') &&
         !JSON.stringify(forecast.diagnostics ?? {}).includes('quantum');
       const stratifiedReady = completed >= legal.length;
