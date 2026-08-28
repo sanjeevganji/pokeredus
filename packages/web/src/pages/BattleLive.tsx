@@ -1041,6 +1041,16 @@ function SetDrawer({
         {slot.setWarning && <p className="theater-alert theater-alert-error" role="alert">{slot.setWarning}</p>}
 
         <div className="drawer-section">
+          <h3 className="form-label">Revealed</h3>
+          <ul className="disclosure-list">
+            <li>Item: {slot.item ? prettySpecies(slot.item) : '—'}</li>
+            <li>Ability: {slot.ability ? prettySpecies(slot.ability) : '—'}</li>
+            <li>Tera type: {slot.teraType || '—'}</li>
+            <li>Moves: {(slot.knownMoves ?? []).map(prettySpecies).join(', ') || '—'}</li>
+          </ul>
+        </div>
+
+        <div className="drawer-section">
           <label htmlFor="set-pick" className="form-label">
             Known sets
           </label>
