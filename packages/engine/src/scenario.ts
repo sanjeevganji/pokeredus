@@ -920,10 +920,9 @@ export async function forecastBattle(
       ? status
       : (totalSamples >= requested ? 'complete' : 'partial');
   const useful = totalSamples > 0 && allRecords.some((r) => r.outcome !== 'error');
-  const doneStatus = finalStatus === 'running' ? 'complete' : finalStatus;
   const reported = !useful && allRecords.every((r) => r.outcome === 'error') && totalSamples > 0
     ? 'error'
-    : doneStatus;
+    : finalStatus;
 
   return await buildPartialForecast(reported, true);
 }

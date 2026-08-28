@@ -113,6 +113,7 @@ function sampleRecords(f: BattleForecast): Array<{
   cumulativeRealizedDelta: number;
   outcome: string;
   terminalUtility: number;
+  turns: number;
   hypothesisKeys: string[];
   sampledIds: string[];
 }> {
