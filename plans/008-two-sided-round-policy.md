@@ -1,6 +1,6 @@
 # 008 — Weight every two-sided round adversarially and belief-correctly
 
-**Status:** TODO  
+**Status:** DONE  
 **Commit:** `b97a334`  
 **Effort:** L  
 **Risk:** High — changes the policy distribution used to choose live actions  

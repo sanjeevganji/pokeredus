@@ -42,7 +42,7 @@ Dependency graph:
 | 005-live-forecast-ui | Versioned points, cumulative/expected graph, log policy meters, choice rows, set drawer, quiet polling, and v1 compatibility | DONE |
 | 006-simulator-state-fidelity | Faithful active/state reconstruction and legal revenge switches | TODO |
 | 007-normalized-move-valuation | Normalized CTA/CTS valuation, editable effect values, and human reordering learning | TODO |
-| 008-two-sided-round-policy | Belief-correct adversarial policies over every legal pair | TODO |
+| 008-two-sided-round-policy | Belief-correct adversarial policies over every legal pair | DONE |
 | 009-realized-terminal-rollouts | Realized terminal rollouts with neutral hidden frontiers | TODO |
 
 ## Decided contracts
