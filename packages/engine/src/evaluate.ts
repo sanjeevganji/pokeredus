@@ -465,15 +465,230 @@ function unweightedImpact(f: ChoiceFeatures): number {
   return finiteOrZero(f.health + f.modifier + f.secondary);
 }
 
+export interface HypothesisPolicy {
+  key: string;
+  set: CanonicalSet;
+  probability: number;
+  actions: LegalAction[];
+  probabilities: number[];
+  availabilityByAction: Record<string, number>;
+}
+
+export interface PairEvaluationCell {
+  ourAction: LegalAction;
+  theirAction: LegalAction;
+  hypothesisKey: string;
+  hypothesisProbability: number;
+  pairDelta: number;
+}
+
+export interface TwoSidedPolicyDiagnostics {
+  iterations: number;
+  maxPolicyDelta: number;
+  hypothesisMass: number;
+  legalPairCount: number;
+}
+
+export interface JointPolicyResult {
+  pOur: number[];
+  hypotheses: HypothesisPolicy[];
+  evaluation: RoundEvaluation;
+  diagnostics: TwoSidedPolicyDiagnostics;
+}
+
+interface HypGrid {
+  key: string;
+  set: CanonicalSet;
+  probability: number;
+  actions: LegalAction[];
+}
+
+function deltaOf(cells: Map<string, PairCell>, hypKey: string, ourId: string, theirId: string): number | undefined {
+  const cell = cells.get(cellKey(hypKey, ourId, theirId));
+  return cell ? cell.turnScore : undefined;
+}
+
+function lInf(a: number[], b: number[]): number {
+  let m = 0;
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i++) m = Math.max(m, Math.abs((a[i] ?? 0) - (b[i] ?? 0)));
+  return m;
+}
+
+export async function evaluateTwoSidedPolicy(
+  ourActions: LegalAction[],
+  grids: HypGrid[],
+  cells: Map<string, PairCell>,
+  opts: EvaluateOptions,
+): Promise<{
+  pOur: number[];
+  ourUtility: number[];
+  hypotheses: HypothesisPolicy[];
+  roundScore: number;
+  diagnostics: TwoSidedPolicyDiagnostics;
+}> {
+  const n = ourActions.length;
+  let pOur = n ? ourActions.map(() => 1 / n) : [];
+  const hypProbs: number[][] = grids.map((g) => g.actions.map(() => (g.actions.length ? 1 / g.actions.length : 0)));
+  const iters = opts.refineIters ?? REFINE_ITERS;
+  let maxPolicyDelta = 0;
+  let lastDiag: Record<string, unknown> = {};
+
+  for (let t = 0; t < iters; t++) {
+    for (let h = 0; h < grids.length; h++) {
+      const g = grids[h]!;
+      const oppUtil = g.actions.map((reply) => {
+        let u = 0;
+        for (let i = 0; i < n; i++) {
+          const d = deltaOf(cells, g.key, ourActions[i]!.id, reply.id);
+          if (d === undefined) continue;
+          u += (pOur[i] ?? 0) * (-d);
+        }
+        return u;
+      });
+      const transformed = await transformSidePolicy(
+        opts.refine,
+        g.actions.map((a) => a.id),
+        oppUtil,
+        opts,
+        { actor: 'theirs', hypothesis: true },
+      );
+      hypProbs[h] = transformed.probs;
+      lastDiag = transformed.diagnostics;
+    }
+
+    const ourUtil = ourActions.map((action) => {
+      let u = 0;
+      for (let h = 0; h < grids.length; h++) {
+        const g = grids[h]!;
+        const pH = g.probability;
+        const pJ = hypProbs[h]!;
+        for (let j = 0; j < g.actions.length; j++) {
+          const d = deltaOf(cells, g.key, action.id, g.actions[j]!.id);
+          if (d === undefined) continue;
+          u += pH * (pJ[j] ?? 0) * d;
+        }
+      }
+      return u;
+    });
+    const ours = await transformSidePolicy(
+      opts.refine,
+      ourActions.map((a) => a.id),
+      ourUtil,
+      opts,
+      { actor: 'ours' },
+    );
+    maxPolicyDelta = Math.max(maxPolicyDelta, lInf(pOur, ours.probs));
+    pOur = ours.probs;
+    lastDiag = ours.diagnostics;
+  }
+
+  const ourUtility = ourActions.map((action) => {
+    let u = 0;
+    for (let h = 0; h < grids.length; h++) {
+      const g = grids[h]!;
+      const pJ = hypProbs[h]!;
+      for (let j = 0; j < g.actions.length; j++) {
+        const d = deltaOf(cells, g.key, action.id, g.actions[j]!.id);
+        if (d === undefined) continue;
+        u += g.probability * (pJ[j] ?? 0) * d;
+      }
+    }
+    return u;
+  });
+  const roundScore = clamp(pOur.reduce((s, p, i) => s + p * (ourUtility[i] ?? 0), 0), -1, 1);
+
+  const hypotheses: HypothesisPolicy[] = grids.map((g, h) => {
+    const availabilityByAction: Record<string, number> = {};
+    for (const a of g.actions) availabilityByAction[a.id] = g.probability;
+    return {
+      key: g.key,
+      set: g.set,
+      probability: g.probability,
+      actions: g.actions,
+      probabilities: hypProbs[h] ?? [],
+      availabilityByAction,
+    };
+  });
+
+  let legalPairCount = 0;
+  for (const g of grids) legalPairCount += n * g.actions.length;
+  const hypothesisMass = grids.reduce((s, g) => s + g.probability, 0);
+  void lastDiag;
+
+  return {
+    pOur,
+    ourUtility,
+    hypotheses,
+    roundScore,
+    diagnostics: { iterations: iters, maxPolicyDelta, hypothesisMass, legalPairCount },
+  };
+}
+
+function displayReplyMass(hypotheses: HypothesisPolicy[]): {
+  replies: LegalAction[];
+  probability: number[];
+  availability: number[];
+  expectedUtility: number[];
+  hypothesisCount: number[];
+} {
+  const byId = new Map<string, LegalAction>();
+  const avail = new Map<string, number>();
+  const mass = new Map<string, number>();
+  const hypCount = new Map<string, number>();
+  for (const h of hypotheses) {
+    for (let j = 0; j < h.actions.length; j++) {
+      const a = h.actions[j]!;
+      byId.set(a.id, a);
+      avail.set(a.id, (avail.get(a.id) ?? 0) + h.probability);
+      mass.set(a.id, (mass.get(a.id) ?? 0) + h.probability * (h.probabilities[j] ?? 0));
+      hypCount.set(a.id, (hypCount.get(a.id) ?? 0) + 1);
+    }
+  }
+  const replies = [...byId.values()];
+  return {
+    replies,
+    probability: replies.map((a) => mass.get(a.id) ?? 0),
+    availability: replies.map((a) => avail.get(a.id) ?? 0),
+    expectedUtility: replies.map(() => 0),
+    hypothesisCount: replies.map((a) => hypCount.get(a.id) ?? 0),
+  };
+}
+
+function opponentExpectedUtility(
+  reply: LegalAction,
+  legal: LegalAction[],
+  pOur: number[],
+  hypotheses: HypothesisPolicy[],
+  cells: Map<string, PairCell>,
+  availability: number,
+): number {
+  if (!(availability > 0)) return 0;
+  let u = 0;
+  for (const h of hypotheses) {
+    if (!h.actions.some((a) => a.id === reply.id)) continue;
+    let inner = 0;
+    for (let i = 0; i < legal.length; i++) {
+      const d = deltaOf(cells, h.key, legal[i]!.id, reply.id);
+      if (d === undefined) continue;
+      inner += (pOur[i] ?? 0) * (-d);
+    }
+    u += (h.probability / availability) * inner;
+  }
+  return u;
+}
+
 function assemble(
   legal: LegalAction[],
-  replies: LegalAction[],
+  hypotheses: HypothesisPolicy[],
   cells: Map<string, PairCell>,
   branches: Branch[],
   pOur: number[],
-  pTheir: number[],
+  ourUtility: number[],
   weights: ScoreWeights,
 ): { choices: ChoiceEvaluation[]; replies: ReplyEvaluation[]; postScores: number[]; forcedRows: Array<Array<{ pWin: number; pLoss: number }>>; pairs: PairScore[] } {
+  const display = displayReplyMass(hypotheses);
+  const replies = display.replies;
   const choices: ChoiceEvaluation[] = [];
   const postScores: number[] = [];
   const forcedRows: Array<Array<{ pWin: number; pLoss: number }>> = [];
@@ -481,10 +696,10 @@ function assemble(
 
   for (let i = 0; i < legal.length; i++) {
     const action = legal[i]!;
-    const mixed = mixActor(replies.flatMap((reply, j) => {
-      const cell = cells.get(pairKey(action.id, reply.id));
-      return cell ? [{ w: pTheir[j] ?? 0, cell }] : [];
-    }), 'ours');
+    const mixed = mixActor(hypotheses.flatMap((h) => h.actions.map((reply, j) => {
+      const cell = cells.get(cellKey(h.key, action.id, reply.id));
+      return cell ? [{ w: h.probability * (h.probabilities[j] ?? 0), cell }] : [];
+    })), 'ours');
     const ours = branches.filter((b) => b.action.id === action.id);
     const range = rangeFromBranches(ours);
     const success = clamp(mixed.success, 0, 1);
@@ -513,17 +728,33 @@ function assemble(
       sampleCount: range.n,
       features: mixed.features,
       probability: pOur[i],
+      expectedUtility: ourUtility[i],
     });
     forcedRows.push(replies.map((reply) => {
-      const cell = cells.get(pairKey(action.id, reply.id));
-      return { pWin: cell?.pWin ?? 0, pLoss: cell?.pLoss ?? 0 };
+      let pWin = 0;
+      let pLoss = 0;
+      let w = 0;
+      for (const h of hypotheses) {
+        const cell = cells.get(cellKey(h.key, action.id, reply.id));
+        if (!cell) continue;
+        const ww = h.probability;
+        w += ww;
+        pWin += (cell.pWin ?? 0) * ww;
+        pLoss += (cell.pLoss ?? 0) * ww;
+      }
+      const inv = w > 0 ? 1 / w : 0;
+      return { pWin: pWin * inv, pLoss: pLoss * inv };
     }));
   }
 
   const replyEvals: ReplyEvaluation[] = replies.map((reply, j) => {
-    const mixed = mixActor(legal.flatMap((action, i) => {
-      const cell = cells.get(pairKey(action.id, reply.id));
-      return cell ? [{ w: pOur[i] ?? 0, cell }] : [];
+    const availability = display.availability[j] ?? 0;
+    const mixed = mixActor(hypotheses.flatMap((h) => {
+      if (!h.actions.some((a) => a.id === reply.id)) return [];
+      return legal.flatMap((action, i) => {
+        const cell = cells.get(cellKey(h.key, action.id, reply.id));
+        return cell ? [{ w: h.probability * (pOur[i] ?? 0), cell }] : [];
+      });
     }), 'theirs');
     const raw = scoredChoice(mixed.success, mixed.features, weights);
     const rows = branches.filter((b) => b.reply.id === reply.id);
@@ -543,7 +774,10 @@ function assemble(
       ourModifier: mixed.parts.ourModifier,
       theirModifier: mixed.parts.theirModifier,
       features: mixed.features,
-      probability: pTheir[j],
+      probability: display.probability[j],
+      availability,
+      expectedUtility: opponentExpectedUtility(reply, legal, pOur, hypotheses, cells, availability),
+      hypothesisCount: display.hypothesisCount[j],
       minTurnScore: range.minTurn,
       maxTurnScore: range.maxTurn,
       meanPostScore: mixed.post,
@@ -554,263 +788,186 @@ function assemble(
   });
 
   for (const action of legal) {
-    for (const reply of replies) {
-      const cell = cells.get(pairKey(action.id, reply.id));
-      if (!cell) continue;
-      const ourScore = scoredChoice(cell.success, cell.ourFeatures, weights);
-      const theirCta = cell.w > 0 ? cell.theirSuccessW / cell.w : 0;
-      const theirScore = scoredChoice(theirCta, cell.theirFeatures, weights);
-      pairs.push({ ourId: action.id, theirId: reply.id, score: clamp(ourScore - theirScore, -1, 1) });
+    const byReply = new Map<string, { score: number; w: number }>();
+    for (const h of hypotheses) {
+      for (const reply of h.actions) {
+        const cell = cells.get(cellKey(h.key, action.id, reply.id));
+        if (!cell) continue;
+        const ourScore = scoredChoice(cell.success, cell.ourFeatures, weights);
+        const theirCta = cell.w > 0 ? cell.theirSuccessW / cell.w : 0;
+        const theirScore = scoredChoice(theirCta, cell.theirFeatures, weights);
+        const d = clamp(ourScore - theirScore, -1, 1);
+        const prev = byReply.get(reply.id) ?? { score: 0, w: 0 };
+        prev.score += d * h.probability;
+        prev.w += h.probability;
+        byReply.set(reply.id, prev);
+      }
+    }
+    for (const [theirId, acc] of byReply) {
+      pairs.push({ ourId: action.id, theirId, score: acc.w > 0 ? acc.score / acc.w : 0 });
     }
   }
 
   return { choices, replies: replyEvals, postScores, forcedRows, pairs };
 }
 
-function expectedFromPolicy(
-  legal: LegalAction[],
-  replies: LegalAction[],
-  cells: Map<string, PairCell>,
-  pOur: number[],
-  pTheir: number[],
-): number {
-  const values: number[] = [];
-  const weights: number[] = [];
-  for (let i = 0; i < legal.length; i++) {
-    for (let j = 0; j < replies.length; j++) {
-      const cell = cells.get(pairKey(legal[i]!.id, replies[j]!.id));
-      if (!cell) continue;
-      values.push(cell.turnScore);
-      weights.push((pOur[i] ?? 0) * (pTheir[j] ?? 0));
-    }
-  }
-  return weightedMean(values, weights);
-}
-
-async function policyProbs(
-  process: QuantumPolicyProcess,
-  actions: string[],
-  scores: number[],
-  opts: EvaluateOptions,
-): Promise<{ probs: number[]; diagnostics: Record<string, unknown> }> {
-  if (!actions.length) return { probs: [], diagnostics: { mode: 'empty' } };
-  const res = await process.decide({
-    actions,
-    scores,
-    mode: opts.policy ?? 'quantum',
-    seed: opts.seed,
-    shots: opts.shots ?? null,
-  });
-  return { probs: res.probabilities, diagnostics: res.diagnostics ?? {} };
-}
-
-function marginalize(
-  pairIds: string[],
-  joint: number[],
-  ourIds: string[],
-  theirIds: string[],
-): { pOur: number[]; pTheir: number[] } {
-  const pOur = ourIds.map(() => 0);
-  const pTheir = theirIds.map(() => 0);
-  const ourIndex = new Map(ourIds.map((id, i) => [id, i]));
-  const theirIndex = new Map(theirIds.map((id, i) => [id, i]));
-  for (let k = 0; k < pairIds.length; k++) {
-    const raw = pairIds[k]!;
-    const tab = raw.indexOf('\t');
-    const ourId = tab >= 0 ? raw.slice(0, tab) : raw;
-    const theirId = tab >= 0 ? raw.slice(tab + 1) : '';
-    const i = ourIndex.get(ourId);
-    const j = theirIndex.get(theirId);
-    const p = joint[k] ?? 0;
-    if (i !== undefined) pOur[i] = (pOur[i] ?? 0) + p;
-    if (j !== undefined) pTheir[j] = (pTheir[j] ?? 0) + p;
-  }
-  const so = pOur.reduce((a, b) => a + b, 0);
-  const st = pTheir.reduce((a, b) => a + b, 0);
+function emptyRound(legal: LegalAction[], extra?: Record<string, unknown>): RoundEvaluation {
+  const p = legal.map(() => (legal.length ? 1 / legal.length : 0));
   return {
-    pOur: so > 0 ? pOur.map((x) => x / so) : softmax(ourIds.map(() => 0)),
-    pTheir: st > 0 ? pTheir.map((x) => x / st) : softmax(theirIds.map(() => 0)),
+    choices: legal.map((action, i) => ({
+      action,
+      success: 0,
+      expectedImpact: 0,
+      expectedHealthDelta: 0,
+      expectedModifierDelta: 0,
+      ourHealth: 0,
+      theirHealth: 0,
+      ourModifier: 0,
+      theirModifier: 0,
+      hitsToKill: null,
+      choiceScore: 0,
+      scaledChoiceScore: 0,
+      meanPostScore: 0,
+      minTurnScore: 0,
+      maxTurnScore: 0,
+      minPostScore: 0,
+      maxPostScore: 0,
+      sampleCount: 0,
+      features: emptyFeatures(),
+      probability: p[i],
+      expectedUtility: 0,
+    })),
+    replies: [],
+    roundScore: 0,
+    expectedRoundScore: 0,
+    minRoundScore: 0,
+    maxRoundScore: 0,
+    forcedOutcome: 'none',
+    mateProbability: 0,
+    pairs: [],
+    diagnostics: extra && Object.keys(extra).length ? extra : undefined,
   };
 }
 
-export interface JointPolicyResult {
-  pOur: number[];
-  pTheir: number[];
-  jointProbs: Map<string, number>;
-  diagnostics?: Record<string, unknown>;
-  omittedPairs: number;
-  evaluation: RoundEvaluation;
+function addBranchToCell(
+  pairAcc: Map<string, PairCell>,
+  action: LegalAction,
+  reply: LegalAction,
+  hypKey: string,
+  hypProbability: number,
+  w: number,
+  scored: { pairDelta: number; parts: ImpactParts; ourSuccess: number; theirSuccess: number; ourFeatures: ChoiceFeatures; theirFeatures: ChoiceFeatures; theirScore: number },
+  extras: {
+    post: number; ourFaint: number; theirHpLost: number; ourRemain: number;
+    pWin: number; pLoss: number;
+    theirHBefore: number; theirHAfter: number; ourHBefore: number; ourHAfter: number;
+  },
+): void {
+  const key = cellKey(hypKey, action.id, reply.id);
+  let cell = pairAcc.get(key);
+  if (!cell) {
+    cell = emptyCell(action, reply, hypKey, hypProbability);
+    pairAcc.set(key, cell);
+  }
+  cell.w += w;
+  addParts(cell.parts, scored.parts, w);
+  cell.success += scored.ourSuccess * w;
+  cell.post += extras.post * w;
+  cell.ourFaint += extras.ourFaint * w;
+  cell.theirHpLost += extras.theirHpLost * w;
+  cell.ourRemain += extras.ourRemain * w;
+  cell.pWin += extras.pWin * w;
+  cell.pLoss += extras.pLoss * w;
+  cell.theirHBefore += extras.theirHBefore * w;
+  cell.theirHAfter += extras.theirHAfter * w;
+  cell.ourHBefore += extras.ourHBefore * w;
+  cell.ourHAfter += extras.ourHAfter * w;
+  cell.turnScore += scored.pairDelta * w;
+  cell.theirVal += scored.theirScore * w;
+  cell.ourSuccessW += scored.ourSuccess * w;
+  cell.theirSuccessW += scored.theirSuccess * w;
+  addFeat(cell.ourFeatAcc, scored.ourFeatures, scored.ourSuccess * w);
+  addFeat(cell.theirFeatAcc, scored.theirFeatures, scored.theirSuccess * w);
 }
 
-export function capJointPairs(
-  pairs: PairScore[],
-  ourIds: string[],
-  theirIds: string[],
-  cap: number,
-): { kept: PairScore[]; omitted: number } {
-  if (pairs.length <= cap) return { kept: pairs, omitted: 0 };
-  const used = new Set<string>();
-  const kept: PairScore[] = [];
-  const keyOf = (p: PairScore) => `${p.ourId}\t${p.theirId}`;
-
-  // First reserve at least one best pair per our action
-  for (const id of ourIds) {
-    const candidates = pairs.filter((p) => p.ourId === id);
-    if (!candidates.length) continue;
-    const best = candidates.reduce((a, b) => (Math.abs(b.score) > Math.abs(a.score) ? b : a));
-    kept.push(best);
-    used.add(keyOf(best));
-  }
-
-  // Next reserve at least one best pair per their action
-  for (const id of theirIds) {
-    const candidates = pairs.filter((p) => p.theirId === id && !used.has(keyOf(p)));
-    if (!candidates.length) continue;
-    const best = candidates.reduce((a, b) => (Math.abs(b.score) > Math.abs(a.score) ? b : a));
-    kept.push(best);
-    used.add(keyOf(best));
-  }
-
-  // Fill remaining capacity by absolute score
-  const rest = pairs
-    .filter((p) => !used.has(keyOf(p)))
-    .sort((a, b) => Math.abs(b.score) - Math.abs(a.score));
-
-  for (const p of rest) {
-    if (kept.length >= cap) break;
-    kept.push(p);
-    used.add(keyOf(p));
-  }
-  return { kept, omitted: pairs.length - kept.length };
-}
-
-export async function evaluateJointStatePolicy(
-  obs: BattleObservation,
-  opts?: EvaluateOptions,
-): Promise<JointPolicyResult> {
-  const ev = await evaluateRound(obs, opts);
-  const ourIds = ev.choices.map((c) => c.action.id);
-  const theirIds = ev.replies.map((r) => r.action.id);
-  const pOur = ev.choices.map((c) => c.probability ?? (ourIds.length ? 1 / ourIds.length : 1));
-  const pTheir = ev.replies.map((r) => r.probability ?? (theirIds.length ? 1 / theirIds.length : 1));
-
-  const jointProbs = new Map<string, number>();
-  for (let i = 0; i < ourIds.length; i++) {
-    for (let j = 0; j < theirIds.length; j++) {
-      jointProbs.set(pairKey(ourIds[i]!, theirIds[j]!), (pOur[i] ?? 0) * (pTheir[j] ?? 0));
-    }
-  }
-
-  const omitted = typeof ev.diagnostics?.omittedPairs === 'number' ? ev.diagnostics.omittedPairs : 0;
-  return {
-    pOur,
-    pTheir,
-    jointProbs,
-    diagnostics: ev.diagnostics,
-    omittedPairs: omitted,
-    evaluation: ev,
-  };
-}
-
-async function refineLoop(
-  legal: LegalAction[],
-  replies: LegalAction[],
-  cells: Map<string, PairCell>,
-  branches: Branch[],
-  pOur: number[],
-  pTheir: number[],
-  weights: ScoreWeights,
-  opts: EvaluateOptions,
-): Promise<{ pOur: number[]; pTheir: number[]; diagnostics?: Record<string, unknown> }> {
-  const process = opts.refine;
-  if (!process) return { pOur, pTheir };
-  const iters = opts.refineIters ?? REFINE_ITERS;
-  let diag: Record<string, unknown> | undefined;
-  let nextOur = pOur;
-  let nextTheir = pTheir;
-  for (let n = 0; n < iters; n++) {
-    const assembled = assemble(legal, replies, cells, branches, nextOur, nextTheir, weights);
-    const sorted = assembled.pairs.slice().sort((a, b) => Math.abs(b.score) - Math.abs(a.score));
-    const capped = capJointPairs(sorted, legal.map((a) => a.id), replies.map((r) => r.id), JOINT_CAP);
-    const pairRows = capped.kept;
-    const pairIds = pairRows.map((p) => pairKey(p.ourId, p.theirId));
-    const pairScores = pairRows.map((p) => signedLog1p(p.score));
-    try {
-      const joint = await policyProbs(process, pairIds, pairScores, opts);
-      diag = { ...joint.diagnostics, omittedPairs: capped.omitted };
-      const marg = marginalize(pairIds, joint.probs, legal.map((a) => a.id), replies.map((r) => r.id));
-      nextOur = marg.pOur;
-      nextTheir = marg.pTheir;
-    } catch {
-      const ourScores = assembled.choices.map((c) => c.scaledChoiceScore);
-      const theirScores = assembled.replies.map((r) => signedLog1p(r.choiceScore));
-      try {
-        const ours = await policyProbs(process, legal.map((a) => a.id), ourScores, opts);
-        const theirs = await policyProbs(process, replies.map((r) => r.id), theirScores, opts);
-        nextOur = ours.probs;
-        nextTheir = theirs.probs;
-        diag = { ...ours.diagnostics, omittedPairs: capped.omitted };
-      } catch (err2) {
-        if (opts.refineFallback === 'throw') throw err2;
-        nextOur = softmax(ourScores);
-        nextTheir = softmax(theirScores);
-        diag = { mode: 'softmax', fallback: true, omittedPairs: capped.omitted };
-      }
-    }
-  }
-  return { pOur: nextOur, pTheir: nextTheir, diagnostics: diag };
-}
-
-export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptions): Promise<RoundEvaluation> {
+async function evaluateRoundCore(obs: BattleObservation, opts?: EvaluateOptions): Promise<JointPolicyResult> {
   const legal = obs.legalActions.length ? obs.legalActions : legalActionsForEval(obs);
-  const chanceN = opts?.chanceSeeds ?? CHANCE_SEEDS;
+  const chanceN = Math.max(1, opts?.chanceSeeds ?? CHANCE_SEEDS);
   const weights = opts?.weights ?? DEFAULT_WEIGHTS;
   const valuations = opts?.valuations ?? loadDefaultValuations();
   const theirIdx = activeIndex(obs.theirs);
   const ourIdx = activeIndex(obs.ours);
+  const injected = opts?.pairDelta;
 
   const pairAcc = new Map<string, PairCell>();
-  const replyById = new Map<string, LegalAction>();
   const branches: Branch[] = [];
   let hypothesisUnavailable = 0;
   const coverage = new Set<string>();
 
-  const rawHyps: SetHypothesis[] = (obs.theirs.find((s) => s.active)?.hypotheses?.length
-    ? obs.theirs.find((s) => s.active)!.hypotheses
-    : [{ set: obs.theirs.find((s) => s.active)?.set ?? { species: 'smeargle', level: 100, item: '', ability: 'owntempo', moves: ['splash'], nature: 'hardy' }, count: 1, probability: 1 }]);
-  const usableHyps: SetHypothesis[] = [];
+  const rawHyps = simulationAssumptions(obs.theirs.find((s) => s.active));
+  const grids: HypGrid[] = [];
   for (const hyp of rawHyps) {
-    if (!theirActions(obs, hyp.set).length) {
+    const replies = theirActions(obs, hyp.set);
+    if (!replies.length) {
       hypothesisUnavailable += 1;
       continue;
     }
-    usableHyps.push(hyp);
+    grids.push({
+      key: hypothesisKey(hyp.set),
+      set: hyp.set,
+      probability: hyp.probability,
+      actions: replies,
+    });
   }
-  const hypMass = usableHyps.reduce((s, h) => s + h.probability, 0);
-  const hyps = hypMass > 0
-    ? usableHyps.map((h) => ({ ...h, probability: h.probability / hypMass }))
-    : [];
+  const gridMass = grids.reduce((s, g) => s + g.probability, 0);
+  if (gridMass > 0) {
+    for (const g of grids) g.probability /= gridMass;
+  }
 
   for (const action of legal) {
-    for (const hyp of hyps) {
-      const replies = theirActions(obs, hyp.set);
-      const theirSets = obs.theirs.map((s) => (s.active ? hyp.set : (s.set ?? hyp.set)));
-      for (const reply of replies) {
-        replyById.set(reply.id, reply);
-        const key = pairKey(action.id, reply.id);
+    for (const g of grids) {
+      const theirSets = theirSetsForHyp(obs, g.set);
+      for (const reply of g.actions) {
+        if (injected) {
+          const d = clamp(injected(action.id, reply.id, g.key), -1, 1);
+          const scored = {
+            pairDelta: d,
+            parts: emptyImpactParts(),
+            ourSuccess: 1,
+            theirSuccess: 1,
+            ourFeatures: emptyFeatures(),
+            theirFeatures: emptyFeatures(),
+            theirScore: 0,
+          };
+          addBranchToCell(pairAcc, action, reply, g.key, g.probability, 1, scored, {
+            post: 0, ourFaint: 0, theirHpLost: 0, ourRemain: hpFrac(obs.ours, ourIdx),
+            pWin: 0, pLoss: 0,
+            theirHBefore: hpFrac(obs.theirs, theirIdx), theirHAfter: hpFrac(obs.theirs, theirIdx),
+            ourHBefore: hpFrac(obs.ours, ourIdx), ourHAfter: hpFrac(obs.ours, ourIdx),
+          });
+          branches.push({
+            action, reply, hypKey: g.key, w: 1, turnScore: d, post: 0, parts: emptyImpactParts(), success: 1,
+            ourFaint: 0, theirHpLost: 0, ourRemain: hpFrac(obs.ours, ourIdx),
+            pWin: 0, pLoss: 0,
+            theirHBefore: hpFrac(obs.theirs, theirIdx), theirHAfter: hpFrac(obs.theirs, theirIdx),
+            ourHBefore: hpFrac(obs.ours, ourIdx), ourHAfter: hpFrac(obs.ours, ourIdx),
+            theirVal: 0,
+          });
+          continue;
+        }
         for (let k = 0; k < chanceN; k++) {
           const seed = [1 + k, 2, 3, 4];
           let result: RoundSimResult;
           try {
             result = simulateRound(obs, action, reply, seed, theirSets);
           } catch (err) {
-            if (err instanceof IllegalSimChoiceError && !replies.some((a) => a.id === reply.id)) {
+            if (err instanceof IllegalSimChoiceError) {
               hypothesisUnavailable += 1;
               continue;
             }
             throw err;
           }
-          const w = hyp.probability / chanceN;
+          const w = 1 / chanceN;
           const scored = scoreRealizedPair(obs, action, reply, result, weights, valuations);
           for (const c of scored.coverage) coverage.add(c);
           const ourAfter = result.afterOurs[ourIdx];
@@ -818,7 +975,7 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
           const theirHpLost = Math.max(0, hpFrac(obs.theirs, theirIdx) - hpFrac(result.afterTheirs, theirIdx));
           const post = observationStateScore(result.afterOurs, result.afterTheirs);
           branches.push({
-            action, reply, w, turnScore: scored.pairDelta, post, parts: scored.parts, success: scored.ourSuccess,
+            action, reply, hypKey: g.key, w, turnScore: scored.pairDelta, post, parts: scored.parts, success: scored.ourSuccess,
             ourFaint, theirHpLost, ourRemain: hpFrac(obs.ours, ourIdx),
             pWin: result.weWin ? 1 : 0, pLoss: result.theyWin ? 1 : 0,
             theirHBefore: hpFrac(obs.theirs, theirIdx),
@@ -827,77 +984,48 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
             ourHAfter: hpFrac(result.afterOurs, ourIdx),
             theirVal: scored.theirScore,
           });
-          let cell = pairAcc.get(key);
-          if (!cell) {
-            cell = emptyCell(action, reply);
-            pairAcc.set(key, cell);
-          }
-          cell.w += w;
-          addParts(cell.parts, scored.parts, w);
-          cell.success += scored.ourSuccess * w;
-          cell.post += post * w;
-          cell.ourFaint += ourFaint * w;
-          cell.theirHpLost += theirHpLost * w;
-          cell.ourRemain += hpFrac(obs.ours, ourIdx) * w;
-          cell.pWin += (result.weWin ? 1 : 0) * w;
-          cell.pLoss += (result.theyWin ? 1 : 0) * w;
-          cell.theirHBefore += hpFrac(obs.theirs, theirIdx) * w;
-          cell.theirHAfter += hpFrac(result.afterTheirs, theirIdx) * w;
-          cell.ourHBefore += hpFrac(obs.ours, ourIdx) * w;
-          cell.ourHAfter += hpFrac(result.afterOurs, ourIdx) * w;
-          cell.turnScore += scored.pairDelta * w;
-          cell.theirVal += scored.theirScore * w;
-          cell.ourSuccessW += scored.ourSuccess * w;
-          cell.theirSuccessW += scored.theirSuccess * w;
-          addFeat(cell.ourFeatAcc, scored.ourFeatures, scored.ourSuccess * w);
-          addFeat(cell.theirFeatAcc, scored.theirFeatures, scored.theirSuccess * w);
+          addBranchToCell(pairAcc, action, reply, g.key, g.probability, w, scored, {
+            post, ourFaint, theirHpLost, ourRemain: hpFrac(obs.ours, ourIdx),
+            pWin: result.weWin ? 1 : 0, pLoss: result.theyWin ? 1 : 0,
+            theirHBefore: hpFrac(obs.theirs, theirIdx),
+            theirHAfter: hpFrac(result.afterTheirs, theirIdx),
+            ourHBefore: hpFrac(obs.ours, ourIdx),
+            ourHAfter: hpFrac(result.afterOurs, ourIdx),
+          });
         }
       }
     }
   }
 
+  const emptyDiag = {
+    iterations: 0,
+    maxPolicyDelta: 0,
+    hypothesisMass: grids.reduce((s, g) => s + g.probability, 0),
+    legalPairCount: 0,
+  };
   if (!branches.length) {
-    const empty = assemble(legal, [], new Map(), [], legal.map(() => (legal.length ? 1 / legal.length : 0)), [], weights);
-    return {
-      choices: empty.choices,
-      replies: [],
-      roundScore: 0,
-      expectedRoundScore: 0,
-      minRoundScore: 0,
-      maxRoundScore: 0,
-      forcedOutcome: 'none',
-      mateProbability: 0,
-      pairs: [],
-      diagnostics: hypothesisUnavailable ? { hypothesisUnavailable } : undefined,
-    };
+    const ev = emptyRound(legal, hypothesisUnavailable ? { hypothesisUnavailable } : undefined);
+    return { pOur: ev.choices.map((c) => c.probability ?? 0), hypotheses: [], evaluation: ev, diagnostics: emptyDiag };
   }
 
   const cells = new Map<string, PairCell>();
   for (const [k, v] of pairAcc) cells.set(k, meanCell(v));
 
-  const replies = [...replyById.values()];
-  const uniformOur = legal.map(() => (legal.length ? 1 / legal.length : 0));
-  const uniformTheir = replies.map(() => (replies.length ? 1 / replies.length : 0));
-
-  const first = assemble(legal, replies, cells, branches, uniformOur, uniformTheir, weights);
-  const pTheir = softmax(first.replies.map((r) => r.choiceScore));
-  const pOurSoft = softmax(first.choices.map((c) => c.scaledChoiceScore));
-  const refined = await refineLoop(legal, replies, cells, branches, pOurSoft, pTheir.length ? pTheir : uniformTheir, weights, opts ?? {});
-  const final = assemble(legal, replies, cells, branches, refined.pOur, refined.pTheir, weights);
+  const policy = await evaluateTwoSidedPolicy(legal, grids, cells, opts ?? {});
+  const final = assemble(legal, policy.hypotheses, cells, branches, policy.pOur, policy.ourUtility, weights);
   const mate = mateFromForced(final.forcedRows);
-  const expected = expectedFromPolicy(legal, replies, cells, refined.pOur, refined.pTheir);
   const roundExt = scoreExtrema(branches.map((b) => b.turnScore));
   const coverageList = [...coverage];
   const diag: Record<string, unknown> = {
-    ...refined.diagnostics,
+    ...policy.diagnostics,
     ...(hypothesisUnavailable ? { hypothesisUnavailable } : {}),
     ...(coverageList.length ? { unvaluedEffects: coverageList } : {}),
   };
-  return {
+  const evaluation: RoundEvaluation = {
     choices: final.choices,
     replies: final.replies,
-    roundScore: expected,
-    expectedRoundScore: expected,
+    roundScore: policy.roundScore,
+    expectedRoundScore: policy.roundScore,
     minRoundScore: roundExt.min,
     maxRoundScore: roundExt.max,
     forcedOutcome: mate.forcedOutcome,
@@ -905,4 +1033,22 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
     pairs: final.pairs,
     diagnostics: Object.keys(diag).length ? diag : undefined,
   };
+  return {
+    pOur: policy.pOur,
+    hypotheses: policy.hypotheses,
+    evaluation,
+    diagnostics: policy.diagnostics,
+  };
 }
+
+export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptions): Promise<RoundEvaluation> {
+  return (await evaluateRoundCore(obs, opts)).evaluation;
+}
+
+export async function evaluateJointStatePolicy(
+  obs: BattleObservation,
+  opts?: EvaluateOptions,
+): Promise<JointPolicyResult> {
+  return evaluateRoundCore(obs, opts);
+}
+
