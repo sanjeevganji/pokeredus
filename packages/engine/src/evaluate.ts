@@ -1019,6 +1019,7 @@ async function evaluateRoundCore(obs: BattleObservation, opts?: EvaluateOptions)
   const coverageList = [...coverage];
   const diag: Record<string, unknown> = {
     ...policy.diagnostics,
+    ...policy.transformDiagnostics,
     ...(hypothesisUnavailable ? { hypothesisUnavailable } : {}),
     ...(coverageList.length ? { unvaluedEffects: coverageList } : {}),
   };
