@@ -337,6 +337,7 @@ interface PairCell {
 interface Branch {
   action: LegalAction;
   reply: LegalAction;
+  hypKey: string;
   w: number;
   turnScore: number;
   post: number;
