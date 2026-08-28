@@ -413,16 +413,25 @@ function idOf(v: unknown): string {
   return String(v);
 }
 
+function remainingTurns(state: { duration?: number } | undefined): number | undefined {
+  if (state && typeof state.duration === 'number' && state.duration > 0) return state.duration;
+  return undefined;
+}
+
 function snapshotField(battle: AnyBattle, prev: FieldSnapshot): FieldSnapshot {
   const p1 = battle.p1.sideConditions;
   const p2 = battle.p2.sideConditions;
-  const weather = normalizeWeather(idOf(battle.field?.weather)) || prev.weather;
-  const terrain = normalizeTerrain(idOf(battle.field?.terrain)) || prev.terrain;
+  const weather = normalizeWeather(idOf(battle.field?.weather));
+  const terrain = normalizeTerrain(idOf(battle.field?.terrain));
   const trickroom = Boolean(battle.field?.pseudoWeather && 'trickroom' in battle.field.pseudoWeather);
+  const trState = battle.field?.pseudoWeather?.trickroom;
   return {
     weather,
     terrain,
     trickroom,
+    weatherTurns: weather ? remainingTurns(battle.field?.weatherState) : undefined,
+    terrainTurns: terrain ? remainingTurns(battle.field?.terrainState) : undefined,
+    trickroomTurns: trickroom && trState && typeof trState === 'object' ? remainingTurns(trState as { duration?: number }) : undefined,
     hazards_p1: {
       stealthrock: condLayers(p1, 'stealthrock') > 0,
       spikes: condLayers(p1, 'spikes'),
