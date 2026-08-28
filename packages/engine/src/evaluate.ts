@@ -10,7 +10,7 @@ import type {
   SetHypothesis,
   SlotSnapshot,
 } from './observation.js';
-import { actionId, observationTera } from './observation.js';
+import { observationTera } from './observation.js';
 import {
   choiceFeatures,
   cta,
