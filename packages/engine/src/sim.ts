@@ -486,26 +486,52 @@ function snapshotSide(mons: AnyPokemon[], prev: SlotSnapshot[], weather: string)
       },
       active: Boolean(p.isActive),
       moveSlots,
+      item: p.item !== undefined ? (p.item || '') : slot.item,
+      ability: p.ability || slot.ability,
+      terastallized: Boolean(p.terastallized) || slot.terastallized,
+      teraType: (typeof p.terastallized === 'string' && p.terastallized) || slot.teraType,
     };
     next.modifiers = modifiersFromSlot(next, weather);
     return next;
   });
 }
 
+function simChoiceFor(a: LegalAction, layout: SimPartyLayout): string {
+  if (a.type === 'switch') {
+    const ext = (a.slot ?? 1) - 1;
+    const packed = layout.packedIndexBySlot.get(ext);
+    if (packed === undefined) {
+      throw new Error(`switch slot ${a.slot} is not in the packed party`);
+    }
+    return `switch ${packed + 1}`;
+  }
+  return simChoice(a);
+}
+
 export function createBattle(obs: BattleObservation, seed: number[], theirSets?: CanonicalSet[]): AnyBattle {
+  return prepareBattle(obs, seed, theirSets).battle;
+}
+
+function prepareBattle(obs: BattleObservation, seed: number[], theirSets?: CanonicalSet[]): {
+  battle: AnyBattle;
+  ours: SimPartyLayout;
+  theirs: SimPartyLayout;
+} {
   const PS = loadShowdown();
-  const [t1, t2] = packObservation(obs, theirSets);
+  const ours = packSide(obs.ours);
+  const theirs = packSide(obs.theirs, theirSets);
   const battle = new PS.Battle({ formatid: 'gen9customgame', seed });
-  const p1Team = obs.ourSide === 'p1' ? t1 : t2;
-  const p2Team = obs.ourSide === 'p1' ? t2 : t1;
-  battle.setPlayer('p1', { name: 'p1', team: p1Team });
-  battle.setPlayer('p2', { name: 'p2', team: p2Team });
+  const p1Layout = obs.ourSide === 'p1' ? ours : theirs;
+  const p2Layout = obs.ourSide === 'p1' ? theirs : ours;
+  battle.setPlayer('p1', { name: 'p1', team: p1Layout.packedTeam });
+  battle.setPlayer('p2', { name: 'p2', team: p2Layout.packedTeam });
   if (battle.p1.requestState === 'teampreview' || battle.p2.requestState === 'teampreview') {
     battle.makeChoices('default', 'default');
   }
   applyField(battle, obs.field);
-  applyHp(battle, obs);
-  return battle;
+  applySideState(obs.ourSide === 'p1' ? battle.p1.pokemon : battle.p2.pokemon, obs.ours, ours, obs.teraUsedOurs);
+  applySideState(obs.ourSide === 'p1' ? battle.p2.pokemon : battle.p1.pokemon, obs.theirs, theirs, obs.teraUsedTheirs);
+  return { battle, ours, theirs };
 }
 
 function emptyTel(): ActionTelemetry {
