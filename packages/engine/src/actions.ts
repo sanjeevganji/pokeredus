@@ -1,6 +1,7 @@
 import {
   actionId,
   observationTera,
+  type CanonicalSet,
   type LegalAction,
   type SlotSnapshot,
 } from './observation.js';
