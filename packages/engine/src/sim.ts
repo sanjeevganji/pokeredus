@@ -418,7 +418,7 @@ function remainingTurns(state: { duration?: number } | undefined): number | unde
   return undefined;
 }
 
-function snapshotField(battle: AnyBattle, prev: FieldSnapshot): FieldSnapshot {
+function snapshotField(battle: AnyBattle, _prev: FieldSnapshot): FieldSnapshot {
   const p1 = battle.p1.sideConditions;
   const p2 = battle.p2.sideConditions;
   const weather = normalizeWeather(idOf(battle.field?.weather));
