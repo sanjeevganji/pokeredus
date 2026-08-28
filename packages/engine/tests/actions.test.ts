@@ -97,4 +97,43 @@ describe('legalFromSlots', () => {
       expect.arrayContaining(['earthquake', 'swordsdance', 'scaleshot', 'firefang']),
     );
   });
+
+  it('emits only forced bench switches when the active is fainted', () => {
+    const boosts = { atk: 0, def: 0, spa: 0, spd: 0, spe: 0, accuracy: 0, evasion: 0 };
+    const base = { maxHp: 100, status: '', boosts, knownMoves: [] as string[], hypotheses: [], modifiers: [] };
+    const actions = legalFromSlots([
+      { ...base, slot: 0, speciesId: 'garchomp', revealed: true, hp: 0, fainted: true, active: true },
+      { ...base, slot: 1, speciesId: 'toxapex', revealed: true, hp: 80, fainted: false, active: false },
+      { ...base, slot: 2, speciesId: 'clefable', revealed: true, hp: 100, fainted: false, active: false },
+      { ...base, slot: 3, speciesId: 'smeargle', revealed: false, hp: 100, fainted: false, active: false },
+    ]);
+    expect(actions.every((a) => a.type === 'switch' && a.forced)).toBe(true);
+    expect(actions.map((a) => a.slot).sort()).toEqual([2, 3]);
+    expect(actions.some((a) => a.type === 'move')).toBe(false);
+    expect(actions.some((a) => a.moveId === 'splash')).toBe(false);
+  });
+
+  it('does not synthesize Splash when no legal action exists', () => {
+    const actions = legalFromSlots([{
+      slot: 0, speciesId: 'garchomp', revealed: true, hp: 0, maxHp: 100, status: 'fnt',
+      boosts: { atk: 0, def: 0, spa: 0, spd: 0, spe: 0, accuracy: 0, evasion: 0 },
+      fainted: true, active: true, knownMoves: [], hypotheses: [], modifiers: [],
+    }]);
+    expect(actions).toEqual([]);
+  });
+
+  it('keeps only the usable move when PP and disabled flags are set', () => {
+    const actions = legalFromSlots([{
+      slot: 0, speciesId: 'garchomp', revealed: true, hp: 100, maxHp: 100, status: '',
+      boosts: { atk: 0, def: 0, spa: 0, spd: 0, spe: 0, accuracy: 0, evasion: 0 },
+      fainted: false, active: true, knownMoves: ['earthquake', 'swordsdance', 'scaleshot'],
+      hypotheses: [], modifiers: [],
+      moveSlots: [
+        { id: 'earthquake', pp: 0, maxpp: 16 },
+        { id: 'swordsdance', pp: 10, maxpp: 16, disabled: true },
+        { id: 'scaleshot', pp: 5, maxpp: 16 },
+      ],
+    }]);
+    expect(actions.filter((a) => a.type === 'move').map((a) => a.moveId)).toEqual(['scaleshot']);
+  });
 });
