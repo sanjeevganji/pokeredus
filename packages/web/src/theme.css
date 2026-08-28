@@ -614,19 +614,21 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
 .turn-graph-line-settled {
   stroke: var(--neon-cyan);
   stroke-width: 2px;
-  transition: stroke-dashoffset 0.2s ease-out;
+  transition: opacity 200ms ease-out;
 }
 
 .turn-graph-line-expected {
   stroke: var(--neon-purple);
   stroke-width: 1.5px;
   stroke-dasharray: 4 3;
+  transition: opacity 200ms ease-out;
 }
 
 .turn-graph-dot {
   fill: var(--bg-card);
   stroke: var(--neon-cyan);
   stroke-width: 1.5px;
+  transition: cx 200ms ease-out, cy 200ms ease-out, r 200ms ease-out;
 }
 
 .dot-settled { fill: var(--neon-cyan); }
