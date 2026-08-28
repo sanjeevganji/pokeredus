@@ -202,7 +202,7 @@ export default function BattleLive() {
 
       {loading ? (
         <TheaterSkeleton />
-      ) : (
+      ) : live.schemaIncompatible ? null : (
         <>
           <ScoreStrip state={live} />
           <div className="theater-body">
@@ -222,7 +222,7 @@ export default function BattleLive() {
               quantum={live.eval?.quantum}
               slots={live.ours}
               foe={live.theirs?.find((s) => s.active)}
-              teraUsed={live.teraUsedOurs}
+              settledScore={getLatestSettledScore(live.points)}
             />
             <Bench
               area="theirs"
@@ -238,7 +238,6 @@ export default function BattleLive() {
               replies={live.eval?.replies ?? []}
               slots={live.theirs}
               us={live.ours?.find((s) => s.active)}
-              teraUsed={live.teraUsedTheirs}
             />
           </div>
         </>
