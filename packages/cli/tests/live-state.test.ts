@@ -277,6 +277,100 @@ describe('LiveStateWriter', () => {
     expect(hud.state.points!.length).toBe(MAX_LIVE_POINTS);
     expect(hud.state.points!.length).toBe(64);
   });
+
+  it('patchForecast writes outcome counts and ignores a stale turn', () => {
+    const file = tmpPath();
+    const hud = new LiveStateWriter({ path: file, room: 'battle-gen9randombattle-7', dryRun: true, policy: 'quantum' });
+    hud.fromObservation(obs());
+    hud.fromDecision({
+      evaluation: {
+        choices: [{
+          action: { id: 'move:earthquake', type: 'move', moveId: 'earthquake' },
+          success: 1, cta: 1, expectedImpact: 1, expectedHealthDelta: 1, expectedModifierDelta: 0,
+          ourHealth: 0, theirHealth: -1, ourModifier: 0, theirModifier: 0,
+          hitsToKill: 1, choiceScore: 0.8, scaledChoiceScore: 0.8, meanPostScore: 0.5,
+          minTurnScore: 0.5, maxTurnScore: 1.0, minPostScore: 0.5, maxPostScore: 0.5, sampleCount: 2,
+          features: { health: 1, modifier: 0, secondary: 0, switchRisk: 0, sacrifice: 0 },
+        }],
+        replies: [],
+        roundScore: 0.8, expectedRoundScore: 0.8, minRoundScore: 0.5, maxRoundScore: 1.0,
+        forcedOutcome: 'none',
+        mateProbability: 0,
+      },
+      probabilities: [1],
+      sampledId: 'move:earthquake',
+      sent: true,
+    });
+    hud.patchForecast({
+      turn: 3,
+      status: 'complete',
+      choices: [{
+        actionId: 'move:earthquake',
+        samples: 4,
+        wins: 1,
+        losses: 1,
+        draws: 2,
+        capped: 1,
+        unknownFrontiers: 1,
+        turnCaps: 1,
+        timeCaps: 0,
+        errors: 0,
+        expectedTerminalScore: 0.2,
+        minTerminalScore: -1,
+        maxTerminalScore: 1,
+        expectedCumulativeDelta: 0.1,
+        winRate: 0.5,
+        winRateLow: 0.1,
+        winRateHigh: 0.9,
+      }],
+      totalSamples: 4,
+      elapsedMs: 10,
+      assumptionsComplete: true,
+      outcomeCounts: {
+        win: 1, loss: 1, 'unknown-frontier': 1, 'turn-cap': 1, 'time-cap': 0, cancelled: 0, error: 0,
+      },
+      terminalSamples: 2,
+      winRate: 0.5,
+    });
+    expect(hud.state.eval?.choices[0]!.winRate).toBe(0.5);
+    expect(hud.state.eval?.choices[0]!.unknownFrontiers).toBe(1);
+    expect(hud.state.eval?.forecast?.terminalSamples).toBe(2);
+
+    hud.state.turn = 4;
+    hud.patchForecast({
+      turn: 3,
+      status: 'complete',
+      choices: [{
+        actionId: 'move:earthquake',
+        samples: 99,
+        wins: 99,
+        losses: 0,
+        draws: 0,
+        capped: 0,
+        unknownFrontiers: 0,
+        turnCaps: 0,
+        timeCaps: 0,
+        errors: 0,
+        expectedTerminalScore: 1,
+        minTerminalScore: 1,
+        maxTerminalScore: 1,
+        expectedCumulativeDelta: 1,
+        winRate: 1,
+        winRateLow: 1,
+        winRateHigh: 1,
+      }],
+      totalSamples: 99,
+      elapsedMs: 1,
+      assumptionsComplete: true,
+      outcomeCounts: {
+        win: 99, loss: 0, 'unknown-frontier': 0, 'turn-cap': 0, 'time-cap': 0, cancelled: 0, error: 0,
+      },
+      terminalSamples: 99,
+      winRate: 1,
+    });
+    expect(hud.state.eval?.choices[0]!.samples).toBe(4);
+    expect(hud.state.eval?.forecast?.totalSamples).toBe(4);
+  });
 });
 
 describe('slotsFromObservation', () => {

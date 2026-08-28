@@ -156,17 +156,36 @@ describe('decideAndAct', () => {
     });
     expect(process.calls).toBe(0);
   });
+});
 
-  it('live decision critical path is not blocked by forecasting and can run concurrently', async () => {
-    const liveProc = new MockPolicy();
-    const client = new MockClient();
+describe('LiveForecastSession', () => {
+  it('start returns without waiting for the forecast and ignores stale turn patches', async () => {
+    const { LiveForecastSession } = await import('@pokeredus/bridge');
+    const patched: number[] = [];
+    const hud = {
+      state: { turn: 1, room: 'battle-x' },
+      patchForecast(f: { turn: number }) {
+        patched.push(f.turn);
+      },
+    };
+    const session = new LiveForecastSession(
+      new MockPolicy() as unknown as QuantumPolicyProcess,
+      hud,
+    );
     const o = obs();
-    // Live decision executes immediately
-    const res = await decideAndAct(client, o, {
-      dryRun: true,
-      process: liveProc as unknown as QuantumPolicyProcess,
-      rng: () => 0,
+    const t0 = Date.now();
+    session.start(o, {
+      policy: 'softmax',
+      pairDelta: () => 0.1,
+      rolloutsPerChoice: 1,
+      maxTurns: 1,
+      seed: 1,
     });
-    expect(res.sampledId).toBe('move:earthquake');
+    expect(Date.now() - t0).toBeLessThan(50);
+    hud.state.turn = 2;
+    await new Promise((r) => setTimeout(r, 80));
+    expect(patched.every((t) => t !== 1 || hud.state.turn === 1)).toBe(true);
+    expect(patched).toEqual([]);
+    session.close();
   });
 });
