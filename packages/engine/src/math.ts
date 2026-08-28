@@ -159,12 +159,6 @@ export function expectedTtk(hBefore: number, damage: number): number | null {
   return Math.max(1, ttk);
 }
 
-/** CTA / TTK. Empty or no-damage branches are 0, never NaN/Inf. */
-export function damageScore(ctaVal: number, ttk: number | null): number {
-  if (ttk == null || !(ttk >= 1) || !Number.isFinite(ttk) || !Number.isFinite(ctaVal)) return 0;
-  return ctaVal / ttk;
-}
-
 /** Restored HP / max HP, excluding overheal. */
 export function effectiveHeal(hpBefore: number, hpAfter: number, maxHp: number): number {
   if (!(maxHp > EPS) || !Number.isFinite(hpBefore) || !Number.isFinite(hpAfter)) return 0;

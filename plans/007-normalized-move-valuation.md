@@ -503,12 +503,12 @@ asserts:
 ## Verification
 
 ```bash
-npx vitest run packages/engine/tests/math.test.ts packages/engine/tests/weights.test.ts packages/engine/tests/integration.test.ts packages/web/server/scenario-rank.test.ts
+npx vitest run packages/engine/tests/math.test.ts packages/engine/tests/weights.test.ts packages/engine/tests/integration.test.ts packages/engine/tests/effect-valuation.test.ts packages/web/server/scenario-rank.test.ts
 npm run typecheck --workspace @pokeredus/engine --workspace @pokeredus/bridge --workspace @pokeredus/web
 ```
 
-If the handler test uses a different focused filename, substitute that exact
-file and record it in this plan.
+Focused valuation/config tests live in `packages/engine/tests/effect-valuation.test.ts`.
+The rank handler test is `packages/web/server/scenario-rank.test.ts`.
 
 Expected:
 
