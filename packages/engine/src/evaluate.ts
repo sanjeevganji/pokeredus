@@ -659,12 +659,25 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
   const pairAcc = new Map<string, PairCell>();
   const replyById = new Map<string, LegalAction>();
   const branches: Branch[] = [];
+  let hypothesisUnavailable = 0;
+
+  const rawHyps: SetHypothesis[] = (obs.theirs.find((s) => s.active)?.hypotheses?.length
+    ? obs.theirs.find((s) => s.active)!.hypotheses
+    : [{ set: obs.theirs.find((s) => s.active)?.set ?? { species: 'smeargle', level: 100, item: '', ability: 'owntempo', moves: ['splash'], nature: 'hardy' }, count: 1, probability: 1 }]);
+  const usableHyps: SetHypothesis[] = [];
+  for (const hyp of rawHyps) {
+    if (!theirActions(obs, hyp.set).length) {
+      hypothesisUnavailable += 1;
+      continue;
+    }
+    usableHyps.push(hyp);
+  }
+  const hypMass = usableHyps.reduce((s, h) => s + h.probability, 0);
+  const hyps = hypMass > 0
+    ? usableHyps.map((h) => ({ ...h, probability: h.probability / hypMass }))
+    : [];
 
   for (const action of legal) {
-    const hyps: SetHypothesis[] = (obs.theirs.find((s) => s.active)?.hypotheses?.length
-      ? obs.theirs.find((s) => s.active)!.hypotheses
-      : [{ set: obs.theirs.find((s) => s.active)?.set ?? { species: 'smeargle', level: 100, item: '', ability: 'owntempo', moves: ['splash'], nature: 'hardy' }, count: 1, probability: 1 }]);
-
     for (const hyp of hyps) {
       const replies = theirActions(obs, hyp.set);
       const theirSets = obs.theirs.map((s) => (s.active ? hyp.set : (s.set ?? hyp.set)));
@@ -673,7 +686,16 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
         const key = pairKey(action.id, reply.id);
         for (let k = 0; k < chanceN; k++) {
           const seed = [1 + k, 2, 3, 4];
-          const result = simulateRound(obs, action, reply, seed, theirSets);
+          let result: RoundSimResult;
+          try {
+            result = simulateRound(obs, action, reply, seed, theirSets);
+          } catch (err) {
+            if (err instanceof IllegalSimChoiceError && !replies.some((a) => a.id === reply.id)) {
+              hypothesisUnavailable += 1;
+              continue;
+            }
+            throw err;
+          }
           const before = valuesOf(obs.ours, obs.theirs);
           const after = valuesOf(result.afterOurs, result.afterTheirs);
           const w = hyp.probability / chanceN;
