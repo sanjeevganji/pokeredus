@@ -501,7 +501,13 @@ export class BattleTracker {
       case 'switch':
       case 'drag': {
         const map = this.monsFor(ev.side);
-        for (const m of map.values()) m.active = false;
+        for (const m of map.values()) {
+          if (m.active) {
+            m.choiceLock = undefined;
+            m.trapped = false;
+          }
+          m.active = false;
+        }
         const key = monKey(ev.identity, ev.speciesId);
         const existing = map.get(key);
         const parsed = parseDetails(ev.details);
@@ -510,9 +516,11 @@ export class BattleTracker {
           hp: ev.hp, maxHp: ev.maxHp, status: ev.status,
           boosts: emptyBoosts(), pp: existing?.pp ?? {}, lastMove: existing?.lastMove,
           revealedMoves: existing?.revealedMoves ? [...existing.revealedMoves] : [],
-          item: existing?.item, ability: existing?.ability,
+          item: existing?.item, revealedItem: existing?.revealedItem, ability: existing?.ability,
           level: parsed.level ?? existing?.level, teraType: parsed.teraType ?? existing?.teraType,
-          choiceLock: existing?.choiceLock, tauntTurns: 0, fainted: ev.status === 'fnt' || ev.hp <= 0, active: true,
+          terastallized: existing?.terastallized,
+          choiceLock: undefined, trapped: false, moveSlots: existing?.moveSlots,
+          tauntTurns: 0, fainted: ev.status === 'fnt' || ev.hp <= 0, active: true,
         };
         map.set(key, mon);
         break;
