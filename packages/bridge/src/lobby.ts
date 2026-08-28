@@ -33,10 +33,6 @@ export interface RoomListEntry {
   minElo?: number;
 }
 
-export function toId(s: string): string {
-  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
-}
-
 export function normalizeBattleRoom(id: string): string {
   let battle = id.trim();
   if (!battle) return battle;

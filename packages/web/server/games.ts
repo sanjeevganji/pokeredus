@@ -12,9 +12,9 @@ import {
   gamesFromSearch,
   gamesFromUserdetails,
   normalizeBattleRoom,
-  toId,
   type DetectedGame,
 } from '../../bridge/src/lobby';
+import { toId } from '../../bridge/src/protocol';
 import type { BattleObservation, RevealedFacts } from '../../engine/src/observation';
 import { defaultPoolPath, loadPool, speciesKey } from '../../engine/src/pool';
 import {
