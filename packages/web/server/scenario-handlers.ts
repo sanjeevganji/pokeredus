@@ -30,6 +30,64 @@ export interface ScenarioMeta {
   turn: number;
 }
 
+export function permutationError(order: string[], legalIds: string[]): string | null {
+  if (order.length !== legalIds.length) {
+    return `order must be a complete permutation of ${legalIds.length} evaluated actions`;
+  }
+  const want = new Set(legalIds);
+  const seen = new Set<string>();
+  for (const id of order) {
+    if (!want.has(id)) return `unknown action id ${id}`;
+    if (seen.has(id)) return `duplicate action id ${id}`;
+    seen.add(id);
+  }
+  return null;
+}
+
+export function rankedFromEval(
+  ev: RoundEvaluation,
+  side: 'ours' | 'theirs',
+  order: string[],
+  weights: ScoreWeights,
+): RankedChoice[] {
+  const rows = side === 'ours' ? ev.choices : ev.replies;
+  return order.map((id) => {
+    const row = rows.find((r) => r.action.id === id);
+    const features = row?.features ?? emptyFeatures();
+    const success = row?.cta ?? row?.cts ?? row?.success ?? 1;
+    return { id, score: scoredChoice(success, features, weights), features, success };
+  });
+}
+
+export async function applyScenarioRank(opts: {
+  observation: BattleObservation;
+  side: 'ours' | 'theirs';
+  order: unknown;
+  weightsPath: string;
+  evaluate?: typeof evaluateRound;
+  evalOpts?: EvaluateOptions;
+}): Promise<{ status: number; body: Record<string, unknown>; order?: string[]; learning?: ElasticDiagnostics }> {
+  const order = Array.isArray(opts.order) ? opts.order.map(String) : null;
+  if (!order) return { status: 400, body: { error: 'order must be an array of action ids' } };
+  const evaluate = opts.evaluate ?? evaluateRound;
+  const weights = loadWeights(opts.weightsPath);
+  const ev = await evaluate(opts.observation, { ...opts.evalOpts, weights });
+  const rows = opts.side === 'ours' ? ev.choices : ev.replies;
+  const legalIds = rows.map((r) => r.action.id);
+  const err = permutationError(order, legalIds);
+  if (err) return { status: 400, body: { error: err } };
+  const ranked = rankedFromEval(ev, opts.side, order, weights);
+  const { weights: nextW, diagnostics } = elasticUpdate(weights, ranked);
+  saveWeights(nextW, opts.weightsPath);
+  const ev2 = await evaluate(opts.observation, { ...opts.evalOpts, weights: nextW });
+  return {
+    status: 200,
+    body: { eval: publicEval(ev2), weights: nextW, learning: diagnostics },
+    order,
+    learning: diagnostics,
+  };
+}
+
 function sendJson(res: ServerResponse, body: unknown, status = 200): void {
   res.statusCode = status;
   res.setHeader('Content-Type', 'application/json');
