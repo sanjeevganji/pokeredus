@@ -6,7 +6,6 @@ import {
   emptyField,
   IllegalSimChoiceError,
   legalFromSlots,
-  placeholderSlot,
   simulateRound,
   type BattleObservation,
   type CanonicalSet,
