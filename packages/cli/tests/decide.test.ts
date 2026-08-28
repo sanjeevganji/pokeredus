@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { decideAndAct } from '@pokeredus/bridge';
+import { decideAndAct, LiveForecastSession } from '@pokeredus/bridge';
 import {
   emptyBoosts,
   emptyField,
