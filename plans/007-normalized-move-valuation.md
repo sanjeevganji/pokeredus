@@ -105,6 +105,9 @@ logModifier(slot) =
 
 modifier(slot) =
   0.5 × tanh(logModifier(slot))
+
+modifier(side) =
+  Σ modifier(living slot on side)
 ```
 
 Composition is therefore:
@@ -118,23 +121,36 @@ combinedMultiplier =
 Do not divide the log sum by the number of modifiers. Health and modifier value
 stay separate; neither is clamped into the other.
 
-For a realized branch:
+For one actor's attributed effects in a realized branch:
 
 ```text
-healthFeature =
-  ((health(oursAfter) - health(oursBefore))
-   - (health(theirsAfter) - health(theirsBefore))) / 6
+actorHealthFeature =
+  ((health(actorSideAfter) - health(actorSideBefore))
+   - (health(foeSideAfter) - health(foeSideBefore))) / 6
 
-modifierFeature =
-  ((modifier(oursAfter) - modifier(oursBefore))
-   - (modifier(theirsAfter) - modifier(theirsBefore))) / 6
+actorModifierFeature =
+  ((modifier(actorSideAfter) - modifier(actorSideBefore))
+   - (modifier(foeSideAfter) - modifier(foeSideBefore))) / 6
 ```
 
-`secondary` is the similarly normalized value of persistent side/field effects
-(hazards, screens, weather, terrain, and other metadata-valued effects) not
-already represented in a slot modifier. `switchRisk` and `sacrifice` remain
-bounded branch-derived behavioral modifiers. No effect may appear in two
-features.
+These are actor-positive features: damaging the foe or healing/boosting the
+actor is positive for either actor. `ChoiceEvaluation.features` contains our
+actor-local features; `ReplyEvaluation.features` contains opponent actor-local
+features. The rank handler must not flip them again.
+
+Partition effects once:
+
+- slot boosts, status, ability, and item future multipliers go to
+  `modifierFeature`;
+- hazards, screens, weather, terrain, and other side/field values go to
+  `secondaryFeature`;
+- immediate HP, recoil, and drain go to `healthFeature`;
+- `switchRisk` and `sacrifice` are recomputed actor-locally from that actor's
+  telemetry/outcome.
+
+No effect may appear in two features. A whole-branch our-perspective net health
+or modifier delta may remain as a diagnostic, but it is not a second score and
+is not the feature vector used by `elasticUpdate`.
 
 Apply the persisted `ScoreWeights` exactly once:
 
@@ -142,7 +158,7 @@ Apply the persisted `ScoreWeights` exactly once:
 conditionalValue =
   clamp(
       healthWeight × healthFeature
-    + modifierWeight × modifierFeature
+    + modifierWeight × actorModifierFeature
     + secondaryWeight × secondaryFeature
     + sacrificeWeight × sacrificeFeature
     - switchRiskWeight × switchRiskFeature,
@@ -182,14 +198,24 @@ and pivot effects may touch both sides. Residual effects that cannot be
 attributed to either submitted action remain excluded from move score and
 visible in diagnostics.
 
-For a pair:
+Compute both action values with the same actor-local scorer:
 
 ```text
-pairDelta = clamp(ourActionScore - opponentActionScore, -1, +1)
+ourActionScore =
+  CTA_or_CTS × E[weighted our-actor features | success]
+
+opponentActionScore =
+  CTA_or_CTS × E[weighted opponent-actor features | success]
+
+D(i,j,h) = PairScore.score =
+  clamp(ourActionScore - opponentActionScore, -1, +1)
 ```
 
-Plan 008 will weight these pair deltas. Plan 007 must not choose an opponent
-policy.
+`D` is always our-perspective. `ChoiceEvaluation.choiceScore` is our action's
+expected `D` only after aggregating represented opponent branches;
+`ReplyEvaluation.choiceScore` is actor-positive opponent action value for
+display/correction. Plan 008 will perform strategic weighting. Plan 007 must not
+choose an opponent policy.
 
 ### Effect probability: apply it once
 
