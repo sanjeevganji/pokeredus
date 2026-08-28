@@ -999,13 +999,20 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   color: var(--fg-secondary);
   font-size: 0.75rem;
   border-radius: 4px;
-  padding: 2px 8px;
+  padding: 8px 12px;
   cursor: pointer;
+  margin-top: 8px;
+  min-height: 36px;
 }
 
 .choice-toggle-btn:hover {
   border-color: var(--neon-cyan);
   color: var(--neon-cyan);
+}
+
+.choice-toggle-btn:focus-visible {
+  outline: 2px solid var(--neon-cyan);
+  outline-offset: 2px;
 }
 
 .choice-list.compact .choice-row { padding: 6px 8px; margin: 2px 0; border-radius: 4px; }
