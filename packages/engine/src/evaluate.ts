@@ -774,9 +774,8 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
     forcedOutcome: mate.forcedOutcome,
     mateProbability: mate.mateProbability,
     pairs: final.pairs,
-    diagnostics: {
-      ...refined.diagnostics,
-      ...(hypothesisUnavailable ? { hypothesisUnavailable } : {}),
-    },
+    diagnostics: (hypothesisUnavailable || refined.diagnostics)
+      ? { ...refined.diagnostics, ...(hypothesisUnavailable ? { hypothesisUnavailable } : {}) }
+      : undefined,
   };
 }
