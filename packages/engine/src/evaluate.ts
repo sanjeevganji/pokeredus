@@ -50,7 +50,6 @@ import {
 
 const CHANCE_SEEDS = 4;
 const REFINE_ITERS = 2;
-const JOINT_CAP = 32;
 
 export interface EvaluateOptions {
   chanceSeeds?: number;
@@ -62,6 +61,8 @@ export interface EvaluateOptions {
   shots?: number | null;
   refineIters?: number;
   refineFallback?: 'throw' | 'softmax';
+  /** Test seam: skip Showdown and supply D(i,j,h) directly. */
+  pairDelta?: (ourId: string, theirId: string, hypothesisKey: string) => number;
 }
 
 function valuesOf(ours: SlotSnapshot[], theirs: SlotSnapshot[]) {
