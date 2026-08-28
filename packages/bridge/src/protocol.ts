@@ -634,7 +634,10 @@ export class BattleTracker {
       }
       case '-terastallize': {
         const mon = this.findMon(ev.side, ev.identity);
-        if (mon) mon.teraType = ev.teraType;
+        if (mon) {
+          mon.teraType = ev.teraType;
+          mon.terastallized = true;
+        }
         if (ev.side === this.ourSide) this.teraUsedOurs = true;
         else this.teraUsedTheirs = true;
         break;
