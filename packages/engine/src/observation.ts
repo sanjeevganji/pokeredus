@@ -178,6 +178,9 @@ export interface ChoiceEvaluation {
 
 export interface ReplyEvaluation {
   action: LegalAction;
+  success?: number;
+  cta?: number;
+  cts?: number;
   expectedImpact: number;
   hitsToKillUs: number | null;
   choiceScore: number;
