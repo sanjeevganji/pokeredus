@@ -699,7 +699,10 @@ function assemble(
     const action = legal[i]!;
     const mixed = mixActor(hypotheses.flatMap((h) => h.actions.map((reply, j) => {
       const cell = cells.get(cellKey(h.key, action.id, reply.id));
-      return cell ? [{ w: h.probability * (h.probabilities[j] ?? 0), cell }] : [];
+      if (!cell) {
+        throw new Error(`missing cell ${JSON.stringify({ hyp: h.key, our: action.id, their: reply.id, keys: [...cells.keys()] })}`);
+      }
+      return [{ w: h.probability * (h.probabilities[j] ?? 0), cell }];
     })), 'ours');
     const ours = branches.filter((b) => b.action.id === action.id);
     const range = rangeFromBranches(ours);
