@@ -183,10 +183,18 @@ are the belief-weighted mix of the conditional policies and sum to one.
 policy mass or confidence.
 
 `ChoiceEvaluation.expectedUtility` is the final `E[D]`.
-`ReplyEvaluation.expectedUtility` is opponent-perspective `E[-D]`.
-`choiceScore` on both rows remains the actor-local value used by Scenario
-reordering. A compatible manual set override is the simulation assumption
-with mass one; public hypotheses stay on the observation for display.
+`ReplyEvaluation.choiceScore` is the opponent's actor-local score from the
+same scorer (opponent passed as actor). `expectedUtility` is the
+belief-weighted pair-delta expectation used by the two-sided policy.
+Scenario reordering updates `score-weights.json` with bounded elastic
+updates; reset restores defaults.
+
+Forecast rollouts accumulate **realized** pair deltas from the same scorer
+(`scoreRealizedPair`) after each simulated round. They do not add
+`choiceScore` or expected round utility. Terminal utility is `+1` for
+all-six opponent elimination and `-1` for all-six of ours; non-terminal
+frontiers and caps keep the bounded cumulative delta and never receive a
+win/loss label.
 
 CTA and CTS are computed from represented branch mass, not editable
 coefficients. Failure/no-op branches contribute zero successful mass; do not
