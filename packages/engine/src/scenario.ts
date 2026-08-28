@@ -762,7 +762,7 @@ export async function forecastBattle(
       let cumulative = rootScore.delta;
       residualHealth += rootScore.residualHealth;
       residualModifier += rootScore.residualModifier;
-      let currentState = overlayWorld(
+      let currentState = freezeObservation(
         applySimResult(obs, rootSim.afterOurs, rootSim.afterTheirs, rootSim.afterField, rootAction, rootOpp),
         world,
       );
