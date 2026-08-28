@@ -1158,7 +1158,7 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   gap: 4px;
 }
 
-.form-field label {
+.form-field label, .form-label {
   font-size: 0.8rem;
   color: var(--fg-secondary);
 }
