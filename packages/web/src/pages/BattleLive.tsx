@@ -50,8 +50,7 @@ export default function BattleLive() {
 
   const inFlightRef = useRef(false);
   const lastTsRef = useRef<string | undefined>(undefined);
-  const lastSeqRef = useRef<number>(0);
-  const lastStatusRef = useRef<string>('');
+  const lastSchemaRef = useRef<number | undefined>(undefined);
 
   const openSet = useCallback((slot: LiveSlot, opener: HTMLElement) => {
     if (!slot.revealed || !slot.speciesId) return;
@@ -67,47 +66,52 @@ export default function BattleLive() {
     }
   }, [live.room]);
 
-  const poll = useCallback(async () => {
-    if (inFlightRef.current || document.hidden) return;
-    inFlightRef.current = true;
-    try {
-      const data = await getLiveState();
-      const seq = data.points?.length ?? 0;
-      if (
-        data.ts !== lastTsRef.current ||
-        seq !== lastSeqRef.current ||
-        data.status !== lastStatusRef.current
-      ) {
-        lastTsRef.current = data.ts;
-        lastSeqRef.current = seq;
-        lastStatusRef.current = data.status;
-        setLive(data);
-      }
-    } catch {
-      // ignore network hiccups during active play
-    } finally {
-      inFlightRef.current = false;
-    }
-  }, []);
-
   useEffect(() => {
-    void poll();
-    const interval = setInterval(() => {
-      void poll();
-    }, 250);
+    const ac = new AbortController();
+    let alive = true;
+    let timer: ReturnType<typeof setInterval> | undefined;
 
-    const onVisibilityChange = () => {
-      if (!document.hidden) {
-        void poll();
+    async function poll() {
+      if (inFlightRef.current || document.hidden) return;
+      inFlightRef.current = true;
+      try {
+        const data = await getLiveState(ac.signal);
+        if (!alive) return;
+        if (data.ts === lastTsRef.current && data.schemaVersion === lastSchemaRef.current) return;
+        lastTsRef.current = data.ts;
+        lastSchemaRef.current = data.schemaVersion;
+        setLive(data);
+      } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+      } finally {
+        inFlightRef.current = false;
       }
-    };
-    document.addEventListener('visibilitychange', onVisibilityChange);
+    }
 
+    function start() {
+      if (timer) return;
+      void poll();
+      timer = setInterval(() => { void poll(); }, 250);
+    }
+    function stop() {
+      if (!timer) return;
+      clearInterval(timer);
+      timer = undefined;
+    }
+    function onVisibilityChange() {
+      if (document.hidden) stop();
+      else start();
+    }
+
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVisibilityChange);
     return () => {
-      clearInterval(interval);
+      alive = false;
+      ac.abort();
+      stop();
       document.removeEventListener('visibilitychange', onVisibilityChange);
     };
-  }, [poll]);
+  }, []);
 
   const detach = useCallback(async () => {
     setBusy(true);
