@@ -970,16 +970,6 @@ async function evaluateRoundCore(obs: BattleObservation, opts?: EvaluateOptions)
           }
           const w = 1 / chanceN;
           const scored = scoreRealizedPair(obs, action, reply, result, weights, valuations);
-          if (action.moveId === 'earthquake') {
-            console.log('ohko-debug', reply.id, {
-              ourSuccess: scored.ourSuccess,
-              theirSuccess: scored.theirSuccess,
-              pairDelta: scored.pairDelta,
-              executed: result.ours.executed,
-              hit: result.ours.hit,
-              alive: result.ours.aliveAtExecution,
-            });
-          }
           for (const c of scored.coverage) coverage.add(c);
           const ourAfter = result.afterOurs[ourIdx];
           const ourFaint = ourAfter && (ourAfter.fainted || ourAfter.hp <= 0) ? 1 : 0;
