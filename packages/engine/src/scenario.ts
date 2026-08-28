@@ -875,10 +875,6 @@ export async function forecastBattle(
     }
   };
 
-  function overlayWorld(state: BattleObservation, world: RolloutWorld): BattleObservation {
-    return freezeObservation(state, world);
-  }
-
   for (let cycle = 0; cycle < rolloutsPerChoice; cycle++) {
     if (signal?.aborted) {
       status = 'cancelled';
