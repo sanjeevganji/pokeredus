@@ -30,6 +30,7 @@ import {
   type SetOverridesStore,
   type SetSource,
   type SlotSnapshot,
+  type MoveSlotSnapshot,
 } from '@pokeredus/engine';
 import { legalActionsForEval } from '@pokeredus/engine';
 import { initialBelief, type RandomSetPool } from '@pokeredus/engine';
