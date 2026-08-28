@@ -364,6 +364,8 @@ function ScoreStrip({ state }: { state: LiveState }) {
             <h4>Utility & Model Input</h4>
             <ul className="disclosure-list">
               <li>Expected round score: {ev?.roundScore != null ? formatSigned(ev.roundScore, 3) : '—'}</li>
+              <li>Raw turn utility: {sampledChoice ? formatSigned(sampledChoice.choiceScore, 3) : '—'}</li>
+              <li>Raw terminal utility: {sampledChoice?.expectedTerminalScore != null ? formatSigned(sampledChoice.expectedTerminalScore, 3) : '—'}</li>
               <li>Attributed forced outcome: {ev?.forcedOutcome ?? 'none'}</li>
               <li>Mate probability: {ev?.mateProbability != null ? formatPercent(ev.mateProbability, 1) : '—'}</li>
               {sampledChoice?.hamiltonianInput != null && (
