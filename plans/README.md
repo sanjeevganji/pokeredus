@@ -39,7 +39,7 @@ Dependency graph:
 | 002-correct-battle-scoring | Field/Tera telemetry and ranges were implemented; active-state fidelity, normalized valuation, and policy semantics remain | PARTIAL — remainder superseded by 006–008 |
 | 003-discovered-set-overrides | Validated store, protocol application, API, provenance, and drawer exist; 35 focused tests pass | DONE |
 | 004-terminal-qaoa-rollouts | Rollout loop, cache, Wilson intervals, QAOA calls, and progress exist; realized scoring/belief/frontier semantics remain incorrect | PARTIAL — remainder superseded by 006, 008, 009 |
-| 005-live-forecast-ui | Versioned live points, cumulative graph, choices, and forecast fields mostly exist; no live forecast producer calls `patchForecast` and upstream meanings remain unstable | PARTIAL — resume after 009 |
+| 005-live-forecast-ui | Versioned points, cumulative/expected graph, log policy meters, choice rows, set drawer, quiet polling, and v1 compatibility | DONE |
 | 006-simulator-state-fidelity | Faithful active/state reconstruction and legal revenge switches | TODO |
 | 007-normalized-move-valuation | Normalized CTA/CTS valuation, editable effect values, and human reordering learning | TODO |
 | 008-two-sided-round-policy | Belief-correct adversarial policies over every legal pair | TODO |
