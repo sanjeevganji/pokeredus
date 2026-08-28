@@ -310,20 +310,8 @@ export function softmax(scores: number[]): number[] {
   return ex.map((e) => e / z);
 }
 
-function statusBite(status: string): number {
-  if (status === 'slp' || status === 'frz') return 0.35;
-  if (status === 'tox') return 0.3;
-  if (status === 'psn') return 0.15;
-  return 0;
-}
-
 function hazardsBite(h: FieldSnapshot['hazards_p1']): number {
   return (h.stealthrock ? 0.12 : 0) + h.spikes * 0.06 + h.toxicspikes * 0.08 + (h.stickyweb ? 0.08 : 0);
-}
-
-function sideKey(ourSide: PlayerSide, ours: boolean): 'p1' | 'p2' {
-  if (ours) return ourSide;
-  return ourSide === 'p1' ? 'p2' : 'p1';
 }
 
 /** Residual field value (hazards, screens). Status lives in modifierFeature. Positive is good for us. */
