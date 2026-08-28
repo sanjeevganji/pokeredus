@@ -144,6 +144,14 @@ function slotSet(slot: SlotSnapshot): CanonicalSet {
   return placeholderSet();
 }
 
+/** Resolve packed sets from a frozen rollout world (slot number → set). Unlisted slots keep slotSet. */
+export function setsFromSlotMap(
+  slots: SlotSnapshot[],
+  selected?: ReadonlyMap<number, CanonicalSet>,
+): CanonicalSet[] {
+  return slots.map((s) => selected?.get(s.slot) ?? slotSet(s));
+}
+
 function assertUniqueRevealedSpecies(slots: SlotSnapshot[]): void {
   const seen = new Set<string>();
   for (const s of slots) {
