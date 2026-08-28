@@ -131,6 +131,32 @@ describe('decideAndAct', () => {
     expect(client.sent[0]).toContain('terastallize');
   });
 
+  it('samples the returned policy without calling the process a second time', async () => {
+    const client = new MockClient();
+    const process = new MockPolicy();
+    await decideAndAct(client, obs(), {
+      dryRun: true,
+      process: process as unknown as QuantumPolicyProcess,
+      rng: () => 0,
+      evaluate: () => ({
+        choices: [{
+          action: { id: 'move:earthquake', type: 'move', moveId: 'earthquake' },
+          success: 1, cta: 1, expectedImpact: 1, expectedHealthDelta: 1, expectedModifierDelta: 0,
+          ourHealth: 0, theirHealth: -1, ourModifier: 0, theirModifier: 0,
+          hitsToKill: 1, choiceScore: 1, scaledChoiceScore: 1, meanPostScore: 0,
+          minTurnScore: 1, maxTurnScore: 1, minPostScore: 0, maxPostScore: 0, sampleCount: 1,
+          features: { health: 1, modifier: 0, secondary: 0, switchRisk: 0, sacrifice: 0 },
+          probability: 1,
+        }],
+        roundScore: 0, expectedRoundScore: 0, minRoundScore: 0, maxRoundScore: 0,
+        replies: [],
+        forcedOutcome: 'none',
+        mateProbability: 0,
+      }),
+    });
+    expect(process.calls).toBe(0);
+  });
+
   it('live decision critical path is not blocked by forecasting and can run concurrently', async () => {
     const liveProc = new MockPolicy();
     const client = new MockClient();
