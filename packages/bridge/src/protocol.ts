@@ -476,6 +476,13 @@ export class BattleTracker {
   apply(ev: BattleEvent): void {
     switch (ev.type) {
       case 'turn':
+        if (ev.num > this.turn && this.turn > 0) {
+          const tick = (n: number) => (n > 0 ? n - 1 : 0);
+          this.field.reflect_a = tick(this.field.reflect_a);
+          this.field.reflect_b = tick(this.field.reflect_b);
+          this.field.lightscreen_a = tick(this.field.lightscreen_a);
+          this.field.lightscreen_b = tick(this.field.lightscreen_b);
+        }
         this.turn = ev.num;
         break;
 
