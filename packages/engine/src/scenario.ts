@@ -533,12 +533,10 @@ export async function forecastBattle(
   const cache = opts?.cache ?? new Map<string, JointPolicyResult>();
   const weights = opts?.weights ?? DEFAULT_WEIGHTS;
   const valuations = opts?.valuations ?? loadDefaultValuations();
-  const runSim = opts?.simulate ?? (opts?.pairDelta ? (_o: BattleObservation) => passthroughSim(_o) : simulateRound);
   const usePairDelta = Boolean(opts?.pairDelta);
 
   let cacheHits = 0;
   let cacheMisses = 0;
-  const outcomeCounts = emptyOutcomeCounts();
   let frontierReason: string | undefined;
 
   const elapsed = () => now() - startTime;
