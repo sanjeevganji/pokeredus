@@ -71,8 +71,8 @@ describe('score weights', () => {
   });
 
   it('repeated corrections reduce inversion loss until convergence, a bound, or shrinkage', () => {
-    const better: RankedChoice = { id: 'a', score: 0, features: { ...z, modifier: 0.6 } };
-    const worse: RankedChoice = { id: 'b', score: 1, features: { ...z, health: 0.6 } };
+    const better: RankedChoice = { id: 'a', score: 0, features: { ...z, modifier: 0.3 } };
+    const worse: RankedChoice = { id: 'b', score: 1, features: { ...z, health: 0.7 } };
     let w = { ...DEFAULT_WEIGHTS };
     let lastLoss = Infinity;
     let hit = false;
