@@ -516,6 +516,12 @@ button:focus-visible, a:focus-visible, select:focus-visible, input:focus-visible
   color: var(--fg-primary);
 }
 
+.graph-latest {
+  font-variant-numeric: tabular-nums;
+  color: var(--fg-primary);
+  font-size: 0.8rem;
+}
+
 .graph-legend {
   display: flex;
   align-items: center;
