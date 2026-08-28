@@ -121,6 +121,15 @@ function sampleRecords(f: BattleForecast): Array<{
 
 const soft = { policy: 'softmax' as const, chanceSeeds: 1, timeBudgetMs: 60_000 };
 
+function forceIds(...prefer: string[]): QuantumPolicyProcess {
+  return {
+    decide: async (req: { actions: string[] }) => ({
+      probabilities: req.actions.map((id) => (prefer.some((p) => id.includes(p)) ? 1 : 1e-9)),
+      diagnostics: { mode: 'quantum' },
+    }),
+  } as unknown as QuantumPolicyProcess;
+}
+
 describe('scenario helpers', () => {
   it('flipObservation yields a finite eval', async () => {
     const flipped = flipObservation(obs(toxapex, garchomp));
