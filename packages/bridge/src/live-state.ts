@@ -27,6 +27,7 @@ export const MAX_LIVE_EVENTS = 40;
 export const MAX_LIVE_TURNS = 64;
 export const MAX_LIVE_POINTS = 64;
 export const LIVE_SLOT_COUNT = 6;
+export const LIVE_SCHEMA_VERSION = 2;
 
 export type LiveStatus =
   | 'idle'
