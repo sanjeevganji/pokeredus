@@ -107,6 +107,7 @@ export interface LiveReply {
   choiceScore?: number;
   probability?: number;
   policyWeight?: number;
+  hamiltonianInput?: number;
   expectedHealthDelta?: number;
   expectedModifierDelta?: number;
   ourHealth?: number;
@@ -120,6 +121,13 @@ export interface LiveReply {
   minPostScore?: number;
   maxPostScore?: number;
   sampleCount?: number;
+  expectedTerminalScore?: number;
+  minTerminalScore?: number;
+  maxTerminalScore?: number;
+  winRate?: number;
+  winRateLow?: number;
+  winRateHigh?: number;
+  samples?: number;
 }
 
 export interface LiveQuantum {
