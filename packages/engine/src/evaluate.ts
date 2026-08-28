@@ -702,7 +702,11 @@ function assemble(
       if (!cell) {
         throw new Error(`missing cell ${JSON.stringify({ hyp: h.key, our: action.id, their: reply.id, keys: [...cells.keys()] })}`);
       }
-      return [{ w: h.probability * (h.probabilities[j] ?? 0), cell }];
+      const w = h.probability * (h.probabilities[j] ?? 0);
+      if (!(w > 0)) {
+        throw new Error(`zero mix weight ${JSON.stringify({ pH: h.probability, pJ: h.probabilities, j, reply: reply.id, cellSuccess: cell.success, cellW: cell.w, ourSW: cell.ourSuccessW })}`);
+      }
+      return [{ w, cell }];
     })), 'ours');
     const ours = branches.filter((b) => b.action.id === action.id);
     const range = rangeFromBranches(ours);
