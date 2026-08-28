@@ -34,14 +34,25 @@ export function signedLog1p(x: number): number {
   return Math.sign(x) * Math.log1p(Math.abs(x));
 }
 
-export function meanModifier(mods: Modifier[]): number {
-  if (!mods.length) return 0;
+export const TEAM_SIZE = 6;
+
+/** Σ ln(multiplier) × probability × expectedTurns. Independent effects add; a 1× term does not dilute. */
+export function logModifier(mods: Modifier[]): number {
   let s = 0;
   for (const m of mods) {
-    const mult = Math.max(m.multiplier, EPS);
-    s += Math.log(mult) * m.remainingTurns;
+    const mult = m.multiplier;
+    if (!(mult > 0) || !Number.isFinite(mult)) continue;
+    const turns = Number.isFinite(m.remainingTurns) ? m.remainingTurns : 0;
+    const p = m.probability == null ? 1 : m.probability;
+    if (!Number.isFinite(p)) continue;
+    s += Math.log(Math.max(mult, EPS)) * clamp(p, 0, 1) * turns;
   }
-  return s / mods.length;
+  return s;
+}
+
+/** @deprecated name; composition is a summed log, not a mean. */
+export function meanModifier(mods: Modifier[]): number {
+  return logModifier(mods);
 }
 
 export function slotToMonValue(slot: SlotSnapshot, side: 'ours' | 'theirs'): MonValue {
