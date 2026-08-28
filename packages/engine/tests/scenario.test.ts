@@ -83,7 +83,7 @@ describe('scenario helpers', () => {
   }, 20_000);
 
   it('weights damaging opponent replies above splash', async () => {
-    const ev = await evaluateRound(obs(toxapex, garchomp), { chanceSeeds: 1 });
+    const ev = await evaluateRound(obs(garchomp, garchomp), { chanceSeeds: 1, policy: 'softmax' });
     const eq = ev.replies.find((r) => r.action.id === 'move:earthquake');
     const splash = ev.replies.find((r) => r.action.id === 'move:splash');
     expect(eq).toBeTruthy();
