@@ -677,6 +677,8 @@ export class BattleTracker {
       const revealed = existing?.revealedMoves?.length
         ? uniqueIds([...existing.revealedMoves, ...moveIds])
         : (moveIds.length ? moveIds : Object.keys(pp));
+      const reqItem = p.item;
+      const item = reqItem !== undefined && reqItem !== null ? toId(reqItem) : existing?.item;
       const mon: TrackedMon = {
         slot: splitIdentity(p.ident).slot, side: sideId, identity: p.ident,
         speciesId, details: p.details,
@@ -685,11 +687,15 @@ export class BattleTracker {
         boosts: existing?.boosts ?? emptyBoosts(),
         pp, lastMove: existing?.lastMove,
         revealedMoves: revealed,
-        item: toId(p.item || '') || existing?.item,
+        item,
+        revealedItem: (item ? item : undefined) ?? existing?.revealedItem,
         ability: toId(p.baseAbility || '') || existing?.ability,
         level: parsed.level ?? existing?.level,
         teraType: p.teraType || parsed.teraType || existing?.teraType,
+        terastallized: Boolean(p.terastallized) || existing?.terastallized,
         choiceLock: existing?.choiceLock,
+        trapped: false,
+        moveSlots: moveSlotsFromMoves(p.moves) ?? existing?.moveSlots,
         tauntTurns: existing?.tauntTurns ?? 0, fainted: parsedCond.fainted || parsedCond.hp <= 0, active: !!p.active,
       };
       if (p.terastallized) this.teraUsedOurs = true;
@@ -705,9 +711,13 @@ export class BattleTracker {
         const fromActive = moves.map((m) => m.id).filter(Boolean);
         if (fromActive.length) activeMon.revealedMoves = uniqueIds([...activeMon.revealedMoves, ...fromActive]);
         for (const m of moves) if (m.id) activeMon.pp[m.id] = m.pp;
+        const fromActiveSlots = moveSlotsFromMoves(moves);
+        if (fromActiveSlots) activeMon.moveSlots = fromActiveSlots;
+        activeMon.trapped = firstActive.trapped === true;
+        const enabled = moves.filter((m) => !m.disabled);
+        if (moves.length >= 2 && enabled.length === 1) activeMon.choiceLock = enabled[0]!.id;
+        else if (moves.length >= 2) activeMon.choiceLock = undefined;
       }
-      const enabled = moves.filter((m) => !m.disabled);
-      if (moves.length >= 2 && enabled.length === 1 && activeMon) activeMon.choiceLock = enabled[0]!.id;
     }
   }
 
