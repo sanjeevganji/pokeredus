@@ -279,6 +279,9 @@ async function main(): Promise<void> {
         });
       });
     });
+    } finally {
+      forecast.close();
+    }
     return;
   }
 
