@@ -962,7 +962,7 @@ async function evaluateRoundCore(obs: BattleObservation, opts?: EvaluateOptions)
           try {
             result = simulateRound(obs, action, reply, seed, theirSets);
           } catch (err) {
-            if (err instanceof IllegalSimChoiceError) {
+            if (err instanceof IllegalSimChoiceError && !g.actions.some((a) => a.id === reply.id)) {
               hypothesisUnavailable += 1;
               continue;
             }
