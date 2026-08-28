@@ -68,7 +68,7 @@ export function slotToMonValue(slot: SlotSnapshot, side: 'ours' | 'theirs'): Mon
 
 export function pokemonValue(mon: MonValue): number {
   if (mon.L <= 0) return 0;
-  return mon.L * clamp(mon.h + 0.5 * Math.tanh(mon.M), 0, 1);
+  return mon.L * (clamp(mon.h, 0, 1) + 0.5 * Math.tanh(mon.M));
 }
 
 export function stateScore(mons: MonValue[]): number {
