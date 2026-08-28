@@ -115,7 +115,7 @@ export function emptyImpactParts(): ImpactParts {
   };
 }
 
-/** HP-fraction and 0.5·Δtanh(M) deltas, each in [-1, 1], matching pokemonValue units. */
+/** Per-slot HP-fraction and modifier deltas for diagnostics. Not the elasticUpdate feature vector. */
 export function impactParts(before: MonValue[], after: MonValue[]): ImpactParts {
   const n = Math.min(before.length, after.length);
   let ourHealth = 0;
