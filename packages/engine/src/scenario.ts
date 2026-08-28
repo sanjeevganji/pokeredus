@@ -408,6 +408,10 @@ export async function forecastBattle(
         // Sample joint pair
         const ourChoices = statePolicy.evaluation.choices.map((c) => c.action);
         const theirChoices = statePolicy.evaluation.replies.map((r) => r.action);
+        if (!ourChoices.length || !theirChoices.length) {
+          terminal = 'draw';
+          break;
+        }
 
         const ourId = sampleAction(ourChoices.map((c) => c.id), statePolicy.pOur, rng);
         const ourAct = ourChoices.find((c) => c.id === ourId) ?? ourChoices[0]!;

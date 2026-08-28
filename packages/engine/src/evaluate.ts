@@ -745,10 +745,6 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
     }
   }
 
-  if (legal.length && !branches.length && hyps.length) {
-    throw new Error(`illegal sim choice: no legal opponent replies under any set hypothesis (${hypothesisUnavailable} unavailable)`);
-  }
-
   if (!branches.length) {
     const empty = assemble(legal, [], new Map(), [], legal.map(() => (legal.length ? 1 / legal.length : 0)), [], weights);
     return {
