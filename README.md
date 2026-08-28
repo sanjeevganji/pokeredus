@@ -183,11 +183,10 @@ are the belief-weighted mix of the conditional policies and sum to one.
 policy mass or confidence.
 
 `ChoiceEvaluation.expectedUtility` is the final `E[D]`.
-`ReplyEvaluation.choiceScore` is the opponent's actor-local score from the
-same scorer (opponent passed as actor). `expectedUtility` is the
-belief-weighted pair-delta expectation used by the two-sided policy.
-Scenario reordering updates `score-weights.json` with bounded elastic
-updates; reset restores defaults.
+`ReplyEvaluation.expectedUtility` is opponent-perspective `E[-D]`.
+`choiceScore` on both rows remains the actor-local value used by Scenario
+reordering. A compatible manual set override is the simulation assumption
+with mass one; public hypotheses stay on the observation for display.
 
 Forecast rollouts accumulate **realized** pair deltas from the same scorer
 (`scoreRealizedPair`) after each simulated round. They do not add
@@ -209,10 +208,7 @@ the policy / display.
 
 `ChoiceEvaluation.choiceScore` is our actor-local `moveScore`/`switchScore`.
 `ReplyEvaluation.choiceScore` is the opponent's actor-local score from the
-same scorer (opponent passed as actor). `expectedUtility` is the
-belief-weighted pair-delta expectation used by the two-sided policy.
-Scenario reordering updates `score-weights.json` with bounded elastic
-updates; reset restores defaults.
+same scorer (opponent passed as actor).
 
 Showdown remains authoritative for mechanics, legality, accuracy, and actual
 HP/status/field transitions. `pokeredus/data/effects/*.json` may add an
@@ -221,9 +217,12 @@ entries are neutral.
 
 `forcedOutcome` is `win | loss | none`. `policyWeight` is QAOA output mass
 used for ranking and sampling, not confidence or a win probability. `winRate`
-is an empirical terminal-rollout frequency with a 95% Wilson interval.
-Reply `availability` is hypothesis mass where the action is legal; do not
-label it confidence.
+is the empirical frequency of terminal wins among samples that ended in
+all-six elimination (`wins / (wins + losses)`), with a 95% Wilson interval
+on that same denominator. Unknown frontiers, turn caps, and time caps are
+not Bernoulli failures; when there are no terminal samples, `winRate` is
+absent, not zero. Reply `availability` is hypothesis mass where the action
+is legal; do not label it confidence.
 
 The official `pokemon-showdown` simulator is the rules engine for speed,
 priority, Trick Room, switches, accuracy, healing, status, boosts, field
