@@ -211,11 +211,12 @@ D(i,j,h) = PairScore.score =
   clamp(ourActionScore - opponentActionScore, -1, +1)
 ```
 
-`D` is always our-perspective. `ChoiceEvaluation.choiceScore` is our action's
-expected `D` only after aggregating represented opponent branches;
-`ReplyEvaluation.choiceScore` is actor-positive opponent action value for
-display/correction. Plan 008 will perform strategic weighting. Plan 007 must not
-choose an opponent policy.
+`D` is always our-perspective. `ChoiceEvaluation.choiceScore` is
+`ourActionScore`; `ReplyEvaluation.choiceScore` is `opponentActionScore`.
+Both are actor-positive `scoredChoice(...)` values used by the existing
+reordering/correction workflow. Policy-expected utility across opposing
+branches is a separate field computed by plan 008. Plan 007 must not choose an
+opponent policy.
 
 ### Effect probability: apply it once
 
@@ -283,10 +284,10 @@ The existing Scenario list is the input. Preserve its drag, keyboard, reset,
 and per-side workflows.
 
 1. Top means “the actor should prefer this action” for both lists.
-2. Our rows use our-perspective features.
-3. Opponent rows use opponent-perspective features: negate side-signed
-   beneficial/harmful features exactly once, while keeping risk/sacrifice
-   definitions actor-local.
+2. Our rows contain our actor-local features from the shared scorer.
+3. Opponent rows already contain opponent actor-local features from the same
+   scorer with the opponent passed as actor. Do not negate or flip them again
+   in the rank handler or `weights.ts`.
 4. The server accepts only a complete permutation of the currently evaluated
    legal action IDs: same length, no unknown IDs, no duplicates, no omissions.
 5. Recompute each ranked row's score from its features and the current weights;
@@ -457,8 +458,8 @@ In `weights.ts`:
   features in `weights.ts` or the rank handler;
 - validate finite `lr` and `lambda`;
 - retain default shrinkage and hard weight bounds;
-- return optional diagnostics (`lossBefore`, `lossAfter`, changed keys,
-  bound-hit keys) if useful to the existing Model panel;
+- return diagnostics including `lossBefore`, `lossAfter`, changed keys,
+  `boundHit`, and `shrinkageDominated`;
 - write atomically by reusing/extracting the already-tested
   `set-overrides.ts` pattern, not a second unsafe implementation.
 
