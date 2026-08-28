@@ -17,9 +17,6 @@ Current overhaul plans were written against commit `b97a334`.
 4. [009-realized-terminal-rollouts.md](009-realized-terminal-rollouts.md) —
    accumulate realized pair deltas, freeze sampled beliefs, and stop at honest
    hidden-team frontiers.
-5. Finish any remaining live presentation/orchestration work from
-   [005-live-forecast-ui.md](005-live-forecast-ui.md) after 009's contract is
-   stable.
 
 Dependency graph:
 
@@ -29,10 +26,9 @@ Dependency graph:
 003 set overrides (DONE) ──────────────┐
                                        v
 006 simulator fidelity -> 007 valuation/learning -> 008 round policy -> 009 rollouts
-                                                                    └-> finish 005 UI
 
 004 rollout foundation (PARTIAL; superseded remainder by 006/008/009)
-005 live forecast UI (PARTIAL; blocked on 009)
+005 live forecast UI (DONE)
 ```
 
 ## Status
