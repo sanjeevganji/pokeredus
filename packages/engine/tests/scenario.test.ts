@@ -168,4 +168,18 @@ describe('scenario helpers', () => {
       expect(f.totalSamples).toBeGreaterThan(0);
     }, 40_000);
   });
+
+  it('does not reconstruct an independent joint product', async () => {
+    const res = await evaluateJointStatePolicy(obs(garchomp, toxapex), { chanceSeeds: 1, policy: 'softmax' });
+    expect('jointProbs' in res).toBe(false);
+    expect(res.hypotheses.length).toBeGreaterThan(0);
+    expect(res.pOur.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 8);
+    expect(res.hypotheses.reduce((s, h) => s + h.probability, 0)).toBeCloseTo(1, 8);
+    for (const h of res.hypotheses) {
+      expect(h.probabilities.reduce((a, b) => a + b, 0)).toBeCloseTo(1, 8);
+    }
+    expect(res.evaluation.replies.reduce((s, r) => s + (r.probability ?? 0), 0)).toBeCloseTo(1, 8);
+  }, 20_000);
+
+  it.todo('samples a hypothesis then a conditional reply (plan 009)');
 });
