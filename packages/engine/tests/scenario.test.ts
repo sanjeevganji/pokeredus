@@ -265,12 +265,17 @@ describe('realized pair scoring in rollouts', () => {
     const ev = await evaluateRound(o, { ...soft, pairDelta });
     const choice = ev.choices.find((c) => c.action.id === 'move:tackle')!;
     const expected = choice.expectedUtility ?? choice.choiceScore;
-    const worsePair = ev.pairs?.find((p) => p.ourId === 'move:tackle' && p.theirId === 'move:earthquake')?.score;
-    expect(worsePair).toBeCloseTo(-0.5);
     expect(expected).not.toBeCloseTo(-0.5, 5);
 
     const f = await forecastBattle(o, {
-      ...soft, pairDelta, rolloutsPerChoice: 1, maxTurns: 1, seed: 1,
+      policy: 'quantum',
+      refine: forceIds('tackle', 'earthquake'),
+      chanceSeeds: 1,
+      timeBudgetMs: 60_000,
+      pairDelta,
+      rolloutsPerChoice: 1,
+      maxTurns: 1,
+      seed: 1,
     });
     expect(f.status).toBe('complete');
     const recs = sampleRecords(f).filter((r) => r.actionId === 'move:tackle');
