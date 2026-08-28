@@ -706,6 +706,7 @@ function assemble(
       console.log('mix', reply.id, { w, cellSuccess: cell.success, ourSW: cell.ourSuccessW, cellW: cell.w });
       return [{ w, cell }];
     })), 'ours');
+    console.log('mixed.success', mixed.success, 'features', mixed.features);
     const ours = branches.filter((b) => b.action.id === action.id);
     const range = rangeFromBranches(ours);
     const success = clamp(mixed.success, 0, 1);
