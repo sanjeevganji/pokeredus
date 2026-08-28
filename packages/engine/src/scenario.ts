@@ -834,7 +834,7 @@ export async function forecastBattle(
         residualHealth += stepScore.residualHealth;
         residualModifier += stepScore.residualModifier;
         turns++;
-        currentState = overlayWorld(
+        currentState = freezeObservation(
           applySimResult(frozen, simRes.afterOurs, simRes.afterTheirs, simRes.afterField, ourAct, oppAct),
           world,
         );
