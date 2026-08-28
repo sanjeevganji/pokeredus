@@ -23,6 +23,10 @@ export interface FieldSnapshot {
   reflect_p2: number;
   lightscreen_p1: number;
   lightscreen_p2: number;
+  /** Remaining Showdown turns when observed; absence means unknown, not a default. */
+  weatherTurns?: number;
+  terrainTurns?: number;
+  trickroomTurns?: number;
 }
 
 export interface CanonicalSet {

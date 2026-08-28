@@ -113,11 +113,41 @@ function enumerateRequest(
   return actions;
 }
 
+export function slotsWithActiveSet(slots: SlotSnapshot[], set: CanonicalSet | undefined): SlotSnapshot[] {
+  if (!set) return slots;
+  return slots.map((s) => {
+    if (!s.active) return s;
+    return {
+      ...s,
+      set,
+      knownMoves: set.moves?.length ? set.moves : s.knownMoves,
+      teraType: s.teraType ?? set.teraType,
+    };
+  });
+}
+
+function livingRevealedSwitches(slots: SlotSnapshot[], forced: boolean): LegalAction[] {
+  const out: LegalAction[] = [];
+  for (const s of slots) {
+    if (s.active || s.fainted || !s.revealed || s.hp <= 0) continue;
+    out.push({
+      id: actionId({ type: 'switch', slot: s.slot + 1 }),
+      type: 'switch',
+      slot: s.slot + 1,
+      forced: forced || undefined,
+    });
+  }
+  return out;
+}
+
 export function legalFromSlots(ours: SlotSnapshot[], teraUsed = false): LegalAction[] {
-  const active = ours.find((s) => s.active) ?? ours[0];
-  const canTera = !teraUsed && Boolean(active?.teraType) && !active?.terastallized;
-  const isChoiceLocked = Boolean(active?.choiceLock);
-  const isTrapped = Boolean(active?.trapped);
+  const active = ours.find((s) => s.active);
+  const forced = !active || active.fainted || active.hp <= 0;
+  if (forced) return livingRevealedSwitches(ours, true);
+
+  const canTera = !teraUsed && Boolean(active.teraType) && !active.terastallized;
+  const isChoiceLocked = Boolean(active.choiceLock);
+  const isTrapped = Boolean(active.trapped);
 
   const moveIds: string[] = [];
   const seen = new Set<string>();
@@ -129,37 +159,23 @@ export function legalFromSlots(ours: SlotSnapshot[], teraUsed = false): LegalAct
       moveIds.push(id);
     }
   };
-  if (active?.moveSlots && active.moveSlots.length > 0) {
+  if (active.moveSlots && active.moveSlots.length > 0) {
     take(active.moveSlots.filter((ms) => !ms.disabled && ms.pp > 0).map((ms) => ms.id));
-  } else if (active?.set?.moves?.length) {
+  } else if (active.set?.moves?.length) {
     take(active.set.moves);
   } else {
-    take(active?.knownMoves ?? []);
+    take(active.knownMoves ?? []);
   }
 
   const moves: LegalAction[] = [];
   for (const moveId of moveIds) {
-    if (isChoiceLocked && moveId !== toMoveId(active?.choiceLock ?? '')) continue;
+    if (isChoiceLocked && moveId !== toMoveId(active.choiceLock ?? '')) continue;
     pushMove(moves, moveId, false);
     if (canTera) pushMove(moves, moveId, true);
   }
 
-  const switches: LegalAction[] = [];
-  if (!isTrapped) {
-    for (const s of ours) {
-      if (!s.active && !s.fainted && s.revealed && s.hp > 0) {
-        switches.push({
-          id: actionId({ type: 'switch', slot: s.slot + 1 }),
-          type: 'switch',
-          slot: s.slot + 1,
-        });
-      }
-    }
-  }
-
-  if (moves.length) return [...moves, ...switches];
-  if (switches.length) return switches;
-  return [{ id: 'move:splash', type: 'move', moveId: 'splash' }];
+  const switches = isTrapped ? [] : livingRevealedSwitches(ours, false);
+  return [...moves, ...switches];
 }
 
 export function legalActionsForEval(obs: {
