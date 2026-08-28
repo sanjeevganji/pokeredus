@@ -745,6 +745,10 @@ export async function evaluateRound(obs: BattleObservation, opts?: EvaluateOptio
     }
   }
 
+  if (legal.length && !branches.length) {
+    throw new Error(`illegal sim choice: no legal opponent replies under any set hypothesis (${hypothesisUnavailable} unavailable)`);
+  }
+
   const cells = new Map<string, PairCell>();
   for (const [k, v] of pairAcc) cells.set(k, meanCell(v));
 
