@@ -114,18 +114,24 @@ export function loadShowdown(): PSModule {
   return psMod;
 }
 
-function toPackedSet(set: CanonicalSet, knownMoves: string[] = []): Record<string, unknown> {
+function toId(s: string): string {
+  return s.toLowerCase().replace(/[^a-z0-9]/g, '');
+}
+
+function toPackedSet(set: CanonicalSet, knownMoves: string[] = [], slot?: SlotSnapshot): Record<string, unknown> {
   const pool = set.movePool?.length ? set.movePool : set.moves;
   const moves = pickMoves(pool, knownMoves.length ? knownMoves : set.moves);
+  const item = slot && slot.item !== undefined ? slot.item : set.item;
+  const ability = slot && slot.ability !== undefined ? slot.ability : set.ability;
   return {
     species: set.species,
-    item: set.item || undefined,
-    ability: set.ability || undefined,
+    item: item || undefined,
+    ability: ability || undefined,
     moves: moves.length ? moves : ['splash'],
     nature: set.nature || 'Hardy',
     level: set.level || 100,
     gender: set.gender,
-    teraType: set.teraType,
+    teraType: slot?.teraType || set.teraType,
     evs: set.evs,
     ivs: set.ivs,
   };
@@ -138,38 +144,123 @@ function slotSet(slot: SlotSnapshot): CanonicalSet {
   return placeholderSet();
 }
 
-export function packObservation(obs: BattleObservation, theirOverride?: CanonicalSet[]): [string, string] {
-  const PS = loadShowdown();
-  const ours = obs.ours.map((s) => toPackedSet(s.set ?? placeholderSet(), s.knownMoves));
-  const theirs = (theirOverride ?? obs.theirs.map(slotSet)).map((set, i) => toPackedSet(set, obs.theirs[i]?.knownMoves));
-  while (ours.length < 6) ours.push(toPackedSet(placeholderSet()));
-  while (theirs.length < 6) theirs.push(toPackedSet(placeholderSet()));
-  return [PS.Teams.pack(ours) ?? '', PS.Teams.pack(theirs) ?? ''];
+function assertUniqueRevealedSpecies(slots: SlotSnapshot[]): void {
+  const seen = new Set<string>();
+  for (const s of slots) {
+    if (!s.revealed) continue;
+    const id = toId(s.speciesId);
+    if (!id) continue;
+    if (seen.has(id)) {
+      throw new Error(`unsupported format: duplicate species '${s.speciesId}' (Random Battles assume unique species)`);
+    }
+    seen.add(id);
+  }
 }
 
-function applyHp(battle: AnyBattle, obs: BattleObservation): void {
-  const mapSide = (mons: AnyPokemon[], slots: SlotSnapshot[]) => {
-    for (let i = 0; i < Math.min(mons.length, slots.length); i++) {
-      const p = mons[i]!;
-      const s = slots[i]!;
-      if (s.maxHp > 0 && typeof p.sethp === 'function') {
-        const pct = s.fainted ? 0 : Math.max(0, Math.round((s.hp / s.maxHp) * 100));
-        p.sethp(`${pct}/100`);
-      } else if (s.maxHp > 0) {
-        p.hp = s.fainted ? 0 : Math.max(1, Math.round((s.hp / s.maxHp) * p.maxhp));
-      }
-      p.boosts.atk = s.boosts.atk;
-      p.boosts.def = s.boosts.def;
-      p.boosts.spa = s.boosts.spa;
-      p.boosts.spd = s.boosts.spd;
-      p.boosts.spe = s.boosts.spe;
-      if (s.status && s.status !== 'fnt') p.status = s.status;
-    }
+function packSide(slots: SlotSnapshot[], overrides?: CanonicalSet[]): SimPartyLayout {
+  assertUniqueRevealedSpecies(slots);
+  const PS = loadShowdown();
+  const padded = [...slots];
+  while (padded.length < 6) padded.push({
+    slot: padded.length,
+    speciesId: 'smeargle',
+    revealed: false,
+    hp: 100,
+    maxHp: 100,
+    status: '',
+    boosts: { atk: 0, def: 0, spa: 0, spd: 0, spe: 0, accuracy: 0, evasion: 0 },
+    fainted: false,
+    active: false,
+    knownMoves: [],
+    hypotheses: [],
+    modifiers: [],
+    set: placeholderSet(),
+  });
+  const setBySlot = new Map<number, CanonicalSet>();
+  padded.forEach((s, i) => {
+    setBySlot.set(s.slot, overrides?.[i] ?? overrides?.[s.slot] ?? slotSet(s));
+  });
+  const active = padded.find((s) => s.active);
+  const rest = padded.filter((s) => s !== active).sort((a, b) => a.slot - b.slot);
+  const ordered = active ? [active, ...rest] : [...padded].sort((a, b) => a.slot - b.slot);
+  const packedIndexBySlot = new Map<number, number>();
+  const slotByPackedIndex: number[] = [];
+  const packed = ordered.map((s, i) => {
+    packedIndexBySlot.set(s.slot, i);
+    slotByPackedIndex.push(s.slot);
+    const set = setBySlot.get(s.slot) ?? slotSet(s);
+    return toPackedSet(set, s.knownMoves, s);
+  });
+  return {
+    packedTeam: PS.Teams.pack(packed) ?? '',
+    packedIndexBySlot,
+    slotByPackedIndex,
   };
-  const ours = obs.ourSide === 'p1' ? battle.p1.pokemon : battle.p2.pokemon;
-  const theirs = obs.ourSide === 'p1' ? battle.p2.pokemon : battle.p1.pokemon;
-  mapSide(ours, obs.ours);
-  mapSide(theirs, obs.theirs);
+}
+
+export function packObservation(obs: BattleObservation, theirOverride?: CanonicalSet[]): [string, string] {
+  const ours = packSide(obs.ours);
+  const theirs = packSide(obs.theirs, theirOverride);
+  return [ours.packedTeam, theirs.packedTeam];
+}
+
+function applyPokemonState(p: AnyPokemon, s: SlotSnapshot): void {
+  if (s.maxHp > 0) {
+    if (s.fainted || s.hp <= 0) {
+      p.hp = 0;
+      p.fainted = true;
+      p.status = 'fnt';
+    } else {
+      p.hp = Math.max(1, Math.round((s.hp / s.maxHp) * p.maxhp));
+      p.fainted = false;
+      p.status = s.status && s.status !== 'fnt' ? s.status : '';
+    }
+  }
+  for (const k of BOOST_KEYS) {
+    p.boosts[k] = s.boosts[k] ?? 0;
+  }
+  if (s.moveSlots?.length && p.moveSlots) {
+    for (const ms of p.moveSlots) {
+      const snap = s.moveSlots.find((x) => toId(x.id) === toId(ms.id));
+      if (!snap) continue;
+      ms.pp = snap.pp;
+      ms.disabled = Boolean(snap.disabled);
+    }
+  }
+  // ponytail: pokemon-showdown@0.11.10 setItem/setAbility require isActive+hp; assign fields. Upgrade: public restore API.
+  if (s.item !== undefined) {
+    if (s.item) p.item = toId(s.item);
+    else {
+      if (p.item) p.lastItem = p.item;
+      p.item = '';
+    }
+  }
+  if (s.ability !== undefined && s.ability) p.ability = toId(s.ability);
+  if (s.terastallized) {
+    const tera = s.teraType || p.teraType || '';
+    if (tera) {
+      // ponytail: pokemon-showdown@0.11.10 has no public Tera restore; BattleActions.terastallize is one-way. Upgrade: pin-tested restore helper.
+      p.teraType = tera;
+      p.terastallized = tera;
+      p.apparentType = tera;
+      p.addedType = '';
+      p.canTerastallize = null;
+    }
+  }
+  if (s.trapped) p.trapped = true;
+}
+
+function applySideState(mons: AnyPokemon[], slots: SlotSnapshot[], layout: SimPartyLayout, teraUsed: boolean): void {
+  for (const s of slots) {
+    const idx = layout.packedIndexBySlot.get(s.slot);
+    if (idx === undefined) continue;
+    const p = mons[idx];
+    if (!p) continue;
+    applyPokemonState(p, s);
+  }
+  if (teraUsed || slots.some((s) => s.terastallized)) {
+    for (const p of mons) p.canTerastallize = null;
+  }
 }
 
 function requireFn(obj: object | undefined, name: string, label: string): (a: string, b?: unknown) => unknown {
