@@ -188,9 +188,7 @@ export function legalActionsForEval(obs: {
   const tera = observationTera(obs);
   const fromReq = enumerateForEval(obs.request as ShowdownRequest | undefined, tera.ours);
   if (fromReq.length) return fromReq;
-  const fromSlots = legalFromSlots(obs.ours, tera.ours);
-  if (fromSlots.length === 1 && fromSlots[0]?.moveId === 'splash') return [];
-  return fromSlots;
+  return legalFromSlots(obs.ours, tera.ours);
 }
 
 export function formatChoice(a: LegalAction): string {
