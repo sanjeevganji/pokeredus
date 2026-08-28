@@ -174,6 +174,8 @@ export interface ChoiceEvaluation {
   sampleCount: number;
   features: ChoiceFeaturesView;
   probability?: number;
+  /** Final belief- and reply-weighted E[D] from our perspective. */
+  expectedUtility?: number;
 }
 
 export interface ReplyEvaluation {

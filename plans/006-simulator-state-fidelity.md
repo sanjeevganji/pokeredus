@@ -1,6 +1,6 @@
 # 006 — Reconstruct faithful simulator state and legal revenge switches
 
-**Status:** TODO  
+**Status:** DONE  
 **Commit:** `b97a334`  
 **Effort:** L  
 **Risk:** High — every later score and rollout depends on this state boundary  
@@ -22,7 +22,7 @@ rollout callers.
 
 ## Current state at `b97a334`
 
-[`packages/engine/src/sim.ts`](../packages/engine/src/sim.ts) packs parties in
+`[packages/engine/src/sim.ts](../packages/engine/src/sim.ts)` packs parties in
 stored slot order and accepts Showdown's default lead:
 
 ```ts
@@ -61,7 +61,7 @@ try {
 }
 ```
 
-[`packages/engine/src/actions.ts`](../packages/engine/src/actions.ts) derives
+`[packages/engine/src/actions.ts](../packages/engine/src/actions.ts)` derives
 slot-based actions without treating a fainted active as a forced switch, then
 falls back to Splash when no action exists:
 
@@ -71,7 +71,7 @@ if (switches.length) return switches;
 return [{ id: 'move:splash', type: 'move', moveId: 'splash' }];
 ```
 
-[`packages/bridge/src/protocol.ts`](../packages/bridge/src/protocol.ts) captures
+`[packages/bridge/src/protocol.ts](../packages/bridge/src/protocol.ts)` captures
 our request PP, but `toObservation` does not put `moveSlots`, `choiceLock`, or
 `trapped` on the emitted slots. It also preserves a consumed item:
 
@@ -84,37 +84,39 @@ case '-enditem': {
 ```
 
 The engine typecheck passes. The combined engine/bridge typecheck fails because
-[`packages/bridge/src/index.ts`](../packages/bridge/src/index.ts) star-exports
+`[packages/bridge/src/index.ts](../packages/bridge/src/index.ts)` star-exports
 two public functions named `toId`, one from `protocol.ts` and one from
 `lobby.ts`.
 
 ## Required invariants
 
 1. `SlotSnapshot.slot` remains the stable external slot identity used by
-   observations, action IDs, UI, logs, and rollouts.
+  observations, action IDs, UI, logs, and rollouts.
 2. The simulation may reorder its private packed party so the observed active
-   is Showdown's lead, but every switch action must be translated through an
+  is Showdown's lead, but every switch action must be translated through an
    explicit external-slot → packed-index map. Never mutate observation slot
    numbers to match a temporary simulator order.
 3. Exactly the observed active is active on each non-terminal side. If the
-   active is fainted, no move is legal and every healthy bench switch is
+  active is fainted, no move is legal and every healthy bench switch is
    `forced: true`, regardless of stale trap/choice-lock flags.
 4. Only revealed, living bench Pokémon may be selected for opponent switches.
-   Unrevealed species remain neutral and unavailable; this plan does not invent
+  Unrevealed species remain neutral and unavailable; this plan does not invent
    them.
 5. `undefined` means an item/ability fact is unknown. An empty item string means
-   it is known to be absent or consumed. Do not refill a known-empty item from
+  it is known to be absent or consumed. Do not refill a known-empty item from
    the assumed set.
 6. Current PP, disabled moves, choice lock, trap state, boosts including
-   accuracy/evasion, status, HP, ability, item, Tera type/state, hazards,
+  accuracy/evasion, status, HP, ability, item, Tera type/state, hazards,
    screens, weather, terrain, and Trick Room survive a reconstruction whenever
    the protocol exposes them.
 7. A cleared field value remains clear after the branch. Missing information
-   may remain unknown; stale information may not be substituted.
+  may remain unknown; stale information may not be substituted.
 8. An illegal Showdown choice is a programming/data error with action IDs and
-   state context. It is never a scored no-op.
+  state context. It is never a scored no-op.
 9. Win/loss remains all-six fainted. A side with unrevealed, non-fainted neutral
-   slots is not terminal.
+  slots is not terminal.
+
+
 
 ## In scope
 
@@ -124,10 +126,12 @@ two public functions named `toId`, one from `protocol.ts` and one from
 - `packages/engine/src/evaluate.ts` only to reject/propagate invalid branches
 - `packages/bridge/src/protocol.ts`
 - `packages/bridge/src/index.ts` and/or `packages/bridge/src/lobby.ts` for the
-  duplicate export
+duplicate export
 - `packages/engine/tests/actions.test.ts`
 - `packages/engine/tests/integration.test.ts` or one focused `sim.test.ts`
 - `packages/cli/tests/protocol.test.ts`
+
+
 
 ## Out of scope
 
@@ -135,31 +139,35 @@ two public functions named `toId`, one from `protocol.ts` and one from
 - Opponent policy weighting and hypothesis aggregation (plan 008).
 - Terminal rollout semantics and cache redesign (plan 009).
 - Doubles, team preview optimization, non-Random-Battle formats, or duplicate
-  species formats.
+species formats.
 - A second damage, speed, or battle-mechanics model.
 - UI changes or a new dependency.
 
+
+
 ## Implementation steps
+
+
 
 ### 1. Add failing state-reconstruction fixtures
 
 Before production changes, add fixtures that fail at `b97a334`:
 
 1. Build an observation whose active is slot 3 while slot 0 is alive. Assert a
-   move is executed by slot 3 and a switch to external slot 1 reaches the
+  move is executed by slot 3 and a switch to external slot 1 reaches the
    correct Pokémon.
 2. Set non-zero accuracy/evasion boosts and assert the cloned Pokémon has them.
 3. Start with rain/terrain, use a clearing move, and assert `afterField` contains
-   empty values rather than the previous values.
+  empty values rather than the previous values.
 4. Give the active one move at 0 PP, one disabled move, and one usable move.
-   Assert only the usable move is legal and PP decreases across a round.
+  Assert only the usable move is legal and PP decreases across a round.
 5. Mark an item consumed and assert the packed/cloned Pokémon has no item.
 6. Mark a Pokémon already Terastallized and assert its current defensive type
-   and one-use legality survive reconstruction.
+  and one-use legality survive reconstruction.
 7. Mark the active fainted with two living revealed bench slots. Assert only
-   two forced switch actions exist and no move/Splash exists.
+  two forced switch actions exist and no move/Splash exists.
 8. Submit an intentionally invalid choice directly to `simulateRound`; assert
-   it throws an error containing both action IDs.
+  it throws an error containing both action IDs.
 
 Keep these deterministic with fixed Showdown seeds. Expected before the fix:
 the active-slot, field-clearing, item, forced-switch, and invalid-choice tests
@@ -182,11 +190,11 @@ For each side:
 
 1. find the single observed active;
 2. order the private packed party as active first, then remaining slots in
-   stable `slot` order;
+  stable `slot` order;
 3. record both mappings;
 4. pack the reordered sets;
 5. translate `switch:<external slot + 1>` through
-   `packedIndexBySlot` before calling Showdown;
+  `packedIndexBySlot` before calling Showdown;
 6. map snapshots back to the original `SlotSnapshot.slot` order.
 
 Reuse the repository's documented Random Battles no-duplicate-species
@@ -227,13 +235,13 @@ In `protocol.ts`:
 - set `SlotSnapshot.moveSlots` for our active and any side where facts exist;
 - carry `RequestActive.trapped` to the active slot;
 - clear a consumed item's current value on `|-enditem|` while retaining enough
-  revealed fact information for belief filtering;
+revealed fact information for belief filtering;
 - carry `terastallized` separately from `teraType`;
 - clear choice lock on switch-out or when a later request explicitly no longer
-  encodes a single locked move; do not infer unlock from move count alone;
+encodes a single locked move; do not infer unlock from move count alone;
 - reset boosts and temporary lock/trap state on switch as Showdown does;
 - decrement only screen/field durations already set by protocol state once per
-  new turn and clear them on explicit end events.
+new turn and clear them on explicit end events.
 
 The protocol does not reveal every duration or trap source. Keep unknown values
 unknown and expose an assumption diagnostic rather than inventing a default or
@@ -305,13 +313,15 @@ Expected:
 - all commands exit 0;
 - a non-zero observed active slot executes its move;
 - external switch slot IDs select the same Pokémon before and after private
-  simulator reordering;
+simulator reordering;
 - a cleared weather/terrain value stays empty;
 - PP, disabled/current item, all boosts, Tera state, lock, and trap facts
-  survive where modeled;
+survive where modeled;
 - a fainted active has forced switches and no moves;
 - invalid choices throw instead of producing a no-op score;
 - the duplicate `toId` TypeScript error is gone.
+
+
 
 ## Drift checks
 
@@ -329,16 +339,18 @@ obsolete implementation step.
 ## Escape hatches
 
 - If pinned Showdown cannot restore active Tera state faithfully through a
-  tested API/internal field, STOP with a minimal two-type damage fixture. Do
-  not approximate Tera damage.
+tested API/internal field, STOP with a minimal two-type damage fixture. Do
+not approximate Tera damage.
 - If private party reordering cannot translate switches without changing
-  external slot identity, STOP with the active-slot fixture. Do not renumber
-  observations.
+external slot identity, STOP with the active-slot fixture. Do not renumber
+observations.
 - If a protocol fact is not observable, record it as unknown. Do not infer a
-  consumed item, exact trap source, or extended screen duration.
+consumed item, exact trap source, or extended screen duration.
 - If a mechanic is lost across `toJSON`/`fromJSON`, disable that
-  counterfactual and report the smallest failing fixture before proceeding to
-  plan 007.
+counterfactual and report the smallest failing fixture before proceeding to
+plan 007.
+
+
 
 ## Maintenance
 

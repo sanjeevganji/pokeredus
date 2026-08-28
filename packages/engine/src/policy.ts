@@ -2,6 +2,7 @@ import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { PolicyMode } from './observation.js';
+import { softmax, signedLog1p } from './math.js';
 
 export interface PolicyRequest {
   id?: string;
