@@ -600,92 +600,90 @@ export function handleSetsApi(opts: {
   }
 }
 
-export function gamesApiPlugin(root: string): Plugin {
-  // ponytail: intercepted TLS on some Windows boxes breaks undici/ws verify. Set NODE_EXTRA_CA_CERTS to drop this.
-  process.env.NODE_TLS_REJECT_UNAUTHORIZED ??= '0';
-  const hub = new GameHub(root);
-  return {
-    name: 'games-api',
-    configureServer(server) {
-      server.middlewares.use(async (req, res, next) => {
-        const url = req.url ?? '';
-        try {
-          if (url === '/api/live' || url.startsWith('/api/live?')) {
-            sendJson(res, hub.readLiveState());
-            return;
-          }
-          if (!url.startsWith('/api/games')) return next();
-          const route = url.split('?')[0] ?? url;
+let hub: GameHub | undefined;
 
-          if (req.method === 'GET' && (route === '/api/games' || route === '/api/games/')) {
-            sendJson(res, hub.snapshot());
-            return;
-          }
-          const sets = parseSetsRoute(route);
-          if (sets) {
-            const body = req.method === 'PUT' ? await readJsonBody(req) : {};
-            const out = handleSetsApi({
-              method: req.method ?? 'GET',
-              format: sets.format,
-              species: sets.species,
-              body,
-              overridesPath: hub.setOverridesPath(),
-              facts: hub.factsForSpecies(sets.species),
-            });
-            sendJson(res, out.body, out.status);
-            return;
-          }
-          if (req.method !== 'POST') return next();
-          const body = await readJsonBody(req);
-          if (route === '/api/games/detect' || route === '/api/games/connect') {
-            sendJson(res, await hub.detect({ format: str(body.format) }));
-            return;
-          }
-          if (route === '/api/games/login') {
-            sendJson(res, await hub.login(String(body.user ?? ''), String(body.pass ?? '')));
-            return;
-          }
-          if (route === '/api/games/logout') {
-            sendJson(res, hub.logout());
-            return;
-          }
-          if (route === '/api/games/settings') {
-            sendJson(res, hub.patchSettings({
-              dryRun: typeof body.dryRun === 'boolean' ? body.dryRun
-                : typeof body.dry_run === 'boolean' ? body.dry_run : undefined,
-            }));
-            return;
-          }
-          if (route === '/api/games/search') {
-            sendJson(res, hub.search(str(body.format) || DEFAULT_FORMAT));
-            return;
-          }
-          if (route === '/api/games/cancel') {
-            sendJson(res, hub.cancelSearch());
-            return;
-          }
-          if (route === '/api/games/attach') {
-            sendJson(res, hub.attach(String(body.room ?? ''), {
-              dryRun: typeof body.dryRun === 'boolean' ? body.dryRun : undefined,
-              policy: str(body.policy),
-            }));
-            return;
-          }
-          if (route === '/api/games/detach') {
-            sendJson(res, hub.detach());
-            return;
-          }
-          if (route === '/api/games/disconnect') {
-            sendJson(res, hub.disconnect());
-            return;
-          }
-          return next();
-        } catch (err) {
-          sendJson(res, { error: err instanceof Error ? err.message : String(err) }, 500);
-        }
+export async function handleGamesRequest(
+  root: string,
+  req: IncomingMessage,
+  res: ServerResponse,
+  next: () => void,
+): Promise<void> {
+  hub ??= new GameHub(root);
+  const url = req.url ?? '';
+  try {
+    if (url === '/api/live' || url.startsWith('/api/live?')) {
+      sendJson(res, hub.readLiveState());
+      return;
+    }
+    if (!url.startsWith('/api/games')) return next();
+    const route = url.split('?')[0] ?? url;
+
+    if (req.method === 'GET' && (route === '/api/games' || route === '/api/games/')) {
+      sendJson(res, hub.snapshot());
+      return;
+    }
+    const sets = parseSetsRoute(route);
+    if (sets) {
+      const body = req.method === 'PUT' ? await readJsonBody(req) : {};
+      const out = handleSetsApi({
+        method: req.method ?? 'GET',
+        format: sets.format,
+        species: sets.species,
+        body,
+        overridesPath: hub.setOverridesPath(),
+        facts: hub.factsForSpecies(sets.species),
       });
-    },
-  };
+      sendJson(res, out.body, out.status);
+      return;
+    }
+    if (req.method !== 'POST') return next();
+    const body = await readJsonBody(req);
+    if (route === '/api/games/detect' || route === '/api/games/connect') {
+      sendJson(res, await hub.detect({ format: str(body.format) }));
+      return;
+    }
+    if (route === '/api/games/login') {
+      sendJson(res, await hub.login(String(body.user ?? ''), String(body.pass ?? '')));
+      return;
+    }
+    if (route === '/api/games/logout') {
+      sendJson(res, hub.logout());
+      return;
+    }
+    if (route === '/api/games/settings') {
+      sendJson(res, hub.patchSettings({
+        dryRun: typeof body.dryRun === 'boolean' ? body.dryRun
+          : typeof body.dry_run === 'boolean' ? body.dry_run : undefined,
+      }));
+      return;
+    }
+    if (route === '/api/games/search') {
+      sendJson(res, hub.search(str(body.format) || DEFAULT_FORMAT));
+      return;
+    }
+    if (route === '/api/games/cancel') {
+      sendJson(res, hub.cancelSearch());
+      return;
+    }
+    if (route === '/api/games/attach') {
+      sendJson(res, hub.attach(String(body.room ?? ''), {
+        dryRun: typeof body.dryRun === 'boolean' ? body.dryRun : undefined,
+        policy: str(body.policy),
+      }));
+      return;
+    }
+    if (route === '/api/games/detach') {
+      sendJson(res, hub.detach());
+      return;
+    }
+    if (route === '/api/games/disconnect') {
+      sendJson(res, hub.disconnect());
+      return;
+    }
+    return next();
+  } catch (err) {
+    sendJson(res, { error: err instanceof Error ? err.message : String(err) }, 500);
+  }
 }
 
 function str(v: unknown): string | undefined {

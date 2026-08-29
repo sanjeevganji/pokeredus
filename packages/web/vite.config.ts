@@ -66,6 +66,33 @@ function teamsApiPlugin(): Plugin {
   };
 }
 
+// Thin wrapper. Engine/Showdown imports live in server/games.ts and load via
+// ssrLoadModule so vite.config itself stays Node-loadable (same as scenarios.ts).
+function gamesApiPlugin(root: string): Plugin {
+  // ponytail: intercepted TLS on some Windows boxes breaks undici/ws verify. Set NODE_EXTRA_CA_CERTS to drop this.
+  process.env.NODE_TLS_REJECT_UNAUTHORIZED ??= '0';
+  return {
+    name: 'games-api',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        const url = req.url ?? '';
+        if (url !== '/api/live' && !url.startsWith('/api/live?') && !url.startsWith('/api/games')) {
+          return next();
+        }
+        const mod = await server.ssrLoadModule('/server/games.ts') as {
+          handleGamesRequest: (
+            root: string,
+            req: IncomingMessage,
+            res: ServerResponse,
+            next: () => void,
+          ) => Promise<void>;
+        };
+        await mod.handleGamesRequest(root, req, res, next);
+      });
+    },
+  };
+}
+
 function clientNodeStubs(): Plugin {
   const stubs: Record<string, string> = {
     'node:fs': path.resolve(__dirname, 'src/stubs/fs.ts'),
