@@ -1,10 +1,9 @@
 // Dev-server hub: detect Showdown games and attach the live CLI.
-// Runs only inside Vite's Node process — not in the browser bundle.
+// Loaded via ssrLoadModule from vite.config — do not import this file from the Vite config.
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { spawn, type ChildProcess } from 'node:child_process';
 import fs from 'node:fs';
 import path from 'node:path';
-import type { Plugin } from 'vite';
 import { LobbyClient } from './lobby-client';
 import {
   applyBattleMeta,
