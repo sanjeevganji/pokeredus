@@ -1,142 +1,72 @@
 # Implementation plans
 
-Advisor index from `/improve`. Executors pick the next TODO in order, run its
-done criteria, and update both the plan and this index.
+Advisor index from `/improve`. Battle evaluation 001–009 is shipped. Do not
+reopen those findings. New work starts at **010**.
 
-Current overhaul plans were written against commit `b97a334`.
-
-## Recommended order
-
-1. [006-simulator-state-fidelity.md](006-simulator-state-fidelity.md) — make
-   counterfactual state and forced revenge switches trustworthy.
-2. [007-normalized-move-valuation.md](007-normalized-move-valuation.md) —
-   replace mixed score units and connect the existing move-reordering input to
-   bounded, persisted human-correction learning.
-3. [008-two-sided-round-policy.md](008-two-sided-round-policy.md) — preserve set
-   belief mass and weight both actors adversarially over every legal pair.
-4. [009-realized-terminal-rollouts.md](009-realized-terminal-rollouts.md) —
-   accumulate realized pair deltas, freeze sampled beliefs, and stop at honest
-   hidden-team frontiers.
-
-Dependency graph:
+## Shipped (001–009)
 
 ```text
-001 theater (DONE)
-002 scoring foundation (PARTIAL; superseded remainder)
-003 set overrides (DONE) ──────────────┐
-                                       v
-006 simulator fidelity -> 007 valuation/learning -> 008 round policy -> 009 rollouts
-
-004 rollout foundation (PARTIAL; superseded remainder by 006/008/009)
-005 live forecast UI (DONE)
+001 theater ──► 002 scoring (partial; remainder → 006–008)
+                003 set overrides ──┐
+004 rollouts (partial; remainder → 006/008/009)
+005 live forecast UI                │
+                                    v
+006 sim fidelity → 007 valuation/learning → 008 round policy → 009 rollouts
 ```
 
-## Status
+| Plan | Shipped |
+| --- | --- |
+| 001 theater | Full-page `/games/live` |
+| 002 scoring | Field/Tera telemetry; remainder in 006–008 |
+| 003 set overrides | Validated store, protocol, API, drawer |
+| 004 rollouts | Loop/cache/Wilson/QAOA; remainder in 006/008/009 |
+| 005 live forecast UI | Versioned points, graph, meters, set drawer |
+| 006 sim fidelity | Observed active, PP/item/boosts/Tera, forced revenge, illegal choices throw |
+| 007 valuation | CTA/CTS × weighted features, effect JSON, Scenario weight learning |
+| 008 round policy | Belief-correct two-sided QAOA over every legal pair |
+| 009 rollouts | Realized pair deltas, frozen worlds, `unknown-frontier`; `--forecast` opt-in |
 
-| Plan | Current result | Status |
-| --- | --- | --- |
-| 001-pokelink-battle-theater | Full-page battle theater exists | DONE |
-| 002-correct-battle-scoring | Field/Tera telemetry and ranges were implemented; active-state fidelity, normalized valuation, and policy semantics remain | PARTIAL — remainder superseded by 006–008 |
-| 003-discovered-set-overrides | Validated store, protocol application, API, provenance, and drawer exist; 35 focused tests pass | DONE |
-| 004-terminal-qaoa-rollouts | Rollout loop, cache, Wilson intervals, QAOA calls, and progress exist; remainder superseded by 006/008/009 | PARTIAL — remainder superseded by 006, 008, 009 |
-| 005-live-forecast-ui | Versioned points, cumulative/expected graph, log policy meters, choice rows, set drawer, quiet polling, and v1 compatibility | DONE |
-| 006-simulator-state-fidelity | Faithful active/state reconstruction and legal revenge switches | TODO |
-| 007-normalized-move-valuation | Normalized CTA/CTS valuation, editable effect values, and human reordering learning | TODO |
-| 008-two-sided-round-policy | Belief-correct adversarial policies over every legal pair | DONE |
-| 009-realized-terminal-rollouts | Realized pair-delta rollouts, frozen worlds, unknown-frontier, +1/-1 terminals; live forecast opt-in (`--forecast`) | DONE |
+## Contracts (do not regress)
 
-## Decided contracts
+Authoritative code: `packages/engine/src/{sim,actions,evaluate,math,weights,effect-valuation,scenario,policy}.ts`,
+`packages/bridge/src/protocol.ts`, `packages/web/server/scenario-handlers.ts`.
+Product formulas: [README.md](../README.md).
 
-- The official pinned Showdown simulator remains the mechanics authority.
-- Move/round deltas use our perspective and are bounded to `[-1,+1]`.
-- CTA and CTS are computed success probabilities multiplying conditional value
-  exactly once.
-- Modifier composition uses summed logs:
-  `product(multiplier^(probability × expectedTurns))`.
-- Health and modifier value remain separate so setup at full HP retains value.
-- Existing `pokeredus/data/effects/{moves,abilities,items}.json` files are the
-  editable future-valuation source. They do not reimplement mechanics.
-- The existing Scenario drag/keyboard move ordering is the human correction
-  input. Corrections update bounded score weights, persist atomically, affect
-  reevaluation/live policy, and can be reset. No autonomous ML framework is
-  added.
-- Both sides use actor-positive policy inputs. Opponent utility is the negative
-  of our pair delta.
-- Set hypothesis availability and manual overrides remain explicit through
-  policy calculation.
-- QAOA transforms classical action scores into policy mass. It is not a battle
-  simulator, calibrated confidence, or win probability.
-- Terminal win/loss is reserved for all-six elimination. Unrevealed species
-  produce an `unknown-frontier`, not a fabricated Smeargle/copy battle.
-- Forecasting runs outside the live send critical path and may publish partial
-  results.
+- Showdown is the mechanics authority. Effect JSON is valuation-only.
+- `SlotSnapshot.slot` is the public identity. Simulator packed indices stay private.
+- Empty item `""` is known-absent; `undefined` is unknown. Do not refill known-empty.
+- Forced revenge = fainted/missing active: no moves, living revealed bench only.
+- Illegal Showdown choices throw (action IDs + state). Never score a swallowed no-op.
+- Deltas are our-perspective, clamped `[-1,+1]`. CTA/CTS multiply conditional value once.
+- Log modifiers sum; a `1×` term does not dilute. Health and modifier stay separate in **policy** features (`scoreRealizedPair`). HUD `observationStateScore` is a mixed diagnostic — do not feed it into QAOA or rollouts.
+- Both sides use actor-positive features. Opponent utility is `-D`. Separate side transforms; no 32-pair joint cap.
+- Manual set override is the simulation assumption (mass 1). Public hyps stay for display.
+- QAOA is policy mass, not confidence or win probability. `availability` is hyp-legal mass.
+- Terminal `+1/−1` is all-six KO only. Hidden species → `unknown-frontier`, never Smeargle/copy.
+- Scenario reorder is the human learner: bounded `score-weights.json`, atomic save, reset exists.
+- Forecast is off the live send path (`--forecast`). Partial results are allowed.
 
-## Verification baseline at `b97a334`
+## Verification
 
-Run on August 28, 2026 before writing plans:
-
-```text
-npx vitest run packages/engine/tests/math.test.ts packages/engine/tests/actions.test.ts packages/engine/tests/integration.test.ts packages/engine/tests/scenario.test.ts packages/engine/tests/weights.test.ts
-  5 files, 44 tests
-  43 passed
-  1 failed: integration forecast expected "complete", received "partial"
-  Cause observed: real QAOA exceeded the default 10-second forecast budget.
-
-npm run typecheck --workspace @pokeredus/engine --workspace @pokeredus/bridge
-  engine passed
-  bridge failed: src/index.ts duplicate star-export "toId"
-
-npx vitest run packages/engine/tests/set-overrides.test.ts packages/cli/tests/protocol.test.ts packages/cli/tests/games-sets.test.ts packages/cli/tests/live-state.test.ts
-  4 files, 35 tests passed
+```bash
+npx vitest run packages/engine/tests/actions.test.ts packages/engine/tests/sim.test.ts packages/engine/tests/math.test.ts packages/engine/tests/weights.test.ts packages/engine/tests/effect-valuation.test.ts packages/engine/tests/integration.test.ts packages/engine/tests/scenario.test.ts packages/engine/tests/policy.test.ts packages/engine/tests/set-overrides.test.ts packages/web/server/scenario-rank.test.ts packages/cli/tests/protocol.test.ts packages/cli/tests/games-sets.test.ts packages/cli/tests/live-state.test.ts
+npm run typecheck --workspace @pokeredus/engine --workspace @pokeredus/bridge --workspace @pokeredus/web
 ```
 
-Plan 006 repairs the bridge typecheck baseline. Plan 009 removes hardware-speed
-dependence from functional tests while retaining the real-QAOA benchmark.
+Expect exit 0. Functional forecast tests inject softmax/fake clock; do not gate on real-QAOA wall time.
 
-## Considered and rejected
+## Next work (unplanned)
 
-- A second damage/speed model — Showdown already owns mechanics.
-- Metadata for ordinary mechanics — editable data is valuation-only.
-- Applying both sampled effect chance and metadata probability — double counts
-  chance (for example, 30% becomes 9%).
-- New training framework or correction database — persisted bounded weights
-  and saved Scenario rankings already provide the required human-learning
-  boundary.
-- Learning automatically from wins/losses — no clean human label and outside
-  the requested correction workflow.
-- Separate opponent score weights — one actor-perspective value model is easier
-  to correct and test.
-- Capped joint-QAOA reconstruction — drops/warps legal action and hypothesis
-  mass; separate side transforms represent every legal action.
-- Exact exhaustive battle search — branching grows exponentially.
-- Inventing hidden species from public data — public candidates do not reveal
-  the unrevealed team.
-- Blocking a sent move on terminal forecasting — unsafe at current QAOA
-  latency.
-- Calling policy mass confidence — empirical rollout intervals provide the
-  statistical statement.
-- UI redesign or new dependencies — existing Scenario and live controls are
-  sufficient.
+Number from **010**. Match the contracts above. Candidates, not tickets:
 
-## Scope not audited
+1. Forecast budget — stratified real QAOA still exceeds the default 10s cycle; keep `--forecast` opt-in until a cycle completes without hanging send.
+2. Doubles / non-Random-Battle — protocol and packing are singles + no-duplicate-species.
+3. Valuation coverage — fill `pokeredus/data/effects/*.json` `valuation` objects; unvalued IDs stay neutral + diagnostic. Do not reimplement mechanics.
+4. Team-builder / KG — out of battle-eval scope unless it shares effect JSON.
 
-- Knowledge-graph/team-builder behavior unrelated to reusable effect JSON.
-- Full repository security/dependency posture.
-- Production deployment beyond the current local Vite/CLI architecture.
-- Doubles and non-Random-Battle formats.
-- Exact strategy quality of every individual valuation constant; the plans
-  provide an editable and correctable model rather than claiming universal
-  constants.
+Rejected (do not plan again): second damage model, metadata for ordinary mechanics, double-counting chance, ML training framework, learning from W/L, separate opponent weights, capped joint-QAOA, exhaustive search, inventing hidden species, blocking send on forecast, calling policy mass “confidence”, UI redesign, new deps.
 
-## Drift and maintenance
+## Maintenance
 
-- Before executing against a commit newer than `b97a334`, re-read every file in
-  that plan's Current state section and update stale excerpts/assumptions.
-- Do not reopen completed portions of 002–005. New work belongs to 006–009
-  unless a compatibility consumer in an older plan must be migrated.
-- Update status only after all focused tests, relevant typechecks, and explicit
-  done criteria pass.
-- If a plan is blocked or intentionally skipped, record the reason and smallest
-  failing fixture here.
-- Keep numbering monotonic. Do not create another plan for the same unresolved
-  scoring/forecast findings.
+- Keep numbering monotonic. Status changes only after focused tests + typecheck.
+- Reviewers should reject: swallowed illegal choices, stale field fallback, packed indices in public IDs, TTK in normalized utility, probability applied twice, silent rank-ID filtering, Smeargle/copy terminals, caller-specific legality forks.
