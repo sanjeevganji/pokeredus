@@ -1,3 +1,0 @@
-{"sessionId":"246bd1","runId":"post-fix","hypothesisId":"D","location":"evaluate.ts:evaluateRound","message":"evaluateRound start","data":{"turn":5,"legal":12,"fromObs":12,"wait":false,"ourActive":"talonflame","theirActive":"houndstone","setMoves":4},"timestamp":1787835528923}
-{"sessionId":"246bd1","runId":"post-fix","hypothesisId":"D","location":"cli.ts:runDecide","message":"eval starting","data":{"send":false,"canSend":true,"turn":5,"legal":12,"dryRun":true},"timestamp":1787835528920}
-{"sessionId":"246bd1","runId":"post-fix","hypothesisId":"D","location":"cli.ts:runDecide","message":"eval ok","data":{"sampledId":"move:swordsdance:tera","choices":12,"replies":15,"roundScore":-0.029694932301150983},"timestamp":1787835532227}
